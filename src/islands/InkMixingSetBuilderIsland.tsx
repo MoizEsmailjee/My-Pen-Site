@@ -7,6 +7,7 @@ import {
   Product,
   ProductVariant,
 } from '../data/products';
+import { resolveAssetUrl } from '../utils/assetResolver';
 
 interface InkMixingSetBuilderIslandProps {
   onAddInkMixingSetToCart: (
@@ -342,7 +343,9 @@ export function InkMixingSetBuilderIsland({
                       {/* Bottle / Swatch Image */}
                       <div className="relative aspect-square w-full bg-white rounded border border-[#ECE8DF] p-3 flex items-center justify-center mb-3 overflow-hidden">
                         <img
-                          src={showSwatchPreview ? shade.swatchImage : shade.image}
+                          src={resolveAssetUrl(
+                            showSwatchPreview ? shade.swatchImage : shade.image
+                          )}
                           alt={`${shade.name} 50ml Iroshizuku Ink`}
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-contain"

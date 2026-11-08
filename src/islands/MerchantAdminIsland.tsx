@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Product, ProductVariant } from '../data/products';
 import { OrderStatus } from '../App';
+import { resolveAssetUrl } from '../utils/assetResolver';
 
 export interface StoreSettings {
   inkMixingSetBundleKes: number;
@@ -397,7 +398,7 @@ export function MerchantAdminIsland({
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
                             <img
-                              src={product.image}
+                              src={resolveAssetUrl(product.image)}
                               alt={product.name}
                               referrerPolicy="no-referrer"
                               className="w-14 h-14 rounded object-contain bg-white border border-[#E6E1D8] p-1 shrink-0"

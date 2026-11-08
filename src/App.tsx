@@ -48,6 +48,7 @@ import {
   ProductReviewRecord,
   StarRatingDisplay,
 } from './islands/CustomerReviewsIsland';
+import { resolveAssetUrl } from './utils/assetResolver';
 import {
   auth,
   db,
@@ -283,8 +284,13 @@ function ResilientImage({
   fallbackTitle: string;
 }) {
   const [failed, setFailed] = useState(false);
+  const resolvedSrc = resolveAssetUrl(src);
 
-  if (failed) {
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (failed || !resolvedSrc) {
     return (
       <div
         className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#F2EFE9] to-[#E5DFD3] text-[#3F3D39] p-6 text-center ${className}`}
@@ -300,7 +306,7 @@ function ResilientImage({
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
@@ -327,7 +333,7 @@ function BrandLogoLockup({
   return (
     <div className={`relative overflow-hidden select-none shrink-0 ${dimensions}`}>
       <img
-        src={BRAND_LOGO_SRC}
+        src={resolveAssetUrl(BRAND_LOGO_SRC)}
         alt="PENS R US — The Pen Specialists"
         referrerPolicy="no-referrer"
         style={{
@@ -2204,7 +2210,9 @@ export default function App() {
                                   className="flex items-center gap-2.5 min-w-0 text-left flex-1 cursor-pointer"
                                 >
                                   <img
-                                    src={match.matchedVariant.image || match.product.image}
+                                    src={resolveAssetUrl(
+                                      match.matchedVariant.image || match.product.image
+                                    )}
                                     alt={match.product.name}
                                     referrerPolicy="no-referrer"
                                     className="w-10 h-10 rounded object-contain bg-white border border-[#ECE8DF] shrink-0"
@@ -2413,7 +2421,7 @@ export default function App() {
             <div className="lg:col-span-6 flex">
               <div className="relative w-full overflow-hidden rounded-lg border border-[#E6E1D8] bg-[#F1EDE4]">
                 <ResilientImage
-                  src="/src/assets/images/hero_pilot_fountain_pen_1794023542555.jpg"
+                  src="/assets/images/hero_pilot_fountain_pen_1794023542555.jpg"
                   alt="Japanese Pilot fountain pen resting beside a cut-glass bottle of Pilot Iroshizuku Tsuki-yo ink on cream Japanese washi paper"
                   fallbackTitle="Pilot Custom & Iroshizuku Tsuki-yo"
                   className="w-full h-full min-h-[340px] lg:h-full object-cover"
@@ -2838,7 +2846,7 @@ export default function App() {
                                   }`}
                                 >
                                   <img
-                                    src={imgItem.src}
+                                    src={resolveAssetUrl(imgItem.src)}
                                     alt={imgItem.caption}
                                     referrerPolicy="no-referrer"
                                     className="w-full h-full object-contain"
@@ -3924,7 +3932,7 @@ export default function App() {
                                     }`}
                                   >
                                     <img
-                                      src={imgItem.src}
+                                      src={resolveAssetUrl(imgItem.src)}
                                       alt={imgItem.caption}
                                       referrerPolicy="no-referrer"
                                       className="w-full h-full object-contain"
@@ -4472,7 +4480,7 @@ export default function App() {
                             <div
                               className="pointer-events-none absolute inset-0 bg-white z-10 hidden sm:block"
                               style={{
-                                backgroundImage: `url(${activeCardImg})`,
+                                backgroundImage: `url(${resolveAssetUrl(activeCardImg)})`,
                                 backgroundRepeat: 'no-repeat',
                                 backgroundSize: '225%',
                                 backgroundPosition: `${hoveredInkZoom.x}% ${hoveredInkZoom.y}%`,
@@ -4985,7 +4993,7 @@ export default function App() {
                           }`}
                         >
                           <img
-                            src={shade.image}
+                            src={resolveAssetUrl(shade.image)}
                             alt={shade.name}
                             referrerPolicy="no-referrer"
                             className="w-8 h-8 object-contain rounded bg-white border border-[#E6E1D8] shrink-0"
@@ -5042,7 +5050,7 @@ export default function App() {
                 <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-[#E6E1D8]">
                   <div className="flex items-center gap-3">
                     <img
-                      src={activeStudioInk.image}
+                      src={resolveAssetUrl(activeStudioInk.image)}
                       alt={activeStudioInk.name}
                       referrerPolicy="no-referrer"
                       className="w-12 h-12 object-contain rounded border border-[#E6E1D8] bg-white p-1 shrink-0"
@@ -5159,7 +5167,7 @@ export default function App() {
               <div className="lg:col-span-6 flex">
                 <div className="w-full overflow-hidden rounded-lg border border-white/15 bg-[#22201D]">
                   <ResilientImage
-                    src="/src/assets/images/japanese_nib_craftsmanship_1794023548186.jpg"
+                    src="/assets/images/japanese_nib_craftsmanship_1794023548186.jpg"
                     alt="Macro close-up of an engraved Japanese fountain pen nib gliding across textured cotton paper with deep indigo ink"
                     fallbackTitle="Japanese Nib Craftsmanship"
                     className="w-full h-full min-h-[320px] lg:h-full object-cover"
@@ -5529,7 +5537,7 @@ export default function App() {
                               }`}
                             >
                               <img
-                                src={imgItem.src}
+                                src={resolveAssetUrl(imgItem.src)}
                                 alt={imgItem.caption}
                                 referrerPolicy="no-referrer"
                                 className="w-full h-full object-contain"
@@ -6957,7 +6965,7 @@ export default function App() {
 
                 return (
                   <img
-                    src={activeSrc}
+                    src={resolveAssetUrl(activeSrc)}
                     alt={zoomModal.title}
                     referrerPolicy="no-referrer"
                     style={{

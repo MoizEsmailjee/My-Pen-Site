@@ -9,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import { NibOption, Product, ProductVariant } from '../data/products';
+import { resolveAssetUrl } from '../utils/assetResolver';
 
 interface QuickBuyModalIslandProps {
   product: Product | null;
@@ -154,7 +155,7 @@ export function QuickBuyModalIsland({
           <div className="sm:col-span-5 flex flex-col gap-3">
             <div className="relative aspect-square w-full bg-white rounded border border-[#E6E1D8] p-4 flex items-center justify-center">
               <img
-                src={displayedImage}
+                src={resolveAssetUrl(displayedImage)}
                 alt={`${product.name} — ${chosenVariant.label}`}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-contain"

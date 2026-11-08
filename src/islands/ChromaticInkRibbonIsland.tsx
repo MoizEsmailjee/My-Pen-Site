@@ -8,6 +8,7 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { INK_STUDIO_SHADES, InkShadeOption } from '../data/products';
+import { resolveAssetUrl } from '../utils/assetResolver';
 
 interface ChromaticInkRibbonIslandProps {
   justAddedKey: string | null;
@@ -165,7 +166,7 @@ export function ChromaticInkRibbonIsland({
             className="aspect-square w-full flex items-center justify-center p-4 cursor-zoom-in group"
           >
             <img
-              src={activeShade.image}
+              src={resolveAssetUrl(activeShade.image)}
               alt={`Pilot Iroshizuku ${activeShade.name} 50ml Bottle`}
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.03]"
@@ -212,7 +213,7 @@ export function ChromaticInkRibbonIsland({
             className="aspect-square w-full flex items-center justify-center p-4 cursor-zoom-in group"
           >
             <img
-              src={activeShade.swatchImage}
+              src={resolveAssetUrl(activeShade.swatchImage)}
               alt={`Pilot Iroshizuku ${activeShade.name} Handwritten Swatch Card`}
               referrerPolicy="no-referrer"
               className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.03]"
