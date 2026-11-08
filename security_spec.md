@@ -15,3 +15,7 @@
 - **Collection `/store_settings/{settingId}`**:
   - **Read (`get`, `list`)**: Public read access for bundle pricing and delivery thresholds.
   - **Write (`create`, `update`)**: Restricted to `isAdmin()` with strict numeric validation.
+- **Collection `/reviews/{reviewId}`**:
+  - **Read (`get`, `list`)**: Public read access so all shoppers can read customer star ratings and reviews for each product.
+  - **Create (`create`)**: Restricted to authenticated users where `request.resource.data.userId == request.auth.uid` and `isValidReview(request.resource.data)` holds (`rating` 1..5, bounded strings).
+  - **Update / Delete (`update`, `delete`)**: Restricted to the review author (`resource.data.userId == request.auth.uid`) or `isAdmin()`, with immutable `userId`, `productId`, and `createdAt`.

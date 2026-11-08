@@ -44,6 +44,11 @@ import { InkMixingSetBuilderIsland } from './islands/InkMixingSetBuilderIsland';
 import { QuickBuyModalIsland } from './islands/QuickBuyModalIsland';
 import { MerchantAdminIsland, StoreSettings } from './islands/MerchantAdminIsland';
 import {
+  CustomerReviewsIsland,
+  ProductReviewRecord,
+  StarRatingDisplay,
+} from './islands/CustomerReviewsIsland';
+import {
   auth,
   db,
   signInWithGooglePopup,
@@ -92,6 +97,101 @@ const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v1';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
 const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v1';
 const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v1';
+const REVIEWS_STORAGE_KEY = 'pens_r_us_reviews_v1';
+
+const DEFAULT_SEED_REVIEWS: ProductReviewRecord[] = [
+  {
+    id: 'seed-rev-prera-1',
+    productId: 'pilot-prera',
+    userId: 'seed-collector-1',
+    authorName: 'Dr. Kamau Njoroge',
+    authorLocation: 'Karen, Nairobi',
+    variantLabel: 'Empress Teal · Medium Nib',
+    rating: 5,
+    comment:
+      'The magnetic-feel slip cap click on the Pilot Prera is addictive, and the Empress Teal acrylic looks stunning on my desk. Having the CON-40 converter included in the box made filling with Iroshizuku Ku-jaku effortless.',
+    timestamp: '02 Nov · Verified Purchase',
+    createdAt: Date.now() - 86400000 * 5,
+  },
+  {
+    id: 'seed-rev-prera-2',
+    productId: 'pilot-prera',
+    userId: 'seed-collector-2',
+    authorName: 'Zainab Hassan',
+    authorLocation: 'Nyali, Mombasa',
+    variantLabel: 'Cinnamon Brown · Fine Nib',
+    rating: 5,
+    comment:
+      'Compact when capped and perfectly balanced when posted. The Japanese Fine nib writes razor-sharp notes in my planner with zero feathering.',
+    timestamp: '26 Oct · Verified Purchase',
+    createdAt: Date.now() - 86400000 * 12,
+  },
+  {
+    id: 'seed-rev-madoromi-1',
+    productId: 'pilot-kakuno-madoromi',
+    userId: 'seed-collector-3',
+    authorName: 'Amina Ochieng',
+    authorLocation: 'Kilimani, Nairobi',
+    variantLabel: 'Madoromi Ivory · Medium Nib',
+    rating: 5,
+    comment:
+      'The gold-tone smiling nib on the Madoromi Ivory is so smooth and joyful to write with. Same-day courier arrived in Kilimani in under 3 hours!',
+    timestamp: '04 Nov · Verified Purchase',
+    createdAt: Date.now() - 86400000 * 3,
+  },
+  {
+    id: 'seed-rev-family-1',
+    productId: 'pilot-kakuno-family',
+    userId: 'seed-collector-4',
+    authorName: 'Peter Mutua',
+    authorLocation: 'Westlands, Nairobi',
+    variantLabel: 'Kakuno Papa (Blue) · Fine Nib',
+    rating: 5,
+    comment:
+      'Bought the Papa Blue and Mama Red for daily journaling. The hexagonal grip naturally aligns your fingers and the Fine nib glides effortlessly.',
+    timestamp: '29 Oct · Verified Purchase',
+    createdAt: Date.now() - 86400000 * 9,
+  },
+  {
+    id: 'seed-rev-iroshizuku-1',
+    productId: 'pilot-iroshizuku-ink',
+    userId: 'seed-collector-5',
+    authorName: 'Wanjiku Mwangi',
+    authorLocation: 'Westlands, Nairobi',
+    variantLabel: 'Yama-budo & Ama-iro (50ml)',
+    rating: 5,
+    comment:
+      'Nothing compares to Pilot Iroshizuku ink flow and shading. The heavy faceted 50ml glass bottle with the internal dip reservoir is a work of art.',
+    timestamp: '01 Nov · Verified Purchase',
+    createdAt: Date.now() - 86400000 * 6,
+  },
+  {
+    id: 'seed-rev-con40-1',
+    productId: 'pilot-con-40',
+    userId: 'seed-collector-6',
+    authorName: 'Brian Kiprop',
+    authorLocation: 'Eldoret',
+    variantLabel: 'CON-40 Twist Converter (69810)',
+    rating: 5,
+    comment:
+      'Essential upgrade for my Kakuno Madoromi. The four tiny stainless steel agitator beads keep saturated inks flowing without ever skipping.',
+    timestamp: '21 Oct · Verified Purchase',
+    createdAt: Date.now() - 86400000 * 17,
+  },
+  {
+    id: 'seed-rev-waterman-1',
+    productId: 'waterman-ink-bottle',
+    userId: 'seed-collector-7',
+    authorName: 'Grace Wambui',
+    authorLocation: 'CBD, Nairobi',
+    variantLabel: 'Serenity Blue (50ml)',
+    rating: 5,
+    comment:
+      'Waterman Serenity Blue is my benchmark office ink—well-behaved on every Kenyan office paper and the angled bottle facets make filling so easy.',
+    timestamp: '25 Oct · Verified Purchase',
+    createdAt: Date.now() - 86400000 * 13,
+  },
+];
 
 interface MemberProfile {
   uid: string;
@@ -275,6 +375,79 @@ export default function App() {
 
   const [isMerchantAdminOpen, setIsMerchantAdminOpen] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
+
+  // Customer Reviews State (Local + Real-Time Firestore /reviews Sync)
+  const [localReviews, setLocalReviews] = useState<ProductReviewRecord[]>(() => {
+    try {
+      const saved = window.localStorage.getItem(REVIEWS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Fallback to default seed reviews
+    }
+    return DEFAULT_SEED_REVIEWS;
+  });
+  const [firestoreReviews, setFirestoreReviews] = useState<ProductReviewRecord[]>([]);
+  const [expandedCardReviews, setExpandedCardReviews] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(localReviews));
+    } catch {
+      // Ignore storage quota error
+    }
+  }, [localReviews]);
+
+  // Real-time Firestore listener for /reviews collection
+  useEffect(() => {
+    const reviewsPath = 'reviews';
+    const unsubscribe = onSnapshot(
+      collection(db, reviewsPath),
+      (snapshot) => {
+        const fetched: ProductReviewRecord[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            productId: String(data.productId || ''),
+            userId: String(data.userId || ''),
+            authorName: String(data.authorName || 'Atelier Collector'),
+            authorLocation: data.authorLocation ? String(data.authorLocation) : undefined,
+            variantLabel: data.variantLabel ? String(data.variantLabel) : undefined,
+            rating: Number(data.rating) || 5,
+            comment: String(data.comment || ''),
+            timestamp: String(data.timestamp || 'Verified Collector'),
+            createdAt: Number(data.createdAt) || 0,
+          };
+        });
+        setFirestoreReviews(fetched);
+      },
+      (error) => {
+        try {
+          handleFirestoreError(error, OperationType.LIST, reviewsPath);
+        } catch {
+          // Structured error logged
+        }
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Combined deduplicated reviews across Firestore and seeded/local reviews
+  const allProductReviews = useMemo(() => {
+    const map = new Map<string, ProductReviewRecord>();
+    for (const rev of firestoreReviews) {
+      map.set(`${rev.productId}::${rev.authorName}::${rev.comment}`, rev);
+    }
+    for (const rev of localReviews) {
+      const key = `${rev.productId}::${rev.authorName}::${rev.comment}`;
+      if (!map.has(key)) {
+        map.set(key, rev);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+  }, [firestoreReviews, localReviews]);
 
   useEffect(() => {
     try {
@@ -1739,6 +1912,114 @@ export default function App() {
     }
   };
 
+  const handleSubmitProductReview = async ({
+    productId,
+    rating,
+    comment,
+    variantLabel,
+    authorLocation,
+  }: {
+    productId: string;
+    rating: number;
+    comment: string;
+    variantLabel: string;
+    authorLocation: string;
+  }) => {
+    const nowStr =
+      new Date().toLocaleDateString('en-KE', {
+        day: '2-digit',
+        month: 'short',
+      }) + ' · Verified Collector';
+    const createdAtMs = Date.now();
+    const authorName =
+      firebaseUser?.displayName ||
+      memberProfile?.name ||
+      customerName.trim() ||
+      'Atelier Collector';
+    const userId =
+      firebaseUser?.uid || memberProfile?.uid || `local-${createdAtMs}`;
+
+    const newLocalReview: ProductReviewRecord = {
+      id: `local-rev-${createdAtMs}`,
+      productId,
+      userId,
+      authorName: authorName.slice(0, 100),
+      authorLocation: authorLocation.slice(0, 100),
+      variantLabel: variantLabel.slice(0, 140),
+      rating: Math.min(5, Math.max(1, Math.round(rating))),
+      comment: comment.slice(0, 600),
+      timestamp: nowStr,
+      createdAt: createdAtMs,
+    };
+
+    setLocalReviews((prev) => [newLocalReview, ...prev]);
+
+    if (auth.currentUser) {
+      const firestorePayload = {
+        productId: newLocalReview.productId,
+        userId: auth.currentUser.uid,
+        authorName: newLocalReview.authorName,
+        authorLocation: newLocalReview.authorLocation || 'Nairobi, Kenya',
+        variantLabel: newLocalReview.variantLabel || '',
+        rating: newLocalReview.rating,
+        comment: newLocalReview.comment,
+        timestamp: newLocalReview.timestamp,
+        createdAt: createdAtMs,
+      };
+      try {
+        await addDoc(collection(db, 'reviews'), firestorePayload);
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.CREATE, 'reviews');
+        } catch {
+          // Structured error logged
+        }
+      }
+    }
+  };
+
+  const handleDeleteProductReview = async (review: ProductReviewRecord) => {
+    setLocalReviews((prev) =>
+      prev.filter(
+        (r) =>
+          r.id !== review.id &&
+          !(
+            r.productId === review.productId &&
+            r.authorName === review.authorName &&
+            r.comment === review.comment
+          )
+      )
+    );
+    if (
+      auth.currentUser &&
+      review.id &&
+      !review.id.startsWith('local-rev-') &&
+      !review.id.startsWith('seed-rev-')
+    ) {
+      const docPath = `reviews/${review.id}`;
+      try {
+        await deleteDoc(doc(db, 'reviews', review.id));
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.DELETE, docPath);
+        } catch {
+          // Structured error logged
+        }
+      }
+    }
+  };
+
+  const handleQuickMemberSignInForReviews = (name: string, contact: string) => {
+    const profile: MemberProfile = {
+      uid: `member-${contact.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      name,
+      emailOrPhone: contact,
+      authMode: 'member',
+    };
+    setMemberProfile(profile);
+    if (!customerName) setCustomerName(name);
+  };
+
   const activeStudioInk =
     INK_STUDIO_SHADES.find((s) => s.id === studioInkId) || INK_STUDIO_SHADES[0];
   const activeStudioPen =
@@ -2626,6 +2907,45 @@ export default function App() {
 
                         <p className="text-xs text-[#6E6A63] mt-0.5">{product.japaneseTitle}</p>
 
+                        {/* Star Rating & Review Count Summary Line */}
+                        {(() => {
+                          const prodRevs = allProductReviews.filter(
+                            (r) => r.productId === product.id
+                          );
+                          const avg =
+                            prodRevs.length > 0
+                              ? prodRevs.reduce((acc, r) => acc + r.rating, 0) /
+                                prodRevs.length
+                              : 5.0;
+                          const isReviewsOpen = expandedCardReviews[product.id] ?? false;
+                          return (
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <StarRatingDisplay rating={avg} size="xs" />
+                                <span className="font-mono-tabular text-xs font-semibold text-[#0A2246]">
+                                  {avg.toFixed(1)}
+                                </span>
+                                <span className="text-xs text-[#6E6A63]">
+                                  · {prodRevs.length}{' '}
+                                  {prodRevs.length === 1 ? 'Review' : 'Reviews'}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedCardReviews((prev) => ({
+                                    ...prev,
+                                    [product.id]: !prev[product.id],
+                                  }))
+                                }
+                                className="text-xs font-semibold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 cursor-pointer whitespace-nowrap"
+                              >
+                                {isReviewsOpen ? 'Hide Reviews' : 'Rate & Review'}
+                              </button>
+                            </div>
+                          );
+                        })()}
+
                         <p className="text-sm text-[#4A4742] mt-3 leading-relaxed">
                           {product.shortSummary}
                         </p>
@@ -2830,9 +3150,33 @@ export default function App() {
                           className="inline-flex items-center justify-center gap-1.5 py-2 px-3.5 text-xs font-medium rounded border border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>Full Details</span>
+                          <span>Full Details &amp; Reviews</span>
                         </button>
                       </div>
+
+                      {/* Expandable Customer Reviews Component directly on Product Card */}
+                      {expandedCardReviews[product.id] && (
+                        <CustomerReviewsIsland
+                          product={product}
+                          reviews={allProductReviews}
+                          currentUser={
+                            memberProfile
+                              ? {
+                                  uid: firebaseUser?.uid || memberProfile.uid,
+                                  name: memberProfile.name,
+                                  emailOrPhone: memberProfile.emailOrPhone,
+                                  isFirebaseAuthenticated: Boolean(firebaseUser),
+                                }
+                              : null
+                          }
+                          isSigningIn={isSigningIn}
+                          onGoogleSignIn={handleGoogleSignIn}
+                          onQuickMemberSignIn={handleQuickMemberSignInForReviews}
+                          onSubmitReview={handleSubmitProductReview}
+                          onDeleteReview={handleDeleteProductReview}
+                          compact={true}
+                        />
+                      )}
                     </div>
                   </article>
                 );
@@ -5400,6 +5744,29 @@ export default function App() {
                   })()}
                 </div>
               </div>
+            </div>
+
+            {/* Customer Reviews & Star Rating Section inside Product Detail Modal */}
+            <div className="p-6 lg:p-8 border-t border-[#E6E1D8] bg-white">
+              <CustomerReviewsIsland
+                product={activeProductModal}
+                reviews={allProductReviews}
+                currentUser={
+                  memberProfile
+                    ? {
+                        uid: firebaseUser?.uid || memberProfile.uid,
+                        name: memberProfile.name,
+                        emailOrPhone: memberProfile.emailOrPhone,
+                        isFirebaseAuthenticated: Boolean(firebaseUser),
+                      }
+                    : null
+                }
+                isSigningIn={isSigningIn}
+                onGoogleSignIn={handleGoogleSignIn}
+                onQuickMemberSignIn={handleQuickMemberSignInForReviews}
+                onSubmitReview={handleSubmitProductReview}
+                onDeleteReview={handleDeleteProductReview}
+              />
             </div>
           </div>
         </div>
