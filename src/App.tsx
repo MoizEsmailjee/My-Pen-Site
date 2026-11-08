@@ -1,0 +1,6267 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  ShoppingBag,
+  ArrowRight,
+  Check,
+  X,
+  Plus,
+  Minus,
+  Feather,
+  Sparkles,
+  Truck,
+  ShieldCheck,
+  MapPin,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  Trash2,
+  History,
+  LogIn,
+  LogOut,
+  RotateCcw,
+  UserCheck,
+  Search,
+} from 'lucide-react';
+import {
+  FEATURED_PRODUCTS,
+  INK_STUDIO_SHADES,
+  InkShadeOption,
+  NibOption,
+  Product,
+  ProductVariant,
+} from './data/products';
+import { ChromaticInkRibbonIsland } from './islands/ChromaticInkRibbonIsland';
+import { WritingSetBuilderIsland } from './islands/WritingSetBuilderIsland';
+import { InkMixingSetBuilderIsland } from './islands/InkMixingSetBuilderIsland';
+import { QuickBuyModalIsland } from './islands/QuickBuyModalIsland';
+import {
+  auth,
+  db,
+  signInWithGooglePopup,
+  signOutFirebase,
+  onAuthStateChanged,
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  query,
+  where,
+  onSnapshot,
+  handleFirestoreError,
+  OperationType,
+  User,
+} from './firebase';
+
+interface CartItem {
+  product: Product;
+  variant: ProductVariant;
+  nibSize?: NibOption;
+  quantity: number;
+}
+
+interface WishlistItem {
+  id: string;
+  productId: string;
+  variantId: string;
+  productName: string;
+  variantLabel: string;
+  sublabel: string;
+  priceKes: number;
+  image: string;
+  category: Product['category'];
+  nibSize?: NibOption;
+  swatchHex?: string;
+  addedAt: number;
+}
+
+const BRAND_LOGO_SRC =
+  '/assets/aistudio/Gemini_Generated_Image_644qn3644qn3644q_cd72faa3.jpg';
+const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
+const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v1';
+const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
+
+interface MemberProfile {
+  uid: string;
+  name: string;
+  emailOrPhone: string;
+  authMode: 'google' | 'member';
+}
+
+export type OrderStatus = 'Processing' | 'Out for Courier' | 'Delivered';
+
+const ORDER_TRACKING_STAGES: {
+  status: OrderStatus;
+  stepNumber: string;
+  label: string;
+  atelierNote: string;
+}[] = [
+  {
+    status: 'Processing',
+    stepNumber: '01',
+    label: 'Processing',
+    atelierNote: 'Japanese nib tine alignment check & protective flacon wrapping at Nairobi Atelier',
+  },
+  {
+    status: 'Out for Courier',
+    stepNumber: '02',
+    label: 'Out for Courier',
+    atelierNote: 'Handed to Nairobi same-day dispatch rider / nationwide express courier',
+  },
+  {
+    status: 'Delivered',
+    stepNumber: '03',
+    label: 'Delivered',
+    atelierNote: 'Package handed over & verified at recipient destination',
+  },
+];
+
+interface OrderConfirmation {
+  id?: string;
+  userId?: string;
+  userEmail?: string;
+  orderNumber: string;
+  orderStatus?: OrderStatus;
+  trackingCode?: string;
+  estimatedDelivery?: string;
+  customerName: string;
+  phone: string;
+  city: string;
+  address: string;
+  paymentMethod: 'mpesa' | 'cod';
+  items: CartItem[];
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  timestamp: string;
+  createdAt?: number;
+}
+
+const KENYA_LOCATIONS = [
+  { city: 'Nairobi (CBD, Westlands, Kilimani, Karen)', fee: 0, eta: 'Same-Day Courier (2–4 hrs)' },
+  { city: 'Kiambu / Thika / Machakos / Ngong', fee: 250, eta: 'Next Morning Delivery' },
+  { city: 'Mombasa / Diani / Nyali', fee: 450, eta: 'Next-Day Overnight Courier' },
+  { city: 'Kisumu / Nakuru / Eldoret / Nanyuki', fee: 400, eta: 'Next-Day Fargo / G4S Courier' },
+];
+
+const INK_COLOR_FAMILIES = [
+  'All 24 Shades',
+  'Blues & Teals',
+  'Reds, Pinks & Purples',
+  'Greens & Golds',
+  'Blacks, Greys & Browns',
+] as const;
+
+function formatKes(amount: number): string {
+  return `KES ${amount.toLocaleString('en-KE')}`;
+}
+
+/**
+ * Resilient image component complying with the Zero-Broken-Image Policy.
+ */
+function ResilientImage({
+  src,
+  alt,
+  className = '',
+  fallbackTitle,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  fallbackTitle: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#F2EFE9] to-[#E5DFD3] text-[#3F3D39] p-6 text-center ${className}`}
+      >
+        <Feather className="w-8 h-8 mb-2 stroke-[1.25] text-[#163A5F]" />
+        <span className="font-serif-display text-lg font-medium tracking-wide">
+          {fallbackTitle}
+        </span>
+        <span className="text-xs text-[#6E6A63] mt-1">Pilot Corporation · Japan</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={className}
+    />
+  );
+}
+
+/**
+ * Tightly-cropped, background-normalized official PENS R US — THE PEN SPECIALISTS logo lockup.
+ * Eliminates the outer 16:9 vignette margins and normalizes the off-white canvas to pure white
+ * so mix-blend-multiply blends seamlessly into #FAF8F5 without a visible box or duplicate text.
+ */
+function BrandLogoLockup({
+  size = 'header',
+}: {
+  size?: 'header' | 'footer';
+}) {
+  const dimensions =
+    size === 'header'
+      ? 'w-[164px] h-[66px] sm:w-[184px] sm:h-[74px]'
+      : 'w-[176px] h-[70px]';
+
+  return (
+    <div className={`relative overflow-hidden select-none shrink-0 ${dimensions}`}>
+      <img
+        src={BRAND_LOGO_SRC}
+        alt="PENS R US — The Pen Specialists"
+        referrerPolicy="no-referrer"
+        style={{
+          filter: 'brightness(1.06) contrast(1.08)',
+          mixBlendMode: 'multiply',
+        }}
+        className="absolute left-1/2 top-[52.5%] -translate-x-1/2 -translate-y-1/2 w-[138%] max-w-none h-auto pointer-events-none"
+      />
+    </div>
+  );
+}
+
+export default function App() {
+  // Category filter state for main Featured Collection
+  const [activeCategory, setActiveCategory] = useState<
+    'All' | 'Fountain Pens' | 'Bottled Inks' | 'Converters & Refills'
+  >('All');
+
+  // Unified Atelier Series View Switcher ('all' | 'madoromi' | 'family' | 'prera' | 'iroshizuku' | 'waterman' | 'wishlist')
+  const [activeSeriesView, setActiveSeriesView] = useState<
+    'all' | 'madoromi' | 'family' | 'prera' | 'iroshizuku' | 'waterman' | 'wishlist'
+  >('all');
+
+  // Filter state for the Full 24-Shade Iroshizuku Variety Showcase
+  const [activeInkFamily, setActiveInkFamily] =
+    useState<(typeof INK_COLOR_FAMILIES)[number]>('All 24 Shades');
+
+  // Header Search Bar State (search pens & ink shades by name or characteristics)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Selected variants per product ID
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({
+    'pilot-kakuno-madoromi': 'madoromi-ivory',
+    'pilot-kakuno-family': 'family-papa-blue',
+    'pilot-prera': 'prera-empress-teal',
+    'pilot-iroshizuku-ink': 'iroshizuku-ama-iro',
+    'pilot-con-40': 'con-40-single',
+    'waterman-ink-bottle': 'waterman-serenity-blue',
+  });
+
+  // Selected Nib Size (Fine or Medium) per product ID and per individual Madoromi, Family & Prera variant
+  const [selectedNibs, setSelectedNibs] = useState<Record<string, NibOption>>({
+    'pilot-kakuno-madoromi': 'Medium',
+    'pilot-kakuno-family': 'Fine',
+    'pilot-prera': 'Medium',
+    'madoromi-ivory': 'Medium',
+    'madoromi-blue': 'Medium',
+    'madoromi-pink': 'Fine',
+    'madoromi-brown': 'Fine',
+    'madoromi-lightblue': 'Medium',
+    'family-papa-blue': 'Fine',
+    'family-mama-red': 'Fine',
+    'family-boy-green': 'Medium',
+    'family-girl-pink': 'Fine',
+    'family-baby-yellow': 'Medium',
+    'family-clear': 'Fine',
+    'prera-empress-teal': 'Medium',
+    'prera-cinnamon-brown': 'Medium',
+    'prera-porcelain-white': 'Fine',
+  });
+
+  // Active multi-angle gallery image for the dedicated Pilot Prera Empress Teal Product Page
+  const [activePreraHeroImg, setActivePreraHeroImg] = useState<string>(
+    '/assets/prera/empress_teal_1.jpg'
+  );
+
+  // Active image override per product card / modal
+  const [activeImageByProduct, setActiveImageByProduct] = useState<Record<string, string>>({
+    'pilot-kakuno-madoromi': '/assets/madoromi/madoromi_series.jpg',
+    'pilot-kakuno-family': '/assets/kakuno_family/family_papa_blue.jpg',
+    'pilot-prera': '/assets/prera/empress_teal_1.jpg',
+    'pilot-iroshizuku-ink': '/assets/iroshizuku/ama_iro.jpg',
+    'pilot-con-40': '/assets/converters/pilot_con40.jpg',
+    'waterman-ink-bottle': '/assets/waterman/waterman_serenity_blue.jpg',
+  });
+
+  // Per-shade view mode in the 24-shade Iroshizuku gallery ('bottle' = Bottle + Swatch, 'swatch' = Swatch Card Close-Up)
+  const [inkCardViewMode, setInkCardViewMode] = useState<Record<string, 'bottle' | 'swatch'>>({});
+
+  // Hover magnifier state for Iroshizuku gallery cards
+  const [hoveredInkZoom, setHoveredInkZoom] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Fullscreen Optical Zoom Lightbox Modal State
+  const [zoomModal, setZoomModal] = useState<{
+    src: string;
+    secondarySrc?: string;
+    activeView: 'primary' | 'secondary';
+    title: string;
+    subtitle?: string;
+    swatchHex?: string;
+    inkShadeId?: string;
+    zoomLevel: 1 | 2 | 3;
+    panX: number;
+    panY: number;
+  } | null>(null);
+
+  // Cart state
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [justAddedKey, setJustAddedKey] = useState<string | null>(null);
+
+  // Persistent Wishlist State (synced with localStorage across sessions)
+  const [wishlist, setWishlist] = useState<WishlistItem[]>(() => {
+    try {
+      const saved = window.localStorage.getItem(WISHLIST_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // Fallback to empty wishlist if localStorage is unavailable or corrupt
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(wishlist));
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [wishlist]);
+
+  // Active Product Detail Modal & Quick Buy Modal Overlay
+  const [activeProductModal, setActiveProductModal] = useState<Product | null>(null);
+  const [quickBuyProduct, setQuickBuyProduct] = useState<Product | null>(null);
+  const [studioInkId, setStudioInkId] = useState<string>('iroshizuku-ama-iro');
+
+  // Interactive Nib & Ink Pairing Studio State
+  const [studioPenId, setStudioPenId] = useState<
+    'pilot-kakuno-madoromi' | 'pilot-kakuno-family' | 'pilot-prera'
+  >('pilot-prera');
+  const [studioNibSize, setStudioNibSize] = useState<NibOption>('Fine');
+  const [studioSampleText, setStudioSampleText] = useState<string>(
+    'Some things deserve to be written by hand. Nairobi, Kenya.'
+  );
+  const [studioPairAdded, setStudioPairAdded] = useState(false);
+
+  // Checkout & Order History state inside Cart Drawer
+  const [activeCartTab, setActiveCartTab] = useState<'bag' | 'history'>('bag');
+  const [checkoutStep, setCheckoutStep] = useState<'bag' | 'checkout' | 'confirmed'>('bag');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [selectedLocationIdx, setSelectedLocationIdx] = useState(0);
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'cod'>('mpesa');
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [confirmedOrder, setConfirmedOrder] = useState<OrderConfirmation | null>(null);
+
+  // User Login & Order History State (Firebase Auth + Atelier Member Login)
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(() => {
+    try {
+      const saved = window.localStorage.getItem(MEMBER_SESSION_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore storage error
+    }
+    return null;
+  });
+  const [loginNameInput, setLoginNameInput] = useState('');
+  const [loginContactInput, setLoginContactInput] = useState('');
+  const [authStatusMessage, setAuthStatusMessage] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'All' | OrderStatus>('All');
+  const [orderTrackingSearch, setOrderTrackingSearch] = useState('');
+  const [expandedTrackingOrders, setExpandedTrackingOrders] = useState<Record<string, boolean>>({
+    'PRU-5104': true,
+    'PRU-4892': true,
+  });
+
+  // Persisted Local Orders + Firestore Real-Time Orders
+  const [localOrders, setLocalOrders] = useState<OrderConfirmation[]>(() => {
+    const preraPen = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-prera')!;
+    const kakunoFamilyPen = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-kakuno-family')!;
+    const watermanInk = FEATURED_PRODUCTS.find((p) => p.id === 'waterman-ink-bottle')!;
+    const madoromiPen = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-kakuno-madoromi')!;
+    const iroshizukuInk = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-iroshizuku-ink')!;
+    const con40 = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-con-40')!;
+
+    const defaultSeedOrders: OrderConfirmation[] = [
+      {
+        id: 'seed-order-pru-5104',
+        orderNumber: 'PRU-5104',
+        orderStatus: 'Processing',
+        trackingCode: 'NBO-COUR-5104',
+        estimatedDelivery: 'Same-Day Nairobi Courier · Dispatching within 90 mins',
+        customerName: 'Wanjiku Mwangi',
+        phone: '+254 712 345 678',
+        city: 'Nairobi (CBD, Westlands, Kilimani, Karen)',
+        address: 'Delta Corner Tower, Westlands, Nairobi',
+        paymentMethod: 'mpesa',
+        items: [
+          {
+            product: preraPen,
+            variant: preraPen.variants[0],
+            nibSize: 'Medium',
+            quantity: 1,
+          },
+        ],
+        subtotal: 8500,
+        deliveryFee: 0,
+        total: 8500,
+        timestamp: 'Today · 10:15 AM',
+        createdAt: Date.now() - 3600000 * 2,
+      },
+      {
+        id: 'seed-order-pru-4892',
+        orderNumber: 'PRU-4892',
+        orderStatus: 'Out for Courier',
+        trackingCode: 'NBO-COUR-4892',
+        estimatedDelivery: 'Rider En Route via Waiyaki Way · Est. 40 mins',
+        customerName: 'Wanjiku Mwangi',
+        phone: '+254 712 345 678',
+        city: 'Nairobi (CBD, Westlands, Kilimani, Karen)',
+        address: 'Delta Corner Tower, Westlands, Nairobi',
+        paymentMethod: 'mpesa',
+        items: [
+          {
+            product: kakunoFamilyPen,
+            variant: kakunoFamilyPen.variants[0],
+            nibSize: 'Fine',
+            quantity: 1,
+          },
+          {
+            product: watermanInk,
+            variant: watermanInk.variants[0],
+            quantity: 1,
+          },
+        ],
+        subtotal: 5000,
+        deliveryFee: 0,
+        total: 5000,
+        timestamp: 'Yesterday · 03:45 PM',
+        createdAt: Date.now() - 86400000,
+      },
+      {
+        id: 'seed-order-pru-3910',
+        orderNumber: 'PRU-3910',
+        orderStatus: 'Delivered',
+        trackingCode: 'NBO-COUR-3910',
+        estimatedDelivery: 'Delivered & Signed · Received at Reception',
+        customerName: 'Wanjiku Mwangi',
+        phone: '+254 712 345 678',
+        city: 'Nairobi (CBD, Westlands, Kilimani, Karen)',
+        address: 'Delta Corner Tower, Westlands, Nairobi',
+        paymentMethod: 'mpesa',
+        items: [
+          {
+            product: madoromiPen,
+            variant: madoromiPen.variants[0],
+            nibSize: 'Medium',
+            quantity: 1,
+          },
+          {
+            product: con40,
+            variant: con40.variants[0],
+            quantity: 1,
+          },
+          {
+            product: iroshizukuInk,
+            variant: iroshizukuInk.variants[0],
+            quantity: 1,
+          },
+        ],
+        subtotal: 12200,
+        deliveryFee: 0,
+        total: 12200,
+        timestamp: '14 Oct · 11:20 AM',
+        createdAt: Date.now() - 86400000 * 7,
+      },
+    ];
+
+    try {
+      const saved = window.localStorage.getItem(ORDERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hydratedSaved: OrderConfirmation[] = parsed.map((ord: OrderConfirmation) => ({
+            ...ord,
+            orderStatus:
+              ord.orderStatus ||
+              (ord.orderNumber === 'PRU-3910' ? 'Delivered' : 'Processing'),
+            trackingCode:
+              ord.trackingCode ||
+              `NBO-COUR-${ord.orderNumber.replace(/[^0-9]/g, '') || '4021'}`,
+            estimatedDelivery:
+              ord.estimatedDelivery ||
+              (ord.orderNumber === 'PRU-3910'
+                ? 'Delivered & Signed · Received at Destination'
+                : 'Same-Day Nairobi Courier (2–4 hrs)'),
+          }));
+          // Ensure the seed orders for 'Processing' and 'Out for Courier' exist so all 3 tracking states are visible
+          const existingNumbers = new Set(hydratedSaved.map((o) => o.orderNumber));
+          for (const seedOrd of defaultSeedOrders) {
+            if (!existingNumbers.has(seedOrd.orderNumber)) {
+              hydratedSaved.push(seedOrd);
+            }
+          }
+          return hydratedSaved.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        }
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return defaultSeedOrders;
+  });
+  const [firestoreOrders, setFirestoreOrders] = useState<OrderConfirmation[]>([]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(localOrders));
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [localOrders]);
+
+  useEffect(() => {
+    try {
+      if (memberProfile) {
+        window.localStorage.setItem(
+          MEMBER_SESSION_STORAGE_KEY,
+          JSON.stringify(memberProfile)
+        );
+      } else {
+        window.localStorage.removeItem(MEMBER_SESSION_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, [memberProfile]);
+
+  // Listen to Firebase Auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+      if (user) {
+        const profile: MemberProfile = {
+          uid: user.uid,
+          name: user.displayName || user.email?.split('@')[0] || 'Atelier Collector',
+          emailOrPhone: user.email || 'Verified Google Account',
+          authMode: 'google',
+        };
+        setMemberProfile(profile);
+        if (!customerName && profile.name) setCustomerName(profile.name);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Subscribe to authenticated user's Firestore orders in real time
+  useEffect(() => {
+    if (!firebaseUser) {
+      setFirestoreOrders([]);
+      return;
+    }
+    const ordersPath = 'orders';
+    const q = query(collection(db, ordersPath), where('userId', '==', firebaseUser.uid));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const fetched: OrderConfirmation[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          const hydratedItems: CartItem[] = Array.isArray(data.items)
+            ? data.items.map((rawItem: CartItem) => {
+                const matchedProd =
+                  FEATURED_PRODUCTS.find((p) => p.id === rawItem.product?.id) ||
+                  FEATURED_PRODUCTS[0];
+                const matchedVar =
+                  matchedProd.variants.find((v) => v.id === rawItem.variant?.id) ||
+                  rawItem.variant ||
+                  matchedProd.variants[0];
+                return {
+                  product: matchedProd,
+                  variant: matchedVar,
+                  nibSize: rawItem.nibSize,
+                  quantity: rawItem.quantity || 1,
+                };
+              })
+            : [];
+          return {
+            id: docSnap.id,
+            userId: data.userId,
+            userEmail: data.userEmail,
+            orderNumber: data.orderNumber,
+            orderStatus:
+              (data.orderStatus as OrderStatus) || 'Processing',
+            trackingCode:
+              data.trackingCode ||
+              `NBO-COUR-${String(data.orderNumber || '').replace(/[^0-9]/g, '') || '4000'}`,
+            estimatedDelivery:
+              data.estimatedDelivery || 'Same-Day Nairobi Courier (2–4 hrs)',
+            customerName: data.customerName,
+            phone: data.phone,
+            city: data.city,
+            address: data.address,
+            paymentMethod: data.paymentMethod,
+            items: hydratedItems,
+            subtotal: data.subtotal,
+            deliveryFee: data.deliveryFee,
+            total: data.total,
+            timestamp: data.timestamp,
+            createdAt: data.createdAt || 0,
+          };
+        });
+        fetched.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        setFirestoreOrders(fetched);
+      },
+      (error) => {
+        try {
+          handleFirestoreError(error, OperationType.LIST, ordersPath);
+        } catch {
+          // Handled structured log
+        }
+      }
+    );
+    return () => unsubscribe();
+  }, [firebaseUser]);
+
+  // Combined deduplicated order history for the logged-in user
+  const userOrderHistory = useMemo(() => {
+    if (!memberProfile) return [];
+    const map = new Map<string, OrderConfirmation>();
+    for (const ord of firestoreOrders) {
+      map.set(ord.orderNumber, ord);
+    }
+    for (const ord of localOrders) {
+      if (!map.has(ord.orderNumber)) {
+        map.set(ord.orderNumber, ord);
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+    );
+  }, [memberProfile, firestoreOrders, localOrders]);
+
+  const kakunoMadoromiProduct = useMemo(
+    () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-kakuno-madoromi')!,
+    []
+  );
+
+  const kakunoFamilyProduct = useMemo(
+    () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-kakuno-family')!,
+    []
+  );
+
+  const pilotPreraProduct = useMemo(
+    () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-prera')!,
+    []
+  );
+
+  const pilotCon40Product = useMemo(
+    () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-con-40')!,
+    []
+  );
+
+  const watermanInkProduct = useMemo(
+    () => FEATURED_PRODUCTS.find((p) => p.id === 'waterman-ink-bottle')!,
+    []
+  );
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const filteredProducts = useMemo(() => {
+    const base =
+      activeCategory === 'All'
+        ? FEATURED_PRODUCTS
+        : FEATURED_PRODUCTS.filter((p) => p.category === activeCategory);
+
+    if (!normalizedSearch) return base;
+
+    return base.filter((product) => {
+      const productFields = [
+        product.name,
+        product.japaneseTitle,
+        product.category,
+        product.Origin,
+        product.description,
+        product.hasNibSelector ? 'fine medium nib 0.35mm 0.50mm' : '',
+        ...product.specs.map((s) => `${s.label} ${s.value}`),
+        ...product.includedItems,
+        ...product.variants.map((v) => `${v.label} ${v.sublabel}`),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return productFields.includes(normalizedSearch);
+    });
+  }, [activeCategory, normalizedSearch]);
+
+  const filteredInkVariety = useMemo(() => {
+    const base =
+      activeInkFamily === 'All 24 Shades'
+        ? INK_STUDIO_SHADES
+        : INK_STUDIO_SHADES.filter((shade) => shade.colorFamily === activeInkFamily);
+
+    if (!normalizedSearch) return base;
+
+    return base.filter((shade) => {
+      const shadeFields = [
+        shade.name,
+        shade.kanji,
+        shade.meaning,
+        shade.colorFamily,
+        shade.sheenNote,
+        'pilot iroshizuku 50ml bottled ink japan',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return shadeFields.includes(normalizedSearch);
+    });
+  }, [activeInkFamily, normalizedSearch]);
+
+  // Instant Header Search Dropdown Results (Pens/Finishes + Ink Shades by Name or Characteristic)
+  const headerSearchResults = useMemo(() => {
+    if (!normalizedSearch) {
+      return { penMatches: [], inkMatches: [], totalCount: 0 };
+    }
+
+    // 1. Match products and specific variants/finishes
+    const penMatches: {
+      key: string;
+      product: Product;
+      matchedVariant: ProductVariant;
+      matchNote: string;
+    }[] = [];
+
+    for (const product of FEATURED_PRODUCTS) {
+      // Check if specific variants match first (e.g. "Ivory", "Papa", "Serenity Blue", "Demonstrator")
+      const matchingVariants = product.variants.filter((v) =>
+        `${v.label} ${v.sublabel}`.toLowerCase().includes(normalizedSearch)
+      );
+
+      const generalProductText = [
+        product.name,
+        product.japaneseTitle,
+        product.category,
+        product.description,
+        product.hasNibSelector ? 'fine nib medium nib 0.35mm 0.50mm' : '',
+        ...product.specs.map((s) => `${s.label} ${s.value}`),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      if (matchingVariants.length > 0 && product.id !== 'pilot-iroshizuku-ink') {
+        for (const variant of matchingVariants.slice(0, 3)) {
+          penMatches.push({
+            key: `${product.id}-${variant.id}`,
+            product,
+            matchedVariant: variant,
+            matchNote: `${variant.label} · ${variant.sublabel}`,
+          });
+        }
+      } else if (generalProductText.includes(normalizedSearch)) {
+        const defaultVariant =
+          product.variants.find((v) => v.id === selectedVariants[product.id]) ||
+          product.variants[0];
+        penMatches.push({
+          key: `${product.id}-default`,
+          product,
+          matchedVariant: defaultVariant,
+          matchNote:
+            product.specs.map((s) => s.value).slice(0, 2).join(' · ') ||
+            defaultVariant.sublabel,
+        });
+      }
+    }
+
+    // 2. Match all 24 Iroshizuku ink shades by name, kanji, meaning, color family, or sheen/shading characteristic
+    const inkMatches = INK_STUDIO_SHADES.filter((shade) => {
+      const searchable = [
+        shade.name,
+        shade.kanji,
+        shade.meaning,
+        shade.colorFamily,
+        shade.sheenNote,
+        'iroshizuku ink',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return searchable.includes(normalizedSearch);
+    });
+
+    return {
+      penMatches: penMatches.slice(0, 5),
+      inkMatches: inkMatches.slice(0, 6),
+      totalCount: penMatches.length + inkMatches.length,
+    };
+  }, [normalizedSearch, selectedVariants]);
+
+  const totalItemsCount = useMemo(
+    () => cart.reduce((acc, item) => acc + item.quantity, 0),
+    [cart]
+  );
+
+  const cartRawSubtotal = useMemo(
+    () => cart.reduce((acc, item) => acc + item.product.priceKes * item.quantity, 0),
+    [cart]
+  );
+
+  // Automatic Ink Mixing Set Trio Discount: Every 3 × 50ml Pilot Iroshizuku bottles (KES 22,500)
+  // are bundled at KES 20,000 (10% Trio Bundle Privilege · saves KES 2,500 per trio)
+  const inkMixingSetDiscount = useMemo(() => {
+    const iroshizukuQty = cart
+      .filter((item) => item.product.id === 'pilot-iroshizuku-ink')
+      .reduce((acc, item) => acc + item.quantity, 0);
+    const trioCount = Math.floor(iroshizukuQty / 3);
+    return trioCount * 2500;
+  }, [cart]);
+
+  const cartSubtotal = Math.max(0, cartRawSubtotal - inkMixingSetDiscount);
+
+  const selectedLocation = KENYA_LOCATIONS[selectedLocationIdx];
+  const deliveryFee = useMemo(() => {
+    if (cartSubtotal === 0) return 0;
+    if (cartSubtotal >= 6000) return 0;
+    return selectedLocation.fee;
+  }, [cartSubtotal, selectedLocation]);
+
+  const orderTotal = cartSubtotal + deliveryFee;
+
+  const handleSelectVariant = (productId: string, variantId: string) => {
+    setSelectedVariants((prev) => ({ ...prev, [productId]: variantId }));
+    const product = FEATURED_PRODUCTS.find((p) => p.id === productId);
+    const variant = product?.variants.find((v) => v.id === variantId);
+    if (variant?.image) {
+      setActiveImageByProduct((prev) => ({ ...prev, [productId]: variant.image! }));
+    }
+  };
+
+  const handleSelectNib = (key: string, nib: NibOption) => {
+    setSelectedNibs((prev) => ({ ...prev, [key]: nib }));
+  };
+
+  const handleAddToCart = (
+    product: Product,
+    customVariant?: ProductVariant,
+    customNib?: NibOption,
+    openDrawer = false,
+    customFeedbackKey?: string
+  ) => {
+    const chosenVariant =
+      customVariant ||
+      product.variants.find((v) => v.id === selectedVariants[product.id]) ||
+      product.variants[0];
+
+    const chosenNib: NibOption | undefined = product.hasNibSelector
+      ? customNib || selectedNibs[product.id] || 'Fine'
+      : undefined;
+
+    setCart((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) =>
+          item.product.id === product.id &&
+          item.variant.id === chosenVariant.id &&
+          item.nibSize === chosenNib
+      );
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + 1,
+        };
+        return updated;
+      }
+      return [
+        ...prev,
+        {
+          product,
+          variant: chosenVariant,
+          nibSize: chosenNib,
+          quantity: 1,
+        },
+      ];
+    });
+
+    setCheckoutStep('bag');
+    const feedbackKey =
+      customFeedbackKey || `${product.id}-${chosenVariant.id}-${chosenNib || 'none'}`;
+    setJustAddedKey(feedbackKey);
+    setTimeout(() => {
+      setJustAddedKey((curr) => (curr === feedbackKey ? null : curr));
+    }, 1600);
+
+    if (openDrawer) {
+      setIsCartOpen(true);
+    }
+  };
+
+  const handleConfirmQuickBuy = ({
+    product,
+    variant,
+    nibSize,
+    quantity,
+    includeCon40,
+    openCartDrawer,
+  }: {
+    product: Product;
+    variant: ProductVariant;
+    nibSize?: NibOption;
+    quantity: number;
+    includeCon40: boolean;
+    openCartDrawer: boolean;
+  }) => {
+    setCart((prev) => {
+      let next = [...prev];
+      const existingIdx = next.findIndex(
+        (item) =>
+          item.product.id === product.id &&
+          item.variant.id === variant.id &&
+          item.nibSize === nibSize
+      );
+      if (existingIdx > -1) {
+        next[existingIdx] = {
+          ...next[existingIdx],
+          quantity: next[existingIdx].quantity + quantity,
+        };
+      } else {
+        next.push({
+          product,
+          variant,
+          nibSize,
+          quantity,
+        });
+      }
+
+      if (includeCon40) {
+        const con40Var = pilotCon40Product.variants[0];
+        const con40Idx = next.findIndex(
+          (item) =>
+            item.product.id === pilotCon40Product.id &&
+            item.variant.id === con40Var.id
+        );
+        if (con40Idx > -1) {
+          next[con40Idx] = {
+            ...next[con40Idx],
+            quantity: next[con40Idx].quantity + 1,
+          };
+        } else {
+          next.push({
+            product: pilotCon40Product,
+            variant: con40Var,
+            quantity: 1,
+          });
+        }
+      }
+
+      return next;
+    });
+
+    setCheckoutStep('bag');
+    const feedbackKey = `${product.id}-${variant.id}-${nibSize || 'none'}`;
+    setJustAddedKey(feedbackKey);
+    setTimeout(() => {
+      setJustAddedKey((curr) => (curr === feedbackKey ? null : curr));
+    }, 1600);
+
+    if (openCartDrawer) {
+      setIsCartOpen(true);
+    }
+  };
+
+  const handleAddInkShadeDirectly = (shade: InkShadeOption) => {
+    const inkProduct = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-iroshizuku-ink')!;
+    const matchingVariant =
+      inkProduct.variants.find((v) => v.id === shade.id) || inkProduct.variants[0];
+    handleSelectVariant('pilot-iroshizuku-ink', shade.id);
+    handleAddToCart(
+      inkProduct,
+      matchingVariant,
+      undefined,
+      false,
+      `pilot-iroshizuku-ink-${shade.id}`
+    );
+  };
+
+  const isItemWishlisted = (productId: string, variantId: string): boolean => {
+    const key = `${productId}::${variantId}`;
+    return wishlist.some((item) => item.id === key);
+  };
+
+  const handleToggleWishlist = (
+    product: Product,
+    customVariant?: ProductVariant,
+    customNib?: NibOption
+  ) => {
+    const chosenVariant =
+      customVariant ||
+      product.variants.find((v) => v.id === selectedVariants[product.id]) ||
+      product.variants[0];
+    const chosenNib: NibOption | undefined = product.hasNibSelector
+      ? customNib || selectedNibs[chosenVariant.id] || selectedNibs[product.id] || 'Fine'
+      : undefined;
+    const key = `${product.id}::${chosenVariant.id}`;
+
+    setWishlist((prev) => {
+      if (prev.some((item) => item.id === key)) {
+        return prev.filter((item) => item.id !== key);
+      }
+      return [
+        ...prev,
+        {
+          id: key,
+          productId: product.id,
+          variantId: chosenVariant.id,
+          productName: product.name,
+          variantLabel: chosenVariant.label,
+          sublabel: chosenVariant.sublabel,
+          priceKes: product.priceKes,
+          image: chosenVariant.image || product.image,
+          category: product.category,
+          nibSize: chosenNib,
+          swatchHex: chosenVariant.swatchHex,
+          addedAt: Date.now(),
+        },
+      ];
+    });
+  };
+
+  const handleToggleInkShadeWishlist = (shade: InkShadeOption) => {
+    const inkProduct = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-iroshizuku-ink')!;
+    const matchingVariant =
+      inkProduct.variants.find((v) => v.id === shade.id) || inkProduct.variants[0];
+    handleToggleWishlist(inkProduct, matchingVariant);
+  };
+
+  const handleRemoveWishlistItem = (id: string) => {
+    setWishlist((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleUpdateQuantity = (
+    productId: string,
+    variantId: string,
+    nibSize: NibOption | undefined,
+    delta: number
+  ) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (
+            item.product.id === productId &&
+            item.variant.id === variantId &&
+            item.nibSize === nibSize
+          ) {
+            return { ...item, quantity: item.quantity + delta };
+          }
+          return item;
+        })
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const handleAddStudioPairing = () => {
+    const penProduct = FEATURED_PRODUCTS.find((p) => p.id === studioPenId)!;
+    const inkProduct = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-iroshizuku-ink')!;
+
+    const penVariant =
+      penProduct.variants.find((v) => v.id === selectedVariants[penProduct.id]) ||
+      penProduct.variants[0];
+
+    const inkVariant =
+      inkProduct.variants.find((v) => v.id === studioInkId) || inkProduct.variants[0];
+
+    handleAddToCart(penProduct, penVariant, studioNibSize, false);
+    handleAddToCart(inkProduct, inkVariant, undefined, true);
+    setStudioPairAdded(true);
+    setTimeout(() => setStudioPairAdded(false), 2000);
+  };
+
+  const handleAddBundleToCart = (
+    items: {
+      product: Product;
+      variant: ProductVariant;
+      nibSize?: NibOption;
+    }[]
+  ) => {
+    items.forEach((entry, index) => {
+      const isLast = index === items.length - 1;
+      handleAddToCart(entry.product, entry.variant, entry.nibSize, isLast);
+    });
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsSigningIn(true);
+    setAuthStatusMessage(null);
+    try {
+      const user = await signInWithGooglePopup();
+      const profile: MemberProfile = {
+        uid: user.uid,
+        name: user.displayName || user.email?.split('@')[0] || 'Atelier Collector',
+        emailOrPhone: user.email || 'Google Account',
+        authMode: 'google',
+      };
+      setMemberProfile(profile);
+      if (!customerName && profile.name) setCustomerName(profile.name);
+    } catch {
+      setAuthStatusMessage(
+        'Google popup was blocked or closed in preview. You can sign in below using your Name & Kenyan Phone or Email.'
+      );
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleMemberFormSignIn = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = loginNameInput.trim();
+    const trimmedContact = loginContactInput.trim();
+    if (!trimmedName || !trimmedContact) {
+      setAuthStatusMessage('Please enter your name and email or Kenyan mobile number.');
+      return;
+    }
+    const profile: MemberProfile = {
+      uid: `member-${trimmedContact.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      name: trimmedName,
+      emailOrPhone: trimmedContact,
+      authMode: 'member',
+    };
+    setMemberProfile(profile);
+    if (!customerName) setCustomerName(trimmedName);
+    if (!customerPhone && /^\+?\d/.test(trimmedContact)) setCustomerPhone(trimmedContact);
+    setAuthStatusMessage(null);
+  };
+
+  const handleSignOutAccount = async () => {
+    try {
+      if (firebaseUser) {
+        await signOutFirebase();
+      }
+    } catch {
+      // Ignore signout error
+    }
+    setMemberProfile(null);
+    setAuthStatusMessage(null);
+  };
+
+  const handleReorderPastPurchase = (pastOrder: OrderConfirmation) => {
+    setCart((prev) => {
+      const next = [...prev];
+      for (const orderItem of pastOrder.items) {
+        const existingIdx = next.findIndex(
+          (item) =>
+            item.product.id === orderItem.product.id &&
+            item.variant.id === orderItem.variant.id &&
+            item.nibSize === orderItem.nibSize
+        );
+        if (existingIdx > -1) {
+          next[existingIdx] = {
+            ...next[existingIdx],
+            quantity: next[existingIdx].quantity + orderItem.quantity,
+          };
+        } else {
+          next.push({
+            product: orderItem.product,
+            variant: orderItem.variant,
+            nibSize: orderItem.nibSize,
+            quantity: orderItem.quantity,
+          });
+        }
+      }
+      return next;
+    });
+    setCheckoutStep('bag');
+    setActiveCartTab('bag');
+  };
+
+  const handleToggleOrderTracking = (orderNumber: string) => {
+    setExpandedTrackingOrders((prev) => ({
+      ...prev,
+      [orderNumber]: !prev[orderNumber],
+    }));
+  };
+
+  const handleUpdateOrderStatus = async (
+    order: OrderConfirmation,
+    nextStatus: OrderStatus
+  ) => {
+    const nextEta =
+      nextStatus === 'Processing'
+        ? 'Preparing at Nairobi Atelier · Nib Inspection in Progress'
+        : nextStatus === 'Out for Courier'
+        ? `Courier Dispatched (${order.city.split(' ')[0]}) · Rider En Route`
+        : `Delivered & Signed · ${order.address}`;
+
+    setLocalOrders((prev) =>
+      prev.map((item) =>
+        item.orderNumber === order.orderNumber
+          ? {
+              ...item,
+              orderStatus: nextStatus,
+              estimatedDelivery: nextEta,
+            }
+          : item
+      )
+    );
+
+    if (confirmedOrder?.orderNumber === order.orderNumber) {
+      setConfirmedOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              orderStatus: nextStatus,
+              estimatedDelivery: nextEta,
+            }
+          : null
+      );
+    }
+
+    // If this order is stored in Firestore and belongs to the signed-in Firebase user, persist the status transition
+    if (
+      auth.currentUser &&
+      order.id &&
+      !order.id.startsWith('seed-order-') &&
+      order.userId === auth.currentUser.uid
+    ) {
+      const orderDocPath = `orders/${order.id}`;
+      try {
+        await updateDoc(doc(db, 'orders', order.id), {
+          orderStatus: nextStatus,
+          estimatedDelivery: nextEta,
+        });
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.UPDATE, orderDocPath);
+        } catch {
+          // Structured error logged
+        }
+      }
+    }
+  };
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerName.trim() || !customerPhone.trim() || !deliveryAddress.trim()) {
+      setCheckoutError('Please enter your full name, Kenyan mobile number, and delivery address.');
+      return;
+    }
+    setCheckoutError(null);
+
+    const randomCode = Math.floor(1000 + Math.random() * 9000);
+    const nowFormatted = new Date().toLocaleDateString('en-KE', {
+      day: '2-digit',
+      month: 'short',
+    }) + ' · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const createdAtMs = Date.now();
+    const orderNumber = `PRU-${randomCode}`;
+    const trackingCode = `${
+      selectedLocationIdx === 0 ? 'NBO-COUR' : 'KE-FGO'
+    }-${randomCode}`;
+    const initialEta = `${selectedLocation.eta} · Preparing at Nairobi Atelier`;
+
+    const confirmation: OrderConfirmation = {
+      orderNumber,
+      orderStatus: 'Processing',
+      trackingCode,
+      estimatedDelivery: initialEta,
+      customerName: customerName.trim(),
+      phone: customerPhone.trim(),
+      city: selectedLocation.city,
+      address: deliveryAddress.trim(),
+      paymentMethod,
+      items: [...cart],
+      subtotal: cartSubtotal,
+      deliveryFee,
+      total: orderTotal,
+      timestamp: nowFormatted,
+      createdAt: createdAtMs,
+    };
+
+    // Expand tracking view automatically for newly placed order
+    setExpandedTrackingOrders((prev) => ({
+      ...prev,
+      [orderNumber]: true,
+    }));
+
+    // Save to local orders immediately so Order History updates instantaneously
+    setLocalOrders((prev) => [confirmation, ...prev]);
+
+    // Auto-sign in customer to Member Profile if they placed an order while logged out
+    if (!memberProfile) {
+      setMemberProfile({
+        uid: `member-${customerPhone.trim().replace(/[^a-z0-9]/gi, '')}`,
+        name: customerName.trim(),
+        emailOrPhone: customerPhone.trim(),
+        authMode: 'member',
+      });
+    }
+
+    // If authenticated with Firebase Auth, also persist the order to Firestore /orders
+    if (auth.currentUser) {
+      const firestorePayload = {
+        userId: auth.currentUser.uid,
+        userEmail: auth.currentUser.email || '',
+        orderNumber: confirmation.orderNumber,
+        orderStatus: confirmation.orderStatus,
+        trackingCode: confirmation.trackingCode,
+        estimatedDelivery: confirmation.estimatedDelivery,
+        customerName: confirmation.customerName,
+        phone: confirmation.phone,
+        city: confirmation.city,
+        address: confirmation.address,
+        paymentMethod: confirmation.paymentMethod,
+        items: confirmation.items.map((item) => ({
+          product: {
+            id: item.product.id,
+            name: item.product.name,
+            priceKes: item.product.priceKes,
+            image: item.product.image,
+          },
+          variant: {
+            id: item.variant.id,
+            label: item.variant.label,
+            sublabel: item.variant.sublabel,
+            image: item.variant.image || item.product.image,
+          },
+          nibSize: item.nibSize || null,
+          quantity: item.quantity,
+        })),
+        subtotal: confirmation.subtotal,
+        deliveryFee: confirmation.deliveryFee,
+        total: confirmation.total,
+        timestamp: confirmation.timestamp,
+        createdAt: createdAtMs,
+      };
+      try {
+        await addDoc(collection(db, 'orders'), firestorePayload);
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.CREATE, 'orders');
+        } catch {
+          // Structured error logged
+        }
+      }
+    }
+
+    setConfirmedOrder(confirmation);
+    setCheckoutStep('confirmed');
+    setCart([]);
+  };
+
+  const activeStudioInk =
+    INK_STUDIO_SHADES.find((s) => s.id === studioInkId) || INK_STUDIO_SHADES[0];
+  const activeStudioPen = FEATURED_PRODUCTS.find((p) => p.id === studioPenId)!;
+  const studioPairTotalKes = activeStudioPen.priceKes + 7500;
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#171614]">
+      {/* TOP BAR CONTRACT: Strictly 1 row, 3 zones separated by gap-8 */}
+      <header className="sticky top-0 z-30 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E6E1D8]">
+        <div className="max-w-[1280px] mx-auto flex items-center justify-between gap-4 lg:gap-8 px-6 py-2">
+          {/* Zone 1: Single Official PENS R US Logo Lockup (No Duplicate Text) */}
+          <a
+            href="#top"
+            aria-label="PENS R US — The Pen Specialists Home"
+            className="inline-flex items-center whitespace-nowrap shrink-0 group"
+          >
+            <BrandLogoLockup size="header" />
+          </a>
+
+          {/* Zone 2: Navigation Links + Interactive Search Bar */}
+          <div className="flex items-center gap-4 lg:gap-6 flex-1 justify-end md:justify-center max-w-3xl">
+            <nav className="hidden xl:flex items-center gap-6 text-sm font-medium text-[#524E48] shrink-0">
+              <a
+                href="#collection"
+                className="hover:text-[#0A2246] hover:underline underline-offset-8 transition-colors whitespace-nowrap shrink-0"
+              >
+                Collection
+              </a>
+              <a
+                href="#pilot-prera-showcase"
+                className="hover:text-[#0A2246] hover:underline underline-offset-8 transition-colors whitespace-nowrap shrink-0"
+              >
+                Prera Teal
+              </a>
+              <a
+                href="#kakuno-family-showcase"
+                className="hover:text-[#0A2246] hover:underline underline-offset-8 transition-colors whitespace-nowrap shrink-0"
+              >
+                Family Series
+              </a>
+              <a
+                href="#iroshizuku-gallery"
+                className="hover:text-[#0A2246] hover:underline underline-offset-8 transition-colors whitespace-nowrap shrink-0"
+              >
+                24 Ink Shades
+              </a>
+              <a
+                href="#writing-studio"
+                className="hover:text-[#0A2246] hover:underline underline-offset-8 transition-colors whitespace-nowrap shrink-0"
+              >
+                Nib Studio
+              </a>
+            </nav>
+
+            {/* Search Bar Next to Navigation Links */}
+            <div className="relative w-full max-w-[230px] sm:max-w-[270px] lg:max-w-[290px]">
+              <form
+                role="search"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setIsSearchFocused(false);
+                  const el = document.getElementById(
+                    headerSearchResults.inkMatches.length > 0 &&
+                      headerSearchResults.penMatches.length === 0
+                      ? 'iroshizuku-gallery'
+                      : 'collection'
+                  );
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="relative flex items-center"
+              >
+                <Search className="w-3.5 h-3.5 text-[#6E6A63] absolute left-3 pointer-events-none" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => {
+                    // Delay closing slightly so dropdown button clicks register cleanly
+                    setTimeout(() => setIsSearchFocused(false), 180);
+                  }}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsSearchFocused(true);
+                  }}
+                  placeholder="Search pens, ink shades, sheen..."
+                  aria-label="Search fountain pens or ink shades by name or characteristics"
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-[#DCD5C7] focus:border-[#0A2246] rounded text-[#171614] placeholder:text-[#8C857B] focus:outline-none transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search query"
+                    className="absolute right-2 p-0.5 text-[#6E6A63] hover:text-[#171614] cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </form>
+
+              {/* Instant Search Results & Characteristic Discovery Dropdown */}
+              {isSearchFocused && (
+                <div className="absolute right-0 left-0 sm:left-auto sm:w-[410px] mt-2 bg-[#FAF8F5] border border-[#DCD5C7] rounded-lg shadow-xl z-50 overflow-hidden">
+                  {!normalizedSearch ? (
+                    <div className="p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#B58435] mb-2.5">
+                        Search by Name or Characteristic
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          'Empress Teal',
+                          'Copper Sheen',
+                          'Gold Sheen',
+                          'Pastel',
+                          'Demonstrator',
+                          'Ama-iro',
+                          'Yama-budo',
+                          'Serenity Blue',
+                          'Fine Nib',
+                          'Converter',
+                        ].map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSearchQuery(tag);
+                            }}
+                            className="px-2.5 py-1 text-xs bg-white hover:bg-[#0A2246] text-[#3F3D39] hover:text-white border border-[#DCD5C7] rounded transition-colors cursor-pointer"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : headerSearchResults.totalCount === 0 ? (
+                    <div className="p-5 text-center">
+                      <p className="text-xs font-semibold text-[#171614]">
+                        No pens or ink shades matched "{searchQuery}"
+                      </p>
+                      <p className="text-[11px] text-[#6E6A63] mt-1">
+                        Try searching "Prera", "Kakuno", "Ama-iro", "copper sheen", "pastel",
+                        or "teal".
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="max-h-[420px] overflow-y-auto divide-y divide-[#E6E1D8]">
+                      {/* Matched Fountain Pens, Converters & Finishes */}
+                      {headerSearchResults.penMatches.length > 0 && (
+                        <div className="p-3">
+                          <div className="flex items-center justify-between px-1 mb-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6E6A63]">
+                              Fountain Pens &amp; Instruments ({headerSearchResults.penMatches.length})
+                            </span>
+                            <a
+                              href="#collection"
+                              onMouseDown={() => setActiveSeriesView('all')}
+                              className="text-[11px] font-semibold text-[#0A2246] hover:underline"
+                            >
+                              View in Collection
+                            </a>
+                          </div>
+                          <div className="space-y-1.5">
+                            {headerSearchResults.penMatches.map((match) => (
+                              <div
+                                key={match.key}
+                                className="p-2 rounded bg-white border border-[#E6E1D8] hover:border-[#0A2246] flex items-center justify-between gap-2.5 transition-colors"
+                              >
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleSelectVariant(
+                                      match.product.id,
+                                      match.matchedVariant.id
+                                    );
+                                    setActiveProductModal(match.product);
+                                    setIsSearchFocused(false);
+                                  }}
+                                  className="flex items-center gap-2.5 min-w-0 text-left flex-1 cursor-pointer"
+                                >
+                                  <img
+                                    src={match.matchedVariant.image || match.product.image}
+                                    alt={match.product.name}
+                                    referrerPolicy="no-referrer"
+                                    className="w-10 h-10 rounded object-contain bg-white border border-[#ECE8DF] shrink-0"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-[#0A2246] truncate">
+                                      {match.product.name}
+                                    </p>
+                                    <p className="text-[11px] text-[#5C5852] truncate">
+                                      {match.matchNote}
+                                    </p>
+                                  </div>
+                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="font-mono-tabular text-xs font-semibold text-[#171614]">
+                                    {formatKes(match.product.priceKes)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      handleSelectVariant(
+                                        match.product.id,
+                                        match.matchedVariant.id
+                                      );
+                                      setQuickBuyProduct(match.product);
+                                      setIsSearchFocused(false);
+                                    }}
+                                    className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider bg-[#0A2246] text-white rounded hover:bg-[#133468] cursor-pointer"
+                                  >
+                                    Quick Buy
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Matched Iroshizuku Ink Shades by Name or Characteristic */}
+                      {headerSearchResults.inkMatches.length > 0 && (
+                        <div className="p-3">
+                          <div className="flex items-center justify-between px-1 mb-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6E6A63]">
+                              Iroshizuku Ink Shades ({headerSearchResults.inkMatches.length})
+                            </span>
+                            <a
+                              href="#iroshizuku-gallery"
+                              className="text-[11px] font-semibold text-[#0A2246] hover:underline"
+                            >
+                              Jump to Ink Gallery
+                            </a>
+                          </div>
+                          <div className="space-y-1.5">
+                            {headerSearchResults.inkMatches.map((shade) => (
+                              <div
+                                key={shade.id}
+                                className="p-2 rounded bg-white border border-[#E6E1D8] hover:border-[#0A2246] flex items-center justify-between gap-2.5 transition-colors"
+                              >
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setZoomModal({
+                                      src: shade.image,
+                                      secondarySrc: shade.swatchImage,
+                                      activeView: 'primary',
+                                      title: `Pilot Iroshizuku — ${shade.name} (${shade.kanji})`,
+                                      subtitle: `${shade.meaning} · ${shade.sheenNote}`,
+                                      swatchHex: shade.hex,
+                                      inkShadeId: shade.id,
+                                      zoomLevel: 2,
+                                      panX: 50,
+                                      panY: 50,
+                                    });
+                                    setIsSearchFocused(false);
+                                  }}
+                                  className="flex items-center gap-2.5 min-w-0 text-left flex-1 cursor-pointer"
+                                >
+                                  <span
+                                    className="w-6 h-6 rounded-full border border-black/20 shrink-0 shadow-2xs"
+                                    style={{ backgroundColor: shade.hex }}
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-[#0A2246] truncate">
+                                      {shade.name} ({shade.kanji}) ·{' '}
+                                      <span className="font-normal text-[#5C5852]">
+                                        {shade.meaning}
+                                      </span>
+                                    </p>
+                                    <p className="text-[11px] text-[#6E6A63] truncate">
+                                      {shade.sheenNote}
+                                    </p>
+                                  </div>
+                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="font-mono-tabular text-xs font-semibold text-[#171614]">
+                                    KES 7,500
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      handleAddInkShadeDirectly(shade);
+                                      setIsSearchFocused(false);
+                                    }}
+                                    className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider bg-[#0A2246] text-white rounded hover:bg-[#133468] cursor-pointer"
+                                  >
+                                    + Bag
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Zone 3: 1 primary action */}
+          <div className="flex items-center shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                if (checkoutStep === 'confirmed' && cart.length === 0) {
+                  setCheckoutStep('bag');
+                }
+                setIsCartOpen(true);
+              }}
+              className="inline-flex items-center gap-2.5 px-4 py-2 text-xs font-semibold tracking-wider uppercase text-white bg-[#0A2246] hover:bg-[#133468] border border-[#C88A2E]/40 rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-[#E5B25D]" />
+              <span className="font-mono-tabular">Bag ({totalItemsCount})</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main id="top" className="flex-1">
+        {/* SECTION 1: STOREFRONT HERO (Split-Column Showcase + Full-Width Provenance Strip) */}
+        <section className="max-w-[1280px] mx-auto px-6 pt-10 pb-16 lg:pt-14 lg:pb-24">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-stretch">
+            {/* Left Column: Editorial Narrative (No duplicate logo box below header) */}
+            <div className="lg:col-span-6 flex flex-col justify-between py-2">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.18em] uppercase text-[#B58435] mb-3">
+                  Authorized Kenya Purveyor · Pilot Japan &amp; Waterman Paris
+                </p>
+
+                <h1
+                  className="font-serif-display font-semibold text-[#0A2246] tracking-tight leading-[1.08] mb-6"
+                  style={{
+                    fontSize: 'clamp(2.5rem, 4.2vw, 4rem)',
+                    textWrap: 'balance',
+                  }}
+                >
+                  Discover the Art of Writing.
+                </h1>
+
+                <div className="space-y-4 text-base lg:text-[17px] leading-[1.68] text-[#3F3D39] max-w-[60ch]">
+                  <p>
+                    Experience the beauty of Japanese and European craftsmanship through an
+                    exclusive collection of Pilot fountain pens, 24 Iroshizuku bottled inks, and
+                    Waterman Paris inks.
+                  </p>
+                  <p className="text-[#5C5852]">
+                    Whether you are discovering fountain pens for the first time or are a
+                    passionate writing enthusiast, find your perfect writing companion at{' '}
+                    <span className="font-semibold text-[#0A2246]">
+                      PENS <span className="italic text-[#B58435]">R</span> US — The Pen Specialists
+                    </span>
+                    .
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-8 mt-8 border-t border-[#E6E1D8] flex flex-wrap items-center gap-5">
+                <a
+                  href="#collection"
+                  className="inline-flex items-center gap-3 px-6 py-3.5 text-xs font-semibold tracking-[0.14em] uppercase bg-[#0A2246] text-white hover:bg-[#133468] rounded transition-colors whitespace-nowrap shrink-0"
+                >
+                  <span>Explore Our Collection</span>
+                  <ArrowRight className="w-4 h-4 text-[#E5B25D]" />
+                </a>
+
+                <a
+                  href="#collection"
+                  onClick={() => setActiveSeriesView('wishlist')}
+                  className="inline-flex items-center gap-2 px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-[#0A2246] hover:text-[#B58435] transition-colors whitespace-nowrap shrink-0"
+                >
+                  <Heart
+                    className={`w-4 h-4 ${
+                      wishlist.length > 0 ? 'fill-[#C88A2E] text-[#C88A2E]' : 'text-[#C88A2E]'
+                    }`}
+                  />
+                  <span className="font-mono-tabular">Saved Wishlist ({wishlist.length})</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Right Column: High-Fidelity Studio Product Photography */}
+            <div className="lg:col-span-6 flex">
+              <div className="relative w-full overflow-hidden rounded-lg border border-[#E6E1D8] bg-[#F1EDE4]">
+                <ResilientImage
+                  src="/src/assets/images/hero_pilot_fountain_pen_1794023542555.jpg"
+                  alt="Japanese Pilot fountain pen resting beside a cut-glass bottle of Pilot Iroshizuku Tsuki-yo ink on cream Japanese washi paper"
+                  fallbackTitle="Pilot Custom & Iroshizuku Tsuki-yo"
+                  className="w-full h-full min-h-[340px] lg:h-full object-cover"
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 text-white flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs tracking-wider uppercase text-white/80">
+                      Featured Pairing · Fine &amp; Medium Nibs Available
+                    </p>
+                    <p className="font-serif-display text-xl font-medium mt-0.5">
+                      Pilot Fountain Pens &amp; 24 Iroshizuku Inks (50ml)
+                    </p>
+                  </div>
+                  <span className="font-mono-tabular text-xs text-white/90 whitespace-nowrap shrink-0">
+                    From KES 3,000
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Full-Width 4-Column Provenance & Service Strip Below Hero Split */}
+          <div className="mt-12 pt-8 border-t border-[#E6E1D8] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <p className="text-xs text-[#6E6A63]">01 · Origin &amp; Authenticity</p>
+              <p className="text-sm font-semibold text-[#171614] mt-1">
+                100% Genuine Pilot Japan Imports
+              </p>
+              <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
+                Includes the Pilot Prera Café Series, Kakuno Madoromi Series, Kakuno Family Series, and all 24 Iroshizuku inks.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-[#6E6A63]">02 · Japanese Nib Options</p>
+              <p className="text-sm font-semibold text-[#171614] mt-1">
+                Fine (0.35mm) &amp; Medium (0.50mm)
+              </p>
+              <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
+                Select your preferred nib grade on every Pilot Prera and Kakuno fountain pen.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-[#6E6A63]">03 · Dispatch in Kenya</p>
+              <p className="text-sm font-semibold text-[#171614] mt-1">
+                Same-Day Nairobi &amp; Nationwide Courier
+              </p>
+              <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
+                Complimentary Nairobi delivery and nationwide overnight courier to major towns.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-[#6E6A63]">04 · Flexible Settlement</p>
+              <p className="text-sm font-semibold text-[#171614] mt-1">
+                M-Pesa &amp; Cash on Delivery
+              </p>
+              <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
+                Inspect your writing instrument upon arrival in Nairobi or settle seamlessly via M-Pesa.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 2: OUR FEATURED COLLECTION */}
+        <section
+          id="collection"
+          className="py-16 lg:py-24 bg-[#F3EFE8] border-y border-[#E6E1D8]"
+        >
+          <div className="max-w-[1280px] mx-auto px-6">
+            {/* Section Header + Interactive Segmented Filter Controls */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+              <div>
+                <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
+                  Signature Writing Instruments · Fine &amp; Medium Nibs In Stock
+                </p>
+                <h2
+                  className="font-serif-display text-3xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
+                  style={{ textWrap: 'balance' }}
+                >
+                  Our Featured Collection
+                </h2>
+              </div>
+
+              {/* Interactive Filter Controls (Functional Buttons) */}
+              <div
+                role="tablist"
+                aria-label="Filter collection by category"
+                className="flex flex-wrap items-center gap-1 p-1 bg-[#E6E1D8] rounded-md self-start md:self-auto"
+              >
+                {(['All', 'Fountain Pens', 'Bottled Inks', 'Converters & Refills'] as const).map(
+                  (tab) => {
+                    const active = activeCategory === tab;
+                    return (
+                      <button
+                        key={tab}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setActiveCategory(tab)}
+                        className={`px-3.5 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                          active
+                            ? 'bg-[#FAF8F5] text-[#171614] shadow-xs'
+                            : 'text-[#5C5852] hover:text-[#171614]'
+                        }`}
+                      >
+                        {tab === 'All' ? `All Instruments (${FEATURED_PRODUCTS.length})` : tab}
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+
+            {/* Unified Interactive "Shop by Series" Atelier Switcher Bar */}
+            <div className="mb-10 p-3 bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-[#6E6A63] px-1">
+                <span className="font-semibold uppercase tracking-[0.14em] text-[#171614]">
+                  Atelier View
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>Isolate a specific series or explore the full catalog</span>
+              </div>
+
+              <div
+                role="tablist"
+                aria-label="Isolate specific pen or ink series"
+                className="flex flex-wrap items-center gap-1.5"
+              >
+                {(
+                  [
+                    { id: 'all', label: 'All Series Overview' },
+                    { id: 'prera', label: 'Pilot Prera · Empress Teal (KES 8,500)' },
+                    { id: 'madoromi', label: 'Kakuno Madoromi (KES 3,500)' },
+                    { id: 'family', label: 'Kakuno Family (KES 3,000)' },
+                    { id: 'iroshizuku', label: '24 Iroshizuku Inks (KES 7,500)' },
+                    { id: 'waterman', label: 'Waterman Inks (KES 2,000)' },
+                  ] as const
+                ).map((series) => {
+                  const active = activeSeriesView === series.id;
+                  return (
+                    <button
+                      key={series.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setActiveSeriesView(series.id)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        active
+                          ? 'border-[#0A2246] bg-[#0A2246] text-white'
+                          : 'border-[#E6E1D8] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                      }`}
+                    >
+                      {series.label}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSeriesView === 'wishlist'}
+                  onClick={() => setActiveSeriesView('wishlist')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    activeSeriesView === 'wishlist'
+                      ? 'border-[#C88A2E] bg-[#0A2246] text-white'
+                      : 'border-[#C88A2E]/60 bg-white text-[#0A2246] hover:border-[#C88A2E]'
+                  }`}
+                >
+                  <Heart
+                    className={`w-3.5 h-3.5 ${
+                      wishlist.length > 0 ? 'fill-[#C88A2E] text-[#C88A2E]' : 'text-[#C88A2E]'
+                    }`}
+                  />
+                  <span className="font-mono-tabular">Saved Wishlist ({wishlist.length})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Active Header Search Filter Indicator Bar */}
+            {normalizedSearch && (
+              <div className="mb-8 px-4 py-3 bg-white border border-[#0A2246]/30 rounded-lg flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-[#171614]">
+                  <Search className="w-3.5 h-3.5 text-[#0A2246]" />
+                  <span>
+                    Filtering catalog by{' '}
+                    <strong className="text-[#0A2246]">"{searchQuery.trim()}"</strong> ·{' '}
+                    <span className="font-mono-tabular">
+                      {filteredProducts.length} instrument series &amp; {filteredInkVariety.length}{' '}
+                      Iroshizuku ink shades matched
+                    </span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#0A2246] bg-[#F3EFE8] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                  <span>Clear Search</span>
+                </button>
+              </div>
+            )}
+
+            {/* SAVED WISHLIST PERSISTENT VIEW */}
+            {activeSeriesView === 'wishlist' && (
+              <div className="mb-14 bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg p-6 lg:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#E6E1D8]">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#B58435]">
+                      Persisted Across Sessions · Local Storage
+                    </p>
+                    <h3 className="font-serif-display text-2xl lg:text-3xl font-semibold text-[#0A2246] mt-1">
+                      Your Saved Writing Instruments &amp; Inks ({wishlist.length})
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    {wishlist.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setWishlist([])}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#5C5852] hover:text-red-700 border border-[#DCD5C7] rounded bg-white transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Clear Wishlist</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActiveSeriesView('all')}
+                      className="px-3.5 py-1.5 text-xs font-semibold bg-[#0A2246] text-white rounded hover:bg-[#133468] transition-colors cursor-pointer"
+                    >
+                      Back to All Series
+                    </button>
+                  </div>
+                </div>
+
+                {wishlist.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <Heart className="w-10 h-10 text-[#C88A2E] stroke-[1.25] mx-auto mb-3" />
+                    <p className="font-serif-display text-xl text-[#0A2246]">
+                      Your Wishlist is Currently Empty
+                    </p>
+                    <p className="text-xs text-[#6E6A63] mt-1 max-w-md mx-auto leading-relaxed">
+                      Click the “Add to Wishlist” heart button on any Pilot Prera, Kakuno fountain
+                      pen, CON-40 converter, Iroshizuku ink bottle, or Waterman ink bottle to save
+                      it here across visits.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    {wishlist.map((item) => {
+                      const matchedProduct = FEATURED_PRODUCTS.find(
+                        (p) => p.id === item.productId
+                      );
+                      const matchedVariant = matchedProduct?.variants.find(
+                        (v) => v.id === item.variantId
+                      );
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white border border-[#E6E1D8] rounded-lg overflow-hidden flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="relative aspect-square w-full bg-white p-6 border-b border-[#E6E1D8] flex items-center justify-center">
+                              <ResilientImage
+                                src={item.image}
+                                alt={`${item.productName} — ${item.variantLabel}`}
+                                fallbackTitle={item.productName}
+                                className="w-full h-full object-contain"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveWishlistItem(item.id)}
+                                title="Remove from Wishlist"
+                                className="absolute top-3 right-3 p-2 rounded-full bg-[#FAF8F5] border border-[#E6E1D8] text-[#C88A2E] hover:text-red-600 transition-colors cursor-pointer"
+                              >
+                                <Heart className="w-4 h-4 fill-[#C88A2E]" />
+                              </button>
+                            </div>
+                            <div className="p-5">
+                              <div className="text-xs text-[#6E6A63]">{item.category}</div>
+                              <div className="flex items-baseline justify-between gap-2 mt-1">
+                                <h4 className="text-base font-semibold text-[#0A2246]">
+                                  {item.productName}
+                                </h4>
+                                <span className="font-mono-tabular text-sm font-semibold text-[#0A2246]">
+                                  {formatKes(item.priceKes)}
+                                </span>
+                              </div>
+                              <p className="text-xs font-medium text-[#B58435] mt-1">
+                                {item.variantLabel}
+                                {item.nibSize ? ` · ${item.nibSize} Nib` : ''}
+                              </p>
+                              <p className="text-xs text-[#5C5852] mt-1.5 line-clamp-2">
+                                {item.sublabel}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="px-5 pb-5 pt-1 flex items-center gap-2">
+                            {matchedProduct && matchedVariant && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleAddToCart(
+                                    matchedProduct,
+                                    matchedVariant,
+                                    item.nibSize,
+                                    true
+                                  )
+                                }
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded bg-[#0A2246] hover:bg-[#133468] text-white transition-colors cursor-pointer whitespace-nowrap"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Move to Bag</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveWishlistItem(item.id)}
+                              className="px-3 py-2.5 text-xs font-medium text-[#5C5852] hover:text-red-700 border border-[#DCD5C7] rounded bg-[#FAF8F5] transition-colors cursor-pointer whitespace-nowrap"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2-Column Product Showcase Grid */}
+            <div
+              className={`grid grid-cols-1 md:grid-cols-2 gap-8 ${
+                activeSeriesView !== 'all' ? 'hidden' : ''
+              }`}
+            >
+              {filteredProducts.map((product) => {
+                const chosenVariantId =
+                  selectedVariants[product.id] || product.variants[0].id;
+                const chosenVariant =
+                  product.variants.find((v) => v.id === chosenVariantId) ||
+                  product.variants[0];
+                const chosenNib: NibOption = selectedNibs[product.id] || 'Fine';
+                const displayedImage =
+                  activeImageByProduct[product.id] ||
+                  chosenVariant.image ||
+                  product.image;
+                const isContainImage =
+                  product.imageFit === 'contain' ||
+                  displayedImage.includes('madoromi_ivory') ||
+                  displayedImage.includes('madoromi_blue') ||
+                  displayedImage.includes('madoromi_pink') ||
+                  displayedImage.includes('madoromi_brown') ||
+                  displayedImage.includes('madoromi_lightblue') ||
+                  displayedImage.includes('madoromi_nib_detail');
+                const feedbackKey = `${product.id}-${chosenVariant.id}-${
+                  product.hasNibSelector ? chosenNib : 'none'
+                }`;
+                const isAdded = justAddedKey === feedbackKey;
+                const isWishlisted = isItemWishlisted(product.id, chosenVariant.id);
+
+                return (
+                  <article
+                    key={product.id}
+                    className="group bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden flex flex-col justify-between transition-transform duration-200 hover:-translate-y-0.5"
+                  >
+                    <div>
+                      {/* Product Image Slot (4:3 Uniform Aspect Ratio) */}
+                      <div
+                        className={`relative aspect-[4/3] w-full overflow-hidden border-b border-[#E6E1D8] ${
+                          isContainImage ? 'bg-white p-4' : 'bg-[#EFECE5]'
+                        }`}
+                      >
+                        <ResilientImage
+                          src={displayedImage}
+                          alt={`${product.name} — ${chosenVariant.label}`}
+                          fallbackTitle={product.name}
+                          className={`w-full h-full transition-transform duration-300 group-hover:scale-[1.02] ${
+                            isContainImage ? 'object-contain' : 'object-cover'
+                          }`}
+                        />
+
+                        {/* Gallery Thumbnail Switcher for Multi-Image Series */}
+                        {product.galleryImages && product.galleryImages.length > 1 && (
+                          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 bg-[#FAF8F5]/95 p-1.5 rounded border border-[#E6E1D8] w-fit max-w-[calc(100%-1.5rem)] overflow-x-auto">
+                            {product.galleryImages.slice(0, 7).map((imgItem, idx) => {
+                              const isCurrentImg = displayedImage === imgItem.src;
+                              return (
+                                <button
+                                  key={imgItem.src}
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveImageByProduct((prev) => ({
+                                      ...prev,
+                                      [product.id]: imgItem.src,
+                                    }));
+                                    // If this thumbnail matches a variant's image, also sync the variant selection
+                                    const matchingVar = product.variants.find(
+                                      (v) => v.image === imgItem.src
+                                    );
+                                    if (matchingVar) {
+                                      setSelectedVariants((prev) => ({
+                                        ...prev,
+                                        [product.id]: matchingVar.id,
+                                      }));
+                                    }
+                                  }}
+                                  title={imgItem.caption}
+                                  className={`w-8 h-8 rounded overflow-hidden border transition-all cursor-pointer shrink-0 bg-white ${
+                                    isCurrentImg
+                                      ? 'border-[#163A5F] ring-1 ring-[#163A5F]'
+                                      : 'border-[#DCD5C7] opacity-75 hover:opacity-100'
+                                  }`}
+                                >
+                                  <img
+                                    src={imgItem.src}
+                                    alt={imgItem.caption}
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-contain"
+                                  />
+                                  <span className="sr-only">View photo {idx + 1}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const matchedInk =
+                              product.id === 'pilot-iroshizuku-ink'
+                                ? INK_STUDIO_SHADES.find((s) => s.id === chosenVariant.id)
+                                : undefined;
+                            setZoomModal({
+                              src: displayedImage,
+                              secondarySrc: matchedInk?.swatchImage,
+                              activeView: 'primary',
+                              title: `${product.name} — ${chosenVariant.label}`,
+                              subtitle: chosenVariant.sublabel,
+                              swatchHex: chosenVariant.swatchHex,
+                              inkShadeId: matchedInk?.id,
+                              zoomLevel: 2,
+                              panX: 50,
+                              panY: 50,
+                            });
+                          }}
+                          title="Zoom & Inspect High-Resolution Photo"
+                          className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#0A2246] hover:text-white rounded border border-[#E6E1D8] transition-colors cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
+                        >
+                          <ZoomIn className="w-3.5 h-3.5" />
+                          <span>Zoom</span>
+                        </button>
+
+                        {chosenVariant.swatchHex && (
+                          <span
+                            title={chosenVariant.label}
+                            className="absolute top-3.5 right-3.5 w-5 h-5 rounded-full border border-black/20 shadow-xs"
+                            style={{ backgroundColor: chosenVariant.swatchHex }}
+                          />
+                        )}
+                      </div>
+
+                      {/* Card Body: Unboxed Metadata + Product Name + Tabular KES Price */}
+                      <div className="p-6">
+                        <div className="flex items-center gap-2 text-xs text-[#6E6A63] mb-2">
+                          <span className="uppercase tracking-wider">{product.category}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{product.Origin}</span>
+                          <span aria-hidden="true">·</span>
+                          <span className="text-[#163A5F] font-medium">{product.availability}</span>
+                        </div>
+
+                        <div className="flex items-baseline justify-between gap-4 mt-1">
+                          <h3 className="text-lg font-semibold tracking-tight text-[#171614]">
+                            {product.name}
+                          </h3>
+                          <span className="font-mono-tabular text-base font-semibold text-[#171614] whitespace-nowrap shrink-0">
+                            {formatKes(product.priceKes)}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-[#6E6A63] mt-0.5">{product.japaneseTitle}</p>
+
+                        <p className="text-sm text-[#4A4742] mt-3 leading-relaxed">
+                          {product.shortSummary}
+                        </p>
+
+                        {/* Interactive Variant Picker directly on Card */}
+                        <div className="mt-5 pt-4 border-t border-[#EAE5DC]">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="block text-xs font-medium text-[#5C5852]">
+                              {product.variantLabel}
+                            </span>
+                            {product.id === 'pilot-kakuno-madoromi' && (
+                              <div className="flex items-center gap-3">
+                                {displayedImage !== '/assets/madoromi/madoromi_series.jpg' && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveImageByProduct((prev) => ({
+                                        ...prev,
+                                        [product.id]: '/assets/madoromi/madoromi_series.jpg',
+                                      }))
+                                    }
+                                    className="text-[11px] font-medium text-[#163A5F] hover:underline cursor-pointer whitespace-nowrap shrink-0"
+                                  >
+                                    Show Series Photo
+                                  </button>
+                                )}
+                                <a
+                                  href="#kakuno-madoromi-showcase"
+                                  className="text-[11px] font-medium text-[#163A5F] hover:underline whitespace-nowrap shrink-0"
+                                >
+                                  View All 5 Pens One-by-One ↓
+                                </a>
+                              </div>
+                            )}
+                            {product.id === 'pilot-kakuno-family' && (
+                              <a
+                                href="#kakuno-family-showcase"
+                                className="text-[11px] font-medium text-[#163A5F] hover:underline whitespace-nowrap shrink-0"
+                              >
+                                View All 6 Pens One-by-One ↓
+                              </a>
+                            )}
+                            {product.id === 'pilot-prera' && (
+                              <a
+                                href="#pilot-prera-showcase"
+                                className="text-[11px] font-medium text-[#163A5F] hover:underline whitespace-nowrap shrink-0"
+                              >
+                                Open Empress Teal Product Page ↓
+                              </a>
+                            )}
+                            {product.id === 'pilot-iroshizuku-ink' && (
+                              <a
+                                href="#iroshizuku-gallery"
+                                className="text-[11px] font-medium text-[#163A5F] hover:underline whitespace-nowrap shrink-0"
+                              >
+                                View All 24 Bottles Below ↓
+                              </a>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 max-h-[118px] overflow-y-auto pr-1">
+                            {product.variants.map((variant) => {
+                              const isSelected = variant.id === chosenVariant.id;
+                              return (
+                                <button
+                                  key={variant.id}
+                                  type="button"
+                                  onClick={() => handleSelectVariant(product.id, variant.id)}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                    isSelected
+                                      ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614] font-medium'
+                                      : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
+                                  }`}
+                                >
+                                  {variant.swatchHex && (
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full border border-black/15 shrink-0"
+                                      style={{ backgroundColor: variant.swatchHex }}
+                                    />
+                                  )}
+                                  <span>{variant.label.split(' · ')[0]}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-xs text-[#6E6A63] mt-2 min-h-[1.25rem]">
+                            <span className="font-medium text-[#171614]">
+                              {chosenVariant.label}:{' '}
+                            </span>
+                            {chosenVariant.sublabel}
+                          </p>
+                        </div>
+
+                        {/* Dedicated Fine / Medium Nib Size Selector for Fountain Pens */}
+                        {product.hasNibSelector && (
+                          <div className="mt-4 pt-3.5 border-t border-[#EAE5DC] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <span className="text-xs font-medium text-[#5C5852]">
+                              Select Nib Option:
+                            </span>
+                            <div
+                              role="group"
+                              aria-label={`Select Nib Size for ${product.name}`}
+                              className="inline-flex items-center gap-1.5"
+                            >
+                              {(['Fine', 'Medium'] as const).map((nib) => {
+                                const isNibSelected = chosenNib === nib;
+                                return (
+                                  <button
+                                    key={nib}
+                                    type="button"
+                                    onClick={() => handleSelectNib(product.id, nib)}
+                                    className={`px-3 py-1.5 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                      isNibSelected
+                                        ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                    }`}
+                                  >
+                                    {nib === 'Fine' ? 'Fine (0.35mm)' : 'Medium (0.50mm)'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Footer Actions: Add to Bag + Quick Buy side-by-side + Add to Wishlist */}
+                    <div className="px-6 pb-6 pt-2 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleAddToCart(
+                              product,
+                              chosenVariant,
+                              product.hasNibSelector ? chosenNib : undefined,
+                              false
+                            )
+                          }
+                          className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                            isAdded
+                              ? 'bg-[#1D5B43] text-white'
+                              : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                          }`}
+                        >
+                          {isAdded ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              <span>Added to Bag</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4" />
+                              <span>
+                                Add to Bag
+                                {product.hasNibSelector ? ` (${chosenNib})` : ''} ·{' '}
+                                {formatKes(product.priceKes)}
+                              </span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setQuickBuyProduct(product)}
+                          className="inline-flex items-center justify-center gap-1.5 py-2.5 px-4 text-xs font-semibold uppercase tracking-wider rounded border border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                        >
+                          <ShoppingBag className="w-3.5 h-3.5 text-[#C88A2E]" />
+                          <span>Quick Buy</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleToggleWishlist(
+                              product,
+                              chosenVariant,
+                              product.hasNibSelector ? chosenNib : undefined
+                            )
+                          }
+                          aria-pressed={isWishlisted}
+                          className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                            isWishlisted
+                              ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                          }`}
+                        >
+                          <Heart
+                            className={`w-3.5 h-3.5 ${
+                              isWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                            }`}
+                          />
+                          <span>{isWishlisted ? 'In Wishlist' : 'Add to Wishlist'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveProductModal(product)}
+                          className="inline-flex items-center justify-center gap-1.5 py-2 px-3.5 text-xs font-medium rounded border border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Full Details</span>
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {/* PILOT KAKUNO MADOROMI SERIES — INDIVIDUAL ONE-BY-ONE PEN SHOWCASE */}
+            <div
+              id="kakuno-madoromi-showcase"
+              className={`${
+                activeSeriesView === 'all'
+                  ? 'mt-20 pt-16 border-t border-[#DCD5C7]'
+                  : activeSeriesView === 'madoromi'
+                    ? 'mt-4'
+                    : 'hidden'
+              }`}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+                <div>
+                  <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
+                    万年筆 カクノ まどろみカラー · Limited Slumber Lineup (KES 3,500)
+                  </p>
+                  <h3
+                    className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
+                    style={{ textWrap: 'balance' }}
+                  >
+                    Pilot Kakuno Madoromi Series — Every Pen One by One
+                  </h3>
+                  <p className="text-sm text-[#4A4742] mt-2 max-w-2xl">
+                    Inspired by serene twilight slumber moments, each Limited Edition Madoromi
+                    Kakuno pairs a dreamy translucent pastel barrel with an exclusive{' '}
+                    <strong>Gold-Tone Smiley Stainless Steel Nib</strong>. Select{' '}
+                    <strong>Fine (0.35mm)</strong> or <strong>Medium (0.50mm)</strong> on any
+                    Madoromi shade below.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:items-end gap-2">
+                  <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                    Gold-Tone Smiley Nib · Includes 1× Black Cartridge
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleAddToCart(
+                        pilotCon40Product,
+                        pilotCon40Product.variants[0],
+                        undefined,
+                        false,
+                        'madoromi-con40-upsell'
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                      justAddedKey === 'madoromi-con40-upsell'
+                        ? 'border-[#1D5B43] bg-[#1D5B43] text-white'
+                        : 'border-[#163A5F] bg-white text-[#163A5F] hover:bg-[#163A5F] hover:text-white'
+                    }`}
+                  >
+                    {justAddedKey === 'madoromi-con40-upsell' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Added CON-40 Converter (KES 1,200)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Pilot CON-40 Twist Converter · KES 1,200</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {kakunoMadoromiProduct.variants.map((variant) => {
+                  const activeNib: NibOption = selectedNibs[variant.id] || 'Medium';
+                  const customKey = `madoromi-grid-${variant.id}-${activeNib}`;
+                  const isAdded = justAddedKey === customKey;
+                  const isWishlisted = isItemWishlisted(kakunoMadoromiProduct.id, variant.id);
+
+                  return (
+                    <div
+                      key={variant.id}
+                      className="bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden flex flex-col justify-between transition-transform duration-200 hover:-translate-y-0.5"
+                    >
+                      <div>
+                        {/* Individual Madoromi Pen Image */}
+                        <div
+                          onClick={() =>
+                            setZoomModal({
+                              src: variant.image || kakunoMadoromiProduct.image,
+                              activeView: 'primary',
+                              title: `Pilot Kakuno Madoromi — ${variant.label} (${activeNib} Nib)`,
+                              subtitle: variant.sublabel,
+                              swatchHex: variant.swatchHex,
+                              zoomLevel: 2,
+                              panX: 50,
+                              panY: 50,
+                            })
+                          }
+                          className="relative aspect-square w-full bg-white p-6 border-b border-[#E6E1D8] flex items-center justify-center cursor-zoom-in group"
+                        >
+                          <ResilientImage
+                            src={variant.image || kakunoMadoromiProduct.image}
+                            alt={`Pilot Kakuno Madoromi Series — ${variant.label} (${activeNib} Nib)`}
+                            fallbackTitle={`Kakuno ${variant.label}`}
+                            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setZoomModal({
+                                src: variant.image || kakunoMadoromiProduct.image,
+                                activeView: 'primary',
+                                title: `Pilot Kakuno Madoromi — ${variant.label} (${activeNib} Nib)`,
+                                subtitle: variant.sublabel,
+                                swatchHex: variant.swatchHex,
+                                zoomLevel: 2,
+                                panX: 50,
+                                panY: 50,
+                              });
+                            }}
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ZoomIn className="w-3 h-3" />
+                            <span>Zoom</span>
+                          </button>
+                          {variant.swatchHex && (
+                            <span
+                              title={variant.label}
+                              className="absolute top-3.5 right-3.5 w-5 h-5 rounded-full border border-black/20 shadow-xs"
+                              style={{ backgroundColor: variant.swatchHex }}
+                            />
+                          )}
+                        </div>
+
+                        <div className="p-5">
+                          <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                            <span>Kakuno Madoromi LE</span>
+                            <span aria-hidden="true">·</span>
+                            <span className="text-[#8A6421] font-medium">
+                              {variant.nibEngraving || 'Gold-Tone Smiley Nib'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-2 mt-1.5">
+                            <h4 className="text-base font-semibold text-[#171614]">
+                              Pilot Kakuno — {variant.label}
+                            </h4>
+                            <span className="font-mono-tabular text-sm font-semibold text-[#171614] whitespace-nowrap shrink-0">
+                              KES 3,500
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[#5C5852] mt-2 leading-relaxed">
+                            {variant.sublabel}
+                          </p>
+
+                          {/* Individual Fine / Medium Nib Selector */}
+                          <div className="mt-4 pt-3.5 border-t border-[#EAE5DC] flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-[#5C5852]">Nib Size:</span>
+                            <div className="inline-flex items-center gap-1.5">
+                              {(['Fine', 'Medium'] as const).map((nib) => {
+                                const selected = activeNib === nib;
+                                return (
+                                  <button
+                                    key={nib}
+                                    type="button"
+                                    onClick={() => handleSelectNib(variant.id, nib)}
+                                    className={`px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                      selected
+                                        ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                    }`}
+                                  >
+                                    {nib} ({nib === 'Fine' ? '0.35mm' : '0.50mm'})
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectVariant('pilot-kakuno-madoromi', variant.id);
+                              handleSelectNib('pilot-kakuno-madoromi', activeNib);
+                              handleAddToCart(
+                                kakunoMadoromiProduct,
+                                variant,
+                                activeNib,
+                                false,
+                                customKey
+                              );
+                            }}
+                            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                              isAdded
+                                ? 'bg-[#1D5B43] text-white'
+                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                            }`}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Added ({activeNib})</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add to Bag ({activeNib})</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectVariant('pilot-kakuno-madoromi', variant.id);
+                              handleSelectNib('pilot-kakuno-madoromi', activeNib);
+                              setQuickBuyProduct(kakunoMadoromiProduct);
+                            }}
+                            className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold uppercase tracking-wider rounded border border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5 text-[#C88A2E]" />
+                            <span>Quick Buy</span>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleToggleWishlist(kakunoMadoromiProduct, variant, activeNib)
+                          }
+                          aria-pressed={isWishlisted}
+                          className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                            isWishlisted
+                              ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                          }`}
+                        >
+                          <Heart
+                            className={`w-3.5 h-3.5 ${
+                              isWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                            }`}
+                          />
+                          <span>{isWishlisted ? 'In Wishlist' : 'Add to Wishlist'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* 6th Card: Full 5-Pen Madoromi Slumber Lineup Comparison Card */}
+                <div className="bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden flex flex-col justify-between">
+                  <div>
+                    <div className="relative aspect-square w-full bg-white p-4 border-b border-[#E6E1D8] flex flex-col items-center justify-center gap-2">
+                      <ResilientImage
+                        src="/assets/madoromi/madoromi_nib_detail.jpg"
+                        alt="Pilot Kakuno Madoromi Series — All 5 Translucent Pastel Shades Side by Side"
+                        fallbackTitle="Madoromi 5-Pen Lineup"
+                        className="w-full h-1/2 object-contain"
+                      />
+                      <ResilientImage
+                        src="/assets/madoromi/madoromi_series.jpg"
+                        alt="Pilot Kakuno Madoromi Slumber Series Full Collection"
+                        fallbackTitle="Madoromi Slumber Collection"
+                        className="w-full h-1/2 object-cover rounded"
+                      />
+                    </div>
+
+                    <div className="p-5">
+                      <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                        <span>Complete 5-Color Overview</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="text-[#8A6421] font-medium">Fine &amp; Medium Nibs</span>
+                      </div>
+
+                      <h4 className="text-base font-semibold text-[#171614] mt-1.5">
+                        All 5 Madoromi Shades Side-by-Side
+                      </h4>
+
+                      <p className="text-xs text-[#5C5852] mt-2 leading-relaxed">
+                        Compare Ivory, Blue, Pink, Brown, and Light Blue together. Every shade is
+                        fitted with the signature gold-colored smiley nib in Fine (0.35mm) or Medium
+                        (0.50mm).
+                      </p>
+
+                      <div className="mt-4 pt-3.5 border-t border-[#EAE5DC] flex items-center justify-between">
+                        <span className="text-xs font-medium text-[#5C5852]">5 Shades:</span>
+                        <div className="flex items-center gap-1.5">
+                          {kakunoMadoromiProduct.variants.map((v) => (
+                            <span
+                              key={v.id}
+                              title={v.label}
+                              className="w-4 h-4 rounded-full border border-black/20"
+                              style={{ backgroundColor: v.swatchHex }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveProductModal(kakunoMadoromiProduct)}
+                      className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded border border-[#0A2246] text-[#0A2246] hover:bg-[#0A2246] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Inspect Madoromi Gallery &amp; Specs</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleToggleWishlist(
+                          kakunoMadoromiProduct,
+                          kakunoMadoromiProduct.variants[0],
+                          'Medium'
+                        )
+                      }
+                      aria-pressed={isItemWishlisted(
+                        kakunoMadoromiProduct.id,
+                        kakunoMadoromiProduct.variants[0].id
+                      )}
+                      className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                        isItemWishlisted(
+                          kakunoMadoromiProduct.id,
+                          kakunoMadoromiProduct.variants[0].id
+                        )
+                          ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                          : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                      }`}
+                    >
+                      <Heart
+                        className={`w-3.5 h-3.5 ${
+                          isItemWishlisted(
+                            kakunoMadoromiProduct.id,
+                            kakunoMadoromiProduct.variants[0].id
+                          )
+                            ? 'fill-[#C88A2E] text-[#C88A2E]'
+                            : ''
+                        }`}
+                      />
+                      <span>
+                        {isItemWishlisted(
+                          kakunoMadoromiProduct.id,
+                          kakunoMadoromiProduct.variants[0].id
+                        )
+                          ? 'In Wishlist'
+                          : 'Add to Wishlist'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PILOT KAKUNO FAMILY SERIES — INDIVIDUAL ONE-BY-ONE PEN SHOWCASE */}
+            <div
+              id="kakuno-family-showcase"
+              className={`${
+                activeSeriesView === 'all'
+                  ? 'mt-20 pt-16 border-t border-[#DCD5C7]'
+                  : activeSeriesView === 'family'
+                    ? 'mt-4'
+                    : 'hidden'
+              }`}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+                <div>
+                  <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
+                    万年筆 カクノ ファミリーシリーズ · Individual Demonstrator Lineup (KES 3,000)
+                  </p>
+                  <h3
+                    className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
+                    style={{ textWrap: 'balance' }}
+                  >
+                    Pilot Kakuno Family Series — Every Pen One by One
+                  </h3>
+                  <p className="text-sm text-[#4A4742] mt-2 max-w-2xl">
+                    Each member of the Pilot Kakuno Family Series features a crystal-clear
+                    translucent hexagonal body and its own laser-etched character expression on the
+                    stainless steel nib. Select <strong>Fine (0.35mm)</strong> or{' '}
+                    <strong>Medium (0.50mm)</strong> on any pen below.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:items-end gap-2">
+                  <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                    Includes 1× Black Ink Cartridge · CON-40 Converter Compatible
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleAddToCart(
+                        pilotCon40Product,
+                        pilotCon40Product.variants[0],
+                        undefined,
+                        false,
+                        'family-con40-upsell'
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                      justAddedKey === 'family-con40-upsell'
+                        ? 'border-[#1D5B43] bg-[#1D5B43] text-white'
+                        : 'border-[#163A5F] bg-white text-[#163A5F] hover:bg-[#163A5F] hover:text-white'
+                    }`}
+                  >
+                    {justAddedKey === 'family-con40-upsell' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Added CON-40 Converter (KES 1,200)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Pilot CON-40 Twist Converter · KES 1,200</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {kakunoFamilyProduct.variants.map((variant) => {
+                  const activeNib: NibOption = selectedNibs[variant.id] || 'Fine';
+                  const customKey = `family-grid-${variant.id}-${activeNib}`;
+                  const isAdded = justAddedKey === customKey;
+                  const isWishlisted = isItemWishlisted(kakunoFamilyProduct.id, variant.id);
+
+                  return (
+                    <div
+                      key={variant.id}
+                      className="bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden flex flex-col justify-between transition-transform duration-200 hover:-translate-y-0.5"
+                    >
+                      <div>
+                        {/* Individual Goldspot Pen Image */}
+                        <div
+                          onClick={() =>
+                            setZoomModal({
+                              src: variant.image || kakunoFamilyProduct.image,
+                              activeView: 'primary',
+                              title: `Pilot Kakuno Family Series — ${variant.label} (${activeNib} Nib)`,
+                              subtitle: `${variant.nibEngraving} · ${variant.sublabel}`,
+                              swatchHex: variant.swatchHex,
+                              zoomLevel: 2,
+                              panX: 50,
+                              panY: 50,
+                            })
+                          }
+                          className="relative aspect-square w-full bg-white p-6 border-b border-[#E6E1D8] flex items-center justify-center cursor-zoom-in group"
+                        >
+                          <ResilientImage
+                            src={variant.image || kakunoFamilyProduct.image}
+                            alt={`Pilot Kakuno Family Series — ${variant.label} (${activeNib} Nib)`}
+                            fallbackTitle={`Kakuno ${variant.label}`}
+                            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setZoomModal({
+                                src: variant.image || kakunoFamilyProduct.image,
+                                activeView: 'primary',
+                                title: `Pilot Kakuno Family Series — ${variant.label} (${activeNib} Nib)`,
+                                subtitle: `${variant.nibEngraving} · ${variant.sublabel}`,
+                                swatchHex: variant.swatchHex,
+                                zoomLevel: 2,
+                                panX: 50,
+                                panY: 50,
+                              });
+                            }}
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ZoomIn className="w-3 h-3" />
+                            <span>Zoom</span>
+                          </button>
+                          {variant.swatchHex && (
+                            <span
+                              title={variant.label}
+                              className="absolute top-3.5 right-3.5 w-5 h-5 rounded-full border border-black/20 shadow-xs"
+                              style={{ backgroundColor: variant.swatchHex }}
+                            />
+                          )}
+                        </div>
+
+                        <div className="p-5">
+                          <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                            <span>Kakuno Family Series</span>
+                            <span aria-hidden="true">·</span>
+                            <span className="text-[#163A5F] font-medium">
+                              {variant.nibEngraving}
+                            </span>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-2 mt-1.5">
+                            <h4 className="text-base font-semibold text-[#171614]">
+                              Pilot Kakuno — {variant.label}
+                            </h4>
+                            <span className="font-mono-tabular text-sm font-semibold text-[#171614] whitespace-nowrap shrink-0">
+                              KES 3,000
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[#5C5852] mt-2 leading-relaxed">
+                            {variant.sublabel}
+                          </p>
+
+                          {/* Individual Fine / Medium Nib Selector */}
+                          <div className="mt-4 pt-3.5 border-t border-[#EAE5DC] flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-[#5C5852]">Nib Size:</span>
+                            <div className="inline-flex items-center gap-1.5">
+                              {(['Fine', 'Medium'] as const).map((nib) => {
+                                const selected = activeNib === nib;
+                                return (
+                                  <button
+                                    key={nib}
+                                    type="button"
+                                    onClick={() => handleSelectNib(variant.id, nib)}
+                                    className={`px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                      selected
+                                        ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                    }`}
+                                  >
+                                    {nib} ({nib === 'Fine' ? '0.35mm' : '0.50mm'})
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectVariant('pilot-kakuno-family', variant.id);
+                              handleSelectNib('pilot-kakuno-family', activeNib);
+                              handleAddToCart(
+                                kakunoFamilyProduct,
+                                variant,
+                                activeNib,
+                                false,
+                                customKey
+                              );
+                            }}
+                            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                              isAdded
+                                ? 'bg-[#1D5B43] text-white'
+                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                            }`}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Added ({activeNib})</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add to Bag ({activeNib})</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectVariant('pilot-kakuno-family', variant.id);
+                              handleSelectNib('pilot-kakuno-family', activeNib);
+                              setQuickBuyProduct(kakunoFamilyProduct);
+                            }}
+                            className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold uppercase tracking-wider rounded border border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5 text-[#C88A2E]" />
+                            <span>Quick Buy</span>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleToggleWishlist(kakunoFamilyProduct, variant, activeNib)
+                          }
+                          aria-pressed={isWishlisted}
+                          className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                            isWishlisted
+                              ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                          }`}
+                        >
+                          <Heart
+                            className={`w-3.5 h-3.5 ${
+                              isWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                            }`}
+                          />
+                          <span>{isWishlisted ? 'In Wishlist' : 'Add to Wishlist'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* PILOT PRERA FOUNTAIN PEN IN EMPRESS TEAL — DEDICATED PRODUCT PAGE & SERIES SHOWCASE (KES 8,500) */}
+            <div
+              id="pilot-prera-showcase"
+              className={`${
+                activeSeriesView === 'all'
+                  ? 'mt-20 pt-16 border-t border-[#DCD5C7]'
+                  : activeSeriesView === 'prera'
+                    ? 'mt-4'
+                    : 'hidden'
+              }`}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.16em] uppercase text-[#B58435] mb-2">
+                    万年筆 プレラ · Flagship Product Page · CON-40 Converter Included (KES 8,500)
+                  </p>
+                  <h3
+                    className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#0A2246] tracking-tight"
+                    style={{ textWrap: 'balance' }}
+                  >
+                    Pilot Prera Fountain Pen in Empress Teal — Complete Product Page
+                  </h3>
+                  <p className="text-sm text-[#4A4742] mt-2 max-w-2xl">
+                    Inspired by the cozy, welcoming atmosphere of a café where the aroma of fresh
+                    coffee and warm spices fills the air. The deep, vibrant{' '}
+                    <strong>Empress Teal</strong> translucent resin body offers a window into the
+                    pen’s inner mechanics and included <strong>Pilot CON-40 converter</strong>,
+                    paired with Pilot’s signature cushioned snap-cap closure.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:items-end gap-1.5">
+                  <span className="font-mono-tabular text-sm font-bold text-[#0A2246]">
+                    KES 8,500 · Fine (0.35mm) &amp; Medium (0.50mm)
+                  </span>
+                  <span className="text-xs text-[#1D5B43] font-medium">
+                    Includes Both Pilot CON-40 Converter &amp; Black Ink Cartridge
+                  </span>
+                </div>
+              </div>
+
+              {/* PART A: DEDICATED EMPRESS TEAL FLAGSHIP PRODUCT PAGE (2-Column Interactive Gallery + Specifications + Purchase Module) */}
+              {(() => {
+                const empressVariant = pilotPreraProduct.variants[0];
+                const empressNib: NibOption = selectedNibs['prera-empress-teal'] || 'Medium';
+                const empressFeedbackKey = `prera-flagship-empress-teal-${empressNib}`;
+                const isEmpressAdded = justAddedKey === empressFeedbackKey;
+                const isEmpressWishlisted = isItemWishlisted(
+                  pilotPreraProduct.id,
+                  empressVariant.id
+                );
+                const empressGallery = pilotPreraProduct.galleryImages!.slice(0, 6);
+
+                return (
+                  <div className="bg-[#FAF8F5] border border-[#DCD5C7] rounded-lg overflow-hidden shadow-xs mb-12">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
+                      {/* Left Column: 6-Angle Empress Teal Studio Gallery */}
+                      <div className="lg:col-span-6 bg-white border-b lg:border-b-0 lg:border-r border-[#E6E1D8] p-6 lg:p-8 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-4">
+                            <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#0A2246]">
+                              <span
+                                className="w-3.5 h-3.5 rounded-full border border-black/20"
+                                style={{ backgroundColor: '#125A66' }}
+                              />
+                              <span>Empress Teal · SKU P22139 / P22073</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setZoomModal({
+                                  src: activePreraHeroImg,
+                                  activeView: 'primary',
+                                  title: `Pilot Prera Fountain Pen in Empress Teal (${empressNib} Nib)`,
+                                  subtitle:
+                                    'Translucent Empress Teal Resin · Silver Trim · Includes CON-40 Converter',
+                                  swatchHex: '#125A66',
+                                  zoomLevel: 2,
+                                  panX: 50,
+                                  panY: 50,
+                                })
+                              }
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#FAF8F5] text-[#171614] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer"
+                            >
+                              <ZoomIn className="w-3.5 h-3.5" />
+                              <span>Zoom 3×</span>
+                            </button>
+                          </div>
+
+                          {/* Main Interactive Photo Stage */}
+                          <div
+                            onClick={() =>
+                              setZoomModal({
+                                src: activePreraHeroImg,
+                                activeView: 'primary',
+                                title: `Pilot Prera Fountain Pen in Empress Teal (${empressNib} Nib)`,
+                                subtitle:
+                                  'Translucent Empress Teal Resin · Silver Trim · Includes CON-40 Converter',
+                                swatchHex: '#125A66',
+                                zoomLevel: 2,
+                                panX: 50,
+                                panY: 50,
+                              })
+                            }
+                            className="aspect-square max-h-[380px] w-full mx-auto flex items-center justify-center p-4 cursor-zoom-in"
+                          >
+                            <ResilientImage
+                              src={activePreraHeroImg}
+                              alt="Pilot Prera Fountain Pen in Empress Teal"
+                              fallbackTitle="Pilot Prera in Empress Teal"
+                              className="w-full h-full object-contain transition-transform duration-200 hover:scale-[1.03]"
+                            />
+                          </div>
+
+                          {/* 6 Official Goldspot Studio Angle Thumbnails */}
+                          <div className="mt-4 pt-4 border-t border-[#ECE8DF]">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6E6A63] mb-2.5">
+                              Inspect All 6 Studio Angles (Capped, Posted, Steel Nib, CON-40 &amp; Gift Box)
+                            </p>
+                            <div className="grid grid-cols-6 gap-2">
+                              {empressGallery.map((imgItem, idx) => {
+                                const isCurrent = activePreraHeroImg === imgItem.src;
+                                return (
+                                  <button
+                                    key={imgItem.src}
+                                    type="button"
+                                    onClick={() => setActivePreraHeroImg(imgItem.src)}
+                                    title={imgItem.caption}
+                                    className={`aspect-square rounded border p-1 bg-white overflow-hidden transition-all cursor-pointer ${
+                                      isCurrent
+                                        ? 'border-[#0A2246] ring-1 ring-[#0A2246]'
+                                        : 'border-[#DCD5C7] opacity-75 hover:opacity-100'
+                                    }`}
+                                  >
+                                    <img
+                                      src={imgItem.src}
+                                      alt={imgItem.caption}
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-full object-contain"
+                                    />
+                                    <span className="sr-only">Angle {idx + 1}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Included in the Box Boxout */}
+                        <div className="mt-6 p-4 rounded bg-[#F3EFE8] border border-[#E6E1D8]">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-[#0A2246] mb-2">
+                            Included in the Pilot Presentation Box
+                          </p>
+                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-[#3F3D39]">
+                            {pilotPreraProduct.includedItems.map((inc) => (
+                              <li key={inc} className="flex items-center gap-2">
+                                <Check className="w-3.5 h-3.5 text-[#1D5B43] shrink-0" />
+                                <span>{inc}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Right Column: Product Page Details, Specifications & Contiguous Purchase Module */}
+                      <div className="lg:col-span-6 p-6 lg:p-8 flex flex-col justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-[#6E6A63] mb-2">
+                            <span className="uppercase tracking-wider font-semibold text-[#B58435]">
+                              Pilot Japan · Café Demonstrator Series
+                            </span>
+                            <span aria-hidden="true">·</span>
+                            <span className="text-[#1D5B43] font-medium">
+                              In Stock for Same-Day Nairobi Dispatch
+                            </span>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-4">
+                            <h4 className="font-serif-display text-2xl lg:text-3xl font-semibold text-[#0A2246]">
+                              Pilot Prera Fountain Pen in Empress Teal
+                            </h4>
+                            <span className="font-mono-tabular text-2xl font-bold text-[#0A2246] shrink-0">
+                              KES 8,500
+                            </span>
+                          </div>
+
+                          <div className="mt-4 space-y-3 text-xs sm:text-sm text-[#4A4742] leading-relaxed">
+                            <p>
+                              The Pilot Prera Fountain Pen in Empress Teal blends subtle
+                              sophistication with everyday functionality. The deep, vibrant teal
+                              captures a sense of quiet sophistication, while the transparent resin
+                              body offers a clear view of the ink level and pre-installed{' '}
+                              <strong>Pilot CON-40 converter</strong>.
+                            </p>
+                            <p>
+                              Equipped with a super-smooth Japanese stainless steel nib and Pilot’s
+                              renowned cushioned snap-cap, the Prera posts securely to a full
+                              5.3-inch (135mm) writing length while remaining compact (121mm) in a
+                              pocket or pen case.
+                            </p>
+                          </div>
+
+                          {/* Nib Selector on Empress Teal Flagship Page */}
+                          <div className="mt-5 pt-4 border-t border-[#E6E1D8] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <span className="block text-xs font-semibold uppercase tracking-wider text-[#0A2246]">
+                                Select Nib Size
+                              </span>
+                              <span className="text-[11px] text-[#6E6A63]">
+                                Silver Stainless Steel · Calibrated in Japan
+                              </span>
+                            </div>
+                            <div className="inline-flex items-center gap-2">
+                              {(['Fine', 'Medium'] as const).map((nib) => {
+                                const selected = empressNib === nib;
+                                return (
+                                  <button
+                                    key={nib}
+                                    type="button"
+                                    onClick={() => {
+                                      handleSelectNib('prera-empress-teal', nib);
+                                      handleSelectNib('pilot-prera', nib);
+                                    }}
+                                    className={`px-4 py-2 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                      selected
+                                        ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246]'
+                                    }`}
+                                  >
+                                    {nib === 'Fine'
+                                      ? 'Fine (0.35mm · SKU P22073)'
+                                      : 'Medium (0.50mm · SKU P22139)'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Complete Goldspot Technical Specifications Table */}
+                          <div className="mt-5 pt-4 border-t border-[#E6E1D8]">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2.5">
+                              Pilot Prera in Empress Teal — Technical Specifications
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                              {[
+                                { k: 'Pen Material', v: 'Translucent Empress Teal Resin' },
+                                { k: 'Trim & Clip', v: 'Polished Silver Rhodium Accent' },
+                                { k: 'Nib Material', v: 'Silver Stainless Steel (Fine / Medium)' },
+                                { k: 'Cap Type', v: 'Cushioned Snap-Cap (Postable)' },
+                                { k: 'Filling Mechanism', v: 'CON-40 Converter + Cartridge Included' },
+                                { k: 'Length — Capped', v: '4.8 in. / 121 mm' },
+                                { k: 'Length — Uncapped', v: '4.2 in. / 107 mm' },
+                                { k: 'Length — Cap Posted', v: '5.3 in. / 135 mm' },
+                                { k: 'Cap / Section Ø', v: '13.5 mm Cap · 9.4 mm Grip Section' },
+                                { k: 'Total Weight', v: '0.53 oz / 15 g' },
+                              ].map((row) => (
+                                <div
+                                  key={row.k}
+                                  className="flex items-baseline justify-between gap-2 py-1 border-b border-[#ECE8DF]"
+                                >
+                                  <span className="text-[#6E6A63]">{row.k}</span>
+                                  <span className="font-medium text-[#171614] text-right">
+                                    {row.v}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Primary Purchase Actions: Add to Bag + Quick Buy + Add to Wishlist */}
+                        <div className="mt-6 pt-4 border-t border-[#E6E1D8] flex flex-col gap-2.5">
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSelectVariant('pilot-prera', empressVariant.id);
+                                handleSelectNib('pilot-prera', empressNib);
+                                handleAddToCart(
+                                  pilotPreraProduct,
+                                  empressVariant,
+                                  empressNib,
+                                  true,
+                                  empressFeedbackKey
+                                );
+                              }}
+                              className={`flex-1 inline-flex items-center justify-center gap-2 py-3 px-5 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap ${
+                                isEmpressAdded
+                                  ? 'bg-[#1D5B43] text-white'
+                                  : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                              }`}
+                            >
+                              {isEmpressAdded ? (
+                                <>
+                                  <Check className="w-4 h-4" />
+                                  <span>Added Empress Teal ({empressNib})</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-4 h-4" />
+                                  <span>
+                                    Add to Bag ({empressNib} Nib) · KES 8,500
+                                  </span>
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSelectVariant('pilot-prera', empressVariant.id);
+                                handleSelectNib('pilot-prera', empressNib);
+                                setQuickBuyProduct(pilotPreraProduct);
+                              }}
+                              className="inline-flex items-center justify-center gap-1.5 py-3 px-4 text-xs font-semibold uppercase tracking-wider rounded border border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            >
+                              <ShoppingBag className="w-4 h-4 text-[#C88A2E]" />
+                              <span>Quick Buy</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleToggleWishlist(
+                                  pilotPreraProduct,
+                                  empressVariant,
+                                  empressNib
+                                )
+                              }
+                              aria-pressed={isEmpressWishlisted}
+                              className={`inline-flex items-center justify-center gap-1.5 py-3 px-4 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                isEmpressWishlisted
+                                  ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                                  : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                              }`}
+                            >
+                              <Heart
+                                className={`w-4 h-4 ${
+                                  isEmpressWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                                }`}
+                              />
+                              <span>{isEmpressWishlisted ? 'In Wishlist' : 'Wishlist'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* PART B: COMPLETE PILOT PRERA CAFÉ LINEUP — EVERY PEN ONE BY ONE (KES 8,500) */}
+              <div className="mb-6 flex items-center justify-between">
+                <h4 className="font-serif-display text-xl lg:text-2xl font-semibold text-[#0A2246]">
+                  Explore All 3 Pilot Prera Café Finishes One by One (KES 8,500 Each)
+                </h4>
+                <span className="text-xs text-[#6E6A63] hidden sm:inline">
+                  Empress Teal · Cinnamon Brown · Porcelain White (All Include CON-40 Converter)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pilotPreraProduct.variants.map((variant) => {
+                  const activeNib: NibOption = selectedNibs[variant.id] || 'Medium';
+                  const customKey = `prera-grid-${variant.id}-${activeNib}`;
+                  const isAdded = justAddedKey === customKey;
+                  const isWishlisted = isItemWishlisted(pilotPreraProduct.id, variant.id);
+
+                  return (
+                    <div
+                      key={variant.id}
+                      className="bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden flex flex-col justify-between transition-transform duration-200 hover:-translate-y-0.5"
+                    >
+                      <div>
+                        <div
+                          onClick={() =>
+                            setZoomModal({
+                              src: variant.image || pilotPreraProduct.image,
+                              activeView: 'primary',
+                              title: `Pilot Prera — ${variant.label} (${activeNib} Nib)`,
+                              subtitle: variant.sublabel,
+                              swatchHex: variant.swatchHex,
+                              zoomLevel: 2,
+                              panX: 50,
+                              panY: 50,
+                            })
+                          }
+                          className="relative aspect-square w-full bg-white p-6 border-b border-[#E6E1D8] flex items-center justify-center cursor-zoom-in group"
+                        >
+                          <ResilientImage
+                            src={variant.image || pilotPreraProduct.image}
+                            alt={`Pilot Prera Fountain Pen — ${variant.label} (${activeNib} Nib)`}
+                            fallbackTitle={`Pilot Prera ${variant.label}`}
+                            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setZoomModal({
+                                src: variant.image || pilotPreraProduct.image,
+                                activeView: 'primary',
+                                title: `Pilot Prera — ${variant.label} (${activeNib} Nib)`,
+                                subtitle: variant.sublabel,
+                                swatchHex: variant.swatchHex,
+                                zoomLevel: 2,
+                                panX: 50,
+                                panY: 50,
+                              });
+                            }}
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ZoomIn className="w-3 h-3" />
+                            <span>Zoom</span>
+                          </button>
+                          {variant.swatchHex && (
+                            <span
+                              title={variant.label}
+                              className="absolute top-3.5 right-3.5 w-5 h-5 rounded-full border border-black/20 shadow-xs"
+                              style={{ backgroundColor: variant.swatchHex }}
+                            />
+                          )}
+                        </div>
+
+                        <div className="p-5">
+                          <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                            <span>Pilot Prera Japan</span>
+                            <span aria-hidden="true">·</span>
+                            <span className="text-[#163A5F] font-medium">
+                              CON-40 Converter Included
+                            </span>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-2 mt-1.5">
+                            <h4 className="text-base font-semibold text-[#171614]">
+                              Pilot Prera — {variant.label.split(' · ')[0]}
+                            </h4>
+                            <span className="font-mono-tabular text-sm font-semibold text-[#171614] whitespace-nowrap shrink-0">
+                              KES 8,500
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[#5C5852] mt-2 leading-relaxed">
+                            {variant.sublabel}
+                          </p>
+
+                          {/* Individual Fine / Medium Nib Selector */}
+                          <div className="mt-4 pt-3.5 border-t border-[#EAE5DC] flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-[#5C5852]">Nib Size:</span>
+                            <div className="inline-flex items-center gap-1.5">
+                              {(['Fine', 'Medium'] as const).map((nib) => {
+                                const selected = activeNib === nib;
+                                return (
+                                  <button
+                                    key={nib}
+                                    type="button"
+                                    onClick={() => handleSelectNib(variant.id, nib)}
+                                    className={`px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                      selected
+                                        ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                    }`}
+                                  >
+                                    {nib} ({nib === 'Fine' ? '0.35mm' : '0.50mm'})
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectVariant('pilot-prera', variant.id);
+                              handleSelectNib('pilot-prera', activeNib);
+                              handleAddToCart(
+                                pilotPreraProduct,
+                                variant,
+                                activeNib,
+                                false,
+                                customKey
+                              );
+                            }}
+                            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                              isAdded
+                                ? 'bg-[#1D5B43] text-white'
+                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                            }`}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Added ({activeNib})</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add to Bag ({activeNib})</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectVariant('pilot-prera', variant.id);
+                              handleSelectNib('pilot-prera', activeNib);
+                              setQuickBuyProduct(pilotPreraProduct);
+                            }}
+                            className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold uppercase tracking-wider rounded border border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5 text-[#C88A2E]" />
+                            <span>Quick Buy</span>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleToggleWishlist(pilotPreraProduct, variant, activeNib)
+                          }
+                          aria-pressed={isWishlisted}
+                          className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                            isWishlisted
+                              ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                          }`}
+                        >
+                          <Heart
+                            className={`w-3.5 h-3.5 ${
+                              isWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                            }`}
+                          />
+                          <span>{isWishlisted ? 'In Wishlist' : 'Add to Wishlist'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* FULL 24-SHADE PILOT IROSHIZUKU BOTTLE & SWATCH VARIETY SHOWCASE */}
+            <div
+              id="iroshizuku-gallery"
+              className={`${
+                activeSeriesView === 'all'
+                  ? 'mt-20 pt-16 border-t border-[#DCD5C7]'
+                  : activeSeriesView === 'iroshizuku'
+                    ? 'mt-4'
+                    : 'hidden'
+              }`}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+                <div>
+                  <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
+                    色彩雫 · Complete 24-Shade Bottled Ink Library with Handwritten Swatches (50ml · KES 7,500)
+                  </p>
+                  <h3
+                    className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
+                    style={{ textWrap: 'balance' }}
+                  >
+                    Pilot Iroshizuku — Full 24-Color Swatch &amp; Bottle Variety
+                  </h3>
+                  <p className="text-sm text-[#4A4742] mt-2 max-w-2xl">
+                    Each 50ml glass bottle is shown alongside its genuine handwritten Pilot
+                    Iroshizuku ink swatch card so you can see the true wet color, shading, and
+                    splatter detail. Explore the <strong>24-Color Chromatic Spectrum Ribbon</strong>{' '}
+                    below, <strong>hover over any bottle to magnify (2.2×)</strong>, or click{' '}
+                    <strong>Zoom</strong> for fullscreen 3× inspection.
+                  </p>
+                </div>
+
+                {/* Color Family Segmented Filter */}
+                <div
+                  role="tablist"
+                  aria-label="Filter Iroshizuku inks by color family"
+                  className="flex flex-wrap items-center gap-1 p-1 bg-[#E6E1D8] rounded-md self-start lg:self-auto"
+                >
+                  {INK_COLOR_FAMILIES.map((family) => {
+                    const active = activeInkFamily === family;
+                    return (
+                      <button
+                        key={family}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setActiveInkFamily(family)}
+                        className={`px-3 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                          active
+                            ? 'bg-[#FAF8F5] text-[#171614] shadow-xs'
+                            : 'text-[#5C5852] hover:text-[#171614]'
+                        }`}
+                      >
+                        {family}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ASTRO ISLAND: Interactive 24-Color Chromatic Swatch Ribbon & Dual Spotlight Stage */}
+              <ChromaticInkRibbonIsland
+                justAddedKey={justAddedKey}
+                onAddInkShade={handleAddInkShadeDirectly}
+                isShadeWishlisted={(shadeId) =>
+                  isItemWishlisted('pilot-iroshizuku-ink', shadeId)
+                }
+                onToggleShadeWishlist={handleToggleInkShadeWishlist}
+                onOpenZoomModal={(payload) =>
+                  setZoomModal({
+                    ...payload,
+                    zoomLevel: 2,
+                    panX: 50,
+                    panY: 45,
+                  })
+                }
+                onSelectForStudio={(shadeId) => setStudioInkId(shadeId)}
+              />
+
+              {/* 4-Column Bottle + Swatch Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredInkVariety.map((shade) => {
+                  const feedbackKey = `pilot-iroshizuku-ink-${shade.id}`;
+                  const isAdded = justAddedKey === feedbackKey;
+                  const isSelectedInStudio = studioInkId === shade.id;
+                  const viewMode = inkCardViewMode[shade.id] || 'bottle';
+                  const activeCardImg =
+                    viewMode === 'swatch' ? shade.swatchImage : shade.image;
+                  const isHoverZooming = hoveredInkZoom?.id === shade.id;
+                  const isWishlisted = isItemWishlisted('pilot-iroshizuku-ink', shade.id);
+
+                  return (
+                    <div
+                      key={shade.id}
+                      className="bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden flex flex-col justify-between transition-transform duration-200 hover:-translate-y-0.5"
+                    >
+                      <div>
+                        {/* Goldspot 50ml Bottle + Handwritten Swatch Image with Hover Loupe & Zoom Trigger */}
+                        <div
+                          onMouseMove={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const x = ((e.clientX - rect.left) / rect.width) * 100;
+                            const y = ((e.clientY - rect.top) / rect.height) * 100;
+                            setHoveredInkZoom({
+                              id: shade.id,
+                              x: Math.max(0, Math.min(100, x)),
+                              y: Math.max(0, Math.min(100, y)),
+                            });
+                          }}
+                          onMouseLeave={() => setHoveredInkZoom(null)}
+                          onClick={() =>
+                            setZoomModal({
+                              src: shade.image,
+                              secondarySrc: shade.swatchImage,
+                              activeView: viewMode === 'swatch' ? 'secondary' : 'primary',
+                              title: `Pilot Iroshizuku — ${shade.name} (${shade.kanji})`,
+                              subtitle: `${shade.meaning} · ${shade.sheenNote}`,
+                              swatchHex: shade.hex,
+                              inkShadeId: shade.id,
+                              zoomLevel: 2,
+                              panX: 50,
+                              panY: 45,
+                            })
+                          }
+                          className="relative aspect-square w-full bg-white p-4 border-b border-[#E6E1D8] flex items-center justify-center overflow-hidden cursor-zoom-in group"
+                        >
+                          <ResilientImage
+                            src={activeCardImg}
+                            alt={`Pilot Iroshizuku 50ml Ink — ${shade.name} (${shade.kanji}) ${shade.meaning}`}
+                            fallbackTitle={`Iroshizuku ${shade.name}`}
+                            className="w-full h-full object-contain transition-transform duration-150"
+                          />
+
+                          {/* Interactive 2.25x Hover Magnifier Overlay */}
+                          {isHoverZooming && hoveredInkZoom && (
+                            <div
+                              className="pointer-events-none absolute inset-0 bg-white z-10 hidden sm:block"
+                              style={{
+                                backgroundImage: `url(${activeCardImg})`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundSize: '225%',
+                                backgroundPosition: `${hoveredInkZoom.x}% ${hoveredInkZoom.y}%`,
+                              }}
+                            />
+                          )}
+
+                          {/* Top-Left Zoom Lightbox Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setZoomModal({
+                                src: shade.image,
+                                secondarySrc: shade.swatchImage,
+                                activeView: viewMode === 'swatch' ? 'secondary' : 'primary',
+                                title: `Pilot Iroshizuku — ${shade.name} (${shade.kanji})`,
+                                subtitle: `${shade.meaning} · ${shade.sheenNote}`,
+                                swatchHex: shade.hex,
+                                inkShadeId: shade.id,
+                                zoomLevel: 2,
+                                panX: 50,
+                                panY: 45,
+                              });
+                            }}
+                            title={`Zoom & Inspect ${shade.name} Ink Swatch`}
+                            className="absolute top-2.5 left-2.5 z-20 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ZoomIn className="w-3 h-3" />
+                            <span>Zoom</span>
+                          </button>
+
+                          {/* Color Swatch Disc */}
+                          <span
+                            title={`Ink Swatch: ${shade.name}`}
+                            className="absolute top-2.5 right-2.5 z-20 w-6 h-6 rounded-full border border-black/20 shadow-xs"
+                            style={{ backgroundColor: shade.hex }}
+                          />
+
+                          {/* Bottom Segmented Switcher: Bottle + Swatch vs Swatch Close-Up */}
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute bottom-2.5 inset-x-2.5 z-20 flex items-center justify-center gap-1 bg-[#FAF8F5]/95 p-1 rounded border border-[#E6E1D8] shadow-xs"
+                          >
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setInkCardViewMode((prev) => ({
+                                  ...prev,
+                                  [shade.id]: 'bottle',
+                                }))
+                              }
+                              className={`flex-1 py-1 px-2 text-[11px] font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
+                                viewMode === 'bottle'
+                                  ? 'bg-[#163A5F] text-white'
+                                  : 'text-[#5C5852] hover:text-[#171614]'
+                              }`}
+                            >
+                              Bottle + Swatch
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setInkCardViewMode((prev) => ({
+                                  ...prev,
+                                  [shade.id]: 'swatch',
+                                }))
+                              }
+                              className={`flex-1 py-1 px-2 text-[11px] font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
+                                viewMode === 'swatch'
+                                  ? 'bg-[#163A5F] text-white'
+                                  : 'text-[#5C5852] hover:text-[#171614]'
+                              }`}
+                            >
+                              Swatch Close-Up
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="p-4">
+                          <div className="flex items-center gap-1.5 text-[11px] text-[#6E6A63]">
+                            <span>{shade.colorFamily}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>50ml Flacon</span>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-2 mt-1">
+                            <h4 className="text-base font-semibold text-[#171614]">
+                              {shade.name}{' '}
+                              <span className="font-normal text-xs text-[#6E6A63]">
+                                ({shade.kanji})
+                              </span>
+                            </h4>
+                            <span className="font-mono-tabular text-xs font-semibold text-[#171614] whitespace-nowrap shrink-0">
+                              KES 7,500
+                            </span>
+                          </div>
+
+                          <p className="text-xs font-medium text-[#163A5F] mt-0.5">
+                            {shade.meaning}
+                          </p>
+                          <p className="text-xs text-[#5C5852] mt-2 leading-relaxed line-clamp-2">
+                            {shade.sheenNote}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="px-4 pb-4 pt-1 flex flex-col gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleAddInkShadeDirectly(shade)}
+                            className={`flex-1 inline-flex items-center justify-center gap-1 py-2 px-2.5 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                              isAdded
+                                ? 'bg-[#1D5B43] text-white'
+                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                            }`}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Added</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add to Bag</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const inkProduct = FEATURED_PRODUCTS.find(
+                                (p) => p.id === 'pilot-iroshizuku-ink'
+                              )!;
+                              handleSelectVariant('pilot-iroshizuku-ink', shade.id);
+                              setQuickBuyProduct(inkProduct);
+                            }}
+                            className="inline-flex items-center justify-center gap-1 py-2 px-2.5 text-xs font-semibold uppercase tracking-wider rounded border border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ShoppingBag className="w-3 h-3 text-[#C88A2E]" />
+                            <span>Quick Buy</span>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleInkShadeWishlist(shade)}
+                            aria-pressed={isWishlisted}
+                            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                              isWishlisted
+                                ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                                : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                            }`}
+                          >
+                            <Heart
+                              className={`w-3.5 h-3.5 ${
+                                isWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                              }`}
+                            />
+                            <span>{isWishlisted ? 'In Wishlist' : 'Wishlist'}</span>
+                          </button>
+
+                          <a
+                            href="#writing-studio"
+                            onClick={() => setStudioInkId(shade.id)}
+                            className={`px-2.5 py-1.5 text-xs font-medium rounded border transition-colors whitespace-nowrap shrink-0 ${
+                              isSelectedInStudio
+                                ? 'border-[#0A2246] bg-[#0A2246]/10 text-[#0A2246]'
+                                : 'border-[#DCD5C7] bg-white text-[#524E48] hover:text-[#171614]'
+                            }`}
+                          >
+                            Test Stroke
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ASTRO ISLAND: 3-Bottle 50ml Iroshizuku Ink Mixing Set Builder (KES 20,000 Bundle · 10% Privilege) */}
+              <InkMixingSetBuilderIsland
+                onAddInkMixingSetToCart={handleAddBundleToCart}
+              />
+            </div>
+
+            {/* WATERMAN PARIS 50ML BOTTLED INKS — SERENITY BLUE, INTENSE BLACK & AUDACIOUS RED SHOWCASE */}
+            <div
+              id="waterman-ink-showcase"
+              className={`${
+                activeSeriesView === 'all'
+                  ? 'mt-20 pt-16 border-t border-[#DCD5C7]'
+                  : activeSeriesView === 'waterman'
+                    ? 'mt-4'
+                    : 'hidden'
+              }`}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+                <div>
+                  <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
+                    Encre de Paris · Classic 50ml Multi-Faceted Glass Bottles (KES 2,000 per Bottle)
+                  </p>
+                  <h3
+                    className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
+                    style={{ textWrap: 'balance' }}
+                  >
+                    Waterman Paris 50ml Bottled Inks — Serenity Blue, Intense Black &amp; Audacious Red
+                  </h3>
+                  <p className="text-sm text-[#4A4742] mt-2 max-w-2xl">
+                    Engineered with angled side facets so you can tip the bottle on its side for
+                    effortless converter filling when ink runs low. Safe, smooth-flowing everyday
+                    inks for all Pilot and Waterman fountain pens at <strong>KES 2,000</strong> per
+                    50ml bottle.
+                  </p>
+                </div>
+                <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                  50ml Multi-Faceted Glass Flacon · Made in France
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {watermanInkProduct.variants.map((variant) => {
+                  const customKey = `waterman-grid-${variant.id}`;
+                  const isAdded = justAddedKey === customKey;
+                  const shortShadeName = variant.label.split(' · ')[0];
+                  const frenchTitle = variant.label.split(' · ')[1] || 'Encre de Paris';
+                  const isWishlisted = isItemWishlisted(watermanInkProduct.id, variant.id);
+
+                  return (
+                    <div
+                      key={variant.id}
+                      className="bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden flex flex-col justify-between transition-transform duration-200 hover:-translate-y-0.5"
+                    >
+                      <div>
+                        {/* Cult Pens Waterman 50ml Bottle Photo with Zoom Trigger */}
+                        <div
+                          onClick={() =>
+                            setZoomModal({
+                              src: variant.image || watermanInkProduct.image,
+                              activeView: 'primary',
+                              title: `Waterman Paris 50ml Ink — ${variant.label}`,
+                              subtitle: variant.sublabel,
+                              swatchHex: variant.swatchHex,
+                              zoomLevel: 2,
+                              panX: 50,
+                              panY: 50,
+                            })
+                          }
+                          className="relative aspect-square w-full bg-white p-6 border-b border-[#E6E1D8] flex items-center justify-center cursor-zoom-in group"
+                        >
+                          <ResilientImage
+                            src={variant.image || watermanInkProduct.image}
+                            alt={`Waterman Paris 50ml Bottled Ink — ${variant.label}`}
+                            fallbackTitle={`Waterman ${shortShadeName}`}
+                            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setZoomModal({
+                                src: variant.image || watermanInkProduct.image,
+                                activeView: 'primary',
+                                title: `Waterman Paris 50ml Ink — ${variant.label}`,
+                                subtitle: variant.sublabel,
+                                swatchHex: variant.swatchHex,
+                                zoomLevel: 2,
+                                panX: 50,
+                                panY: 50,
+                              });
+                            }}
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ZoomIn className="w-3 h-3" />
+                            <span>Zoom</span>
+                          </button>
+                          {variant.swatchHex && (
+                            <span
+                              title={variant.label}
+                              className="absolute top-3.5 right-3.5 w-6 h-6 rounded-full border border-black/20 shadow-xs"
+                              style={{ backgroundColor: variant.swatchHex }}
+                            />
+                          )}
+                        </div>
+
+                        <div className="p-5">
+                          <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                            <span>Waterman Paris · 50ml</span>
+                            <span aria-hidden="true">·</span>
+                            <span className="text-[#163A5F] font-medium">{frenchTitle}</span>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-2 mt-1.5">
+                            <h4 className="text-base font-semibold text-[#171614]">
+                              Waterman — {shortShadeName}
+                            </h4>
+                            <span className="font-mono-tabular text-sm font-semibold text-[#171614] whitespace-nowrap shrink-0">
+                              KES 2,000
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[#5C5852] mt-2 leading-relaxed">
+                            {variant.sublabel}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectVariant('waterman-ink-bottle', variant.id);
+                              handleAddToCart(
+                                watermanInkProduct,
+                                variant,
+                                undefined,
+                                false,
+                                customKey
+                              );
+                            }}
+                            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                              isAdded
+                                ? 'bg-[#1D5B43] text-white'
+                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                            }`}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Added</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add to Bag</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSelectVariant('waterman-ink-bottle', variant.id);
+                              setQuickBuyProduct(watermanInkProduct);
+                            }}
+                            className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold uppercase tracking-wider rounded border border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5 text-[#C88A2E]" />
+                            <span>Quick Buy</span>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleWishlist(watermanInkProduct, variant)}
+                          aria-pressed={isWishlisted}
+                          className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                            isWishlisted
+                              ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                          }`}
+                        >
+                          <Heart
+                            className={`w-3.5 h-3.5 ${
+                              isWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                            }`}
+                          />
+                          <span>{isWishlisted ? 'In Wishlist' : 'Add to Wishlist'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ASTRO ISLAND: 3-Step Complete Writing Set Builder (Pen + CON-40 + 50ml Bottled Ink) */}
+            <WritingSetBuilderIsland onAddBundleToCart={handleAddBundleToCart} />
+          </div>
+        </section>
+
+        {/* SECTION 3: INTERACTIVE JAPANESE NIB & IROSHIZUKU INK PAIRING STUDIO */}
+        <section id="writing-studio" className="py-16 lg:py-24 max-w-[1280px] mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-stretch">
+            {/* Left Column: Controls for Pen, Nib Width (Fine / Medium), and All 24 Iroshizuku Shades */}
+            <div className="lg:col-span-5 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
+                  Interactive Nib &amp; Ink Workbench
+                </p>
+                <h2
+                  className="font-serif-display text-3xl lg:text-4xl font-semibold text-[#171614] tracking-tight mb-4"
+                  style={{ textWrap: 'balance' }}
+                >
+                  Experience Your Stroke Before You Write.
+                </h2>
+                <p className="text-sm text-[#4A4742] leading-relaxed mb-6">
+                  Japanese nibs are calibrated one grade finer than Western equivalents, making
+                  them ideal for detailed handwriting, journals, and ledger work. Select a Pilot
+                  instrument, <strong>Fine (0.35mm)</strong> or <strong>Medium (0.50mm)</strong>{' '}
+                  nib, and any of the 24 Iroshizuku bottles below to preview the line character on
+                  cream Washi paper.
+                </p>
+
+                {/* Step 1: Select Pen Model */}
+                <div className="mb-5">
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
+                    1. Choose Fountain Pen Series
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {(
+                      [
+                        { id: 'pilot-prera', shortLabel: 'Pilot Prera' },
+                        { id: 'pilot-kakuno-madoromi', shortLabel: 'Kakuno Madoromi' },
+                        { id: 'pilot-kakuno-family', shortLabel: 'Kakuno Family' },
+                      ] as const
+                    ).map((item) => {
+                      const pen = FEATURED_PRODUCTS.find((p) => p.id === item.id)!;
+                      const selected = studioPenId === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setStudioPenId(item.id)}
+                          className={`p-2.5 text-left rounded border transition-colors cursor-pointer ${
+                            selected
+                              ? 'border-[#163A5F] bg-[#163A5F]/6 text-[#171614]'
+                              : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
+                          }`}
+                        >
+                          <div className="text-xs font-semibold text-[#171614] truncate">
+                            {item.shortLabel}
+                          </div>
+                          <div className="font-mono-tabular text-xs text-[#6E6A63] mt-0.5">
+                            {formatKes(pen.priceKes)}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Step 2: Select Japanese Nib Width (Fine vs Medium) */}
+                <div className="mb-5">
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
+                    2. Select Japanese Nib Option
+                  </span>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      {
+                        code: 'Fine' as const,
+                        name: 'Fine Nib (F)',
+                        mm: '0.35 mm',
+                        note: 'Crisp precision for everyday notebooks, planners & small script',
+                      },
+                      {
+                        code: 'Medium' as const,
+                        name: 'Medium Nib (M)',
+                        mm: '0.50 mm',
+                        note: 'Smooth, generous flow that highlights Iroshizuku ink shading',
+                      },
+                    ].map((nib) => {
+                      const active = studioNibSize === nib.code;
+                      return (
+                        <button
+                          key={nib.code}
+                          type="button"
+                          onClick={() => setStudioNibSize(nib.code)}
+                          className={`p-3 text-left rounded border transition-colors cursor-pointer ${
+                            active
+                              ? 'border-[#163A5F] bg-[#163A5F]/6 text-[#171614]'
+                              : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
+                          }`}
+                        >
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-xs font-semibold text-[#171614]">{nib.name}</span>
+                            <span className="font-mono-tabular text-[11px] text-[#163A5F]">
+                              {nib.mm}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#6E6A63] mt-1 leading-snug">{nib.note}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Step 3: Select from All 24 Iroshizuku Ink Shades */}
+                <div className="mb-6">
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
+                    3. Select Pilot Iroshizuku Ink (All 24 Shades · KES 7,500)
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 max-h-[230px] overflow-y-auto pr-1">
+                    {INK_STUDIO_SHADES.map((shade) => {
+                      const active = studioInkId === shade.id;
+                      return (
+                        <button
+                          key={shade.id}
+                          type="button"
+                          onClick={() => setStudioInkId(shade.id)}
+                          className={`p-2 text-left rounded border flex items-center gap-2.5 transition-colors cursor-pointer ${
+                            active
+                              ? 'border-[#163A5F] bg-[#163A5F]/6 text-[#171614]'
+                              : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
+                          }`}
+                        >
+                          <img
+                            src={shade.image}
+                            alt={shade.name}
+                            referrerPolicy="no-referrer"
+                            className="w-8 h-8 object-contain rounded bg-white border border-[#E6E1D8] shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-[#171614] truncate">
+                              {shade.name} ({shade.kanji})
+                            </div>
+                            <div className="text-[11px] text-[#6E6A63] truncate">
+                              {shade.meaning}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Add Combined Pen + Ink Pairing CTA */}
+              <div className="pt-4 border-t border-[#E6E1D8] flex items-center justify-between gap-4">
+                <div>
+                  <span className="text-xs text-[#6E6A63] block">
+                    Selected Pen ({studioNibSize} Nib) + 50ml Ink Set
+                  </span>
+                  <span className="font-mono-tabular text-base font-semibold text-[#171614]">
+                    {formatKes(studioPairTotalKes)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddStudioPairing}
+                  className="inline-flex items-center gap-2 px-5 py-3 text-xs font-semibold tracking-wider uppercase text-white bg-[#163A5F] hover:bg-[#102B47] rounded transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  {studioPairAdded ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Pairing Added to Bag</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Add Pairing to Bag</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column: Live Cream Washi Paper Preview Sheet + Bottle Preview */}
+            <div className="lg:col-span-7 flex">
+              <div className="w-full rounded-lg border border-[#DCD5C7] bg-[#FBF9F3] p-6 lg:p-10 flex flex-col justify-between">
+                {/* Sheet Header Metadata + Active Bottle Thumbnail */}
+                <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-[#E6E1D8]">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={activeStudioInk.image}
+                      alt={activeStudioInk.name}
+                      referrerPolicy="no-referrer"
+                      className="w-12 h-12 object-contain rounded border border-[#E6E1D8] bg-white p-1 shrink-0"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2 text-xs text-[#6E6A63]">
+                        <span>{activeStudioPen.name}</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="font-mono-tabular">
+                          {studioNibSize === 'Fine' ? '0.35mm Fine Nib' : '0.50mm Medium Nib'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-[#171614] mt-0.5">
+                        Iroshizuku {activeStudioInk.name} ({activeStudioInk.kanji}) —{' '}
+                        <span className="font-normal text-[#5C5852]">
+                          {activeStudioInk.meaning}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-[#6E6A63] font-mono-tabular">
+                    85gsm Cream Cotton Sheet
+                  </span>
+                </div>
+
+                {/* Simulated Ruled Lines + Custom Handwriting Input & Flourish Curve */}
+                <div className="my-8 space-y-6">
+                  <div>
+                    <label
+                      htmlFor="custom-writing-input"
+                      className="block text-xs text-[#6E6A63] mb-2"
+                    >
+                      Type below to test your personal inscription or signature:
+                    </label>
+                    <input
+                      id="custom-writing-input"
+                      type="text"
+                      value={studioSampleText}
+                      onChange={(e) => setStudioSampleText(e.target.value)}
+                      maxLength={95}
+                      placeholder="Write a personal note..."
+                      className="w-full px-3.5 py-2 text-xs bg-white border border-[#E6E1D8] rounded text-[#171614] focus:outline-none focus:border-[#163A5F]"
+                    />
+                  </div>
+
+                  {/* Ruled Paper Area */}
+                  <div
+                    className="p-6 rounded border border-[#EAE4D7] bg-[#FDFBF7]"
+                    style={{
+                      backgroundImage:
+                        'repeating-linear-gradient(to bottom, transparent, transparent 35px, rgba(22, 58, 95, 0.08) 36px)',
+                    }}
+                  >
+                    <p
+                      className="font-serif-display italic transition-all duration-150 break-words"
+                      style={{
+                        color: activeStudioInk.hex,
+                        fontSize: studioNibSize === 'Fine' ? '1.62rem' : '1.88rem',
+                        fontWeight: studioNibSize === 'Fine' ? 500 : 600,
+                        lineHeight: '36px',
+                      }}
+                    >
+                      {studioSampleText || 'Discover the Art of Writing at PENS R US.'}
+                    </p>
+
+                    {/* Expressive Nib Stroke SVG */}
+                    <svg
+                      viewBox="0 0 500 54"
+                      className="w-full h-12 mt-3 overflow-visible"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M 10 34 C 95 8, 170 48, 265 24 C 340 6, 410 42, 485 18"
+                        fill="none"
+                        stroke={activeStudioInk.hex}
+                        strokeWidth={studioNibSize === 'Fine' ? 2.0 : 3.5}
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M 45 44 C 150 32, 290 48, 430 35"
+                        fill="none"
+                        stroke={activeStudioInk.secondaryHex}
+                        strokeWidth={studioNibSize === 'Fine' ? 1.2 : 2.1}
+                        strokeLinecap="round"
+                        opacity="0.7"
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Ink Shade Character Footer */}
+                <div className="pt-4 border-t border-[#E6E1D8] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#5C5852]">
+                  <div>
+                    <span className="font-semibold text-[#171614]">Ink Character: </span>
+                    <span>{activeStudioInk.sheenNote}</span>
+                  </div>
+                  <span className="font-mono-tabular text-[#163A5F] shrink-0">
+                    Complimentary Nairobi Delivery Included
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 4: MORE THAN JUST WRITING (Editorial Story & Kenyan Provenance) */}
+        <section
+          id="craftsmanship"
+          className="py-16 lg:py-24 bg-[#171614] text-[#F5F2EB]"
+        >
+          <div className="max-w-[1280px] mx-auto px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-stretch">
+              {/* Left Column: Macro Nib Photography */}
+              <div className="lg:col-span-6 flex">
+                <div className="w-full overflow-hidden rounded-lg border border-white/15 bg-[#22201D]">
+                  <ResilientImage
+                    src="/src/assets/images/japanese_nib_craftsmanship_1794023548186.jpg"
+                    alt="Macro close-up of an engraved Japanese fountain pen nib gliding across textured cotton paper with deep indigo ink"
+                    fallbackTitle="Japanese Nib Craftsmanship"
+                    className="w-full h-full min-h-[320px] lg:h-full object-cover"
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Exact Editorial Copy + Craftsmanship Pillars */}
+              <div className="lg:col-span-6 flex flex-col justify-between py-2">
+                <div>
+                  <p className="text-xs font-medium tracking-[0.18em] uppercase text-[#A8A298] mb-3">
+                    Philosophy &amp; Heritage · Since 1918
+                  </p>
+                  <h2
+                    className="font-serif-display text-3xl lg:text-5xl font-semibold text-white tracking-tight leading-[1.12] mb-6"
+                    style={{ textWrap: 'balance' }}
+                  >
+                    More Than Just Writing.
+                  </h2>
+
+                  <p className="text-base lg:text-lg text-[#E2DDD3] leading-[1.7] tracking-[0.01em] mb-6">
+                    Some things deserve to be written by hand. Discover the pleasure of a
+                    smoother, more personal writing experience with beautifully crafted Japanese
+                    writing instruments.
+                  </p>
+
+                  <p className="font-serif-display italic text-xl lg:text-2xl text-white border-t border-white/15 pt-6">
+                    PENS R US – Bringing the Art of Writing to Kenya.
+                  </p>
+                </div>
+
+                {/* 3 Craftsmanship Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-10 pt-8 border-t border-white/15">
+                  <div>
+                    <p className="font-mono-tabular text-xs text-[#A8A298]">01 · Zero Hand Fatigue</p>
+                    <p className="text-sm font-semibold text-white mt-1">Capillary Ink Action</p>
+                    <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
+                      Unlike ballpoints that require downward pressure, a Pilot fountain pen writes
+                      under its own light weight.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-mono-tabular text-xs text-[#A8A298]">02 · Refillable For Life</p>
+                    <p className="text-sm font-semibold text-white mt-1">Sustainable Ritual</p>
+                    <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
+                      One 50ml bottle of Pilot Iroshizuku ink replaces over 60 disposable plastic
+                      pens.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-mono-tabular text-xs text-[#A8A298]">03 · Personal Character</p>
+                    <p className="text-sm font-semibold text-white mt-1">Expressive Line</p>
+                    <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
+                      Subtle tonal shading turns everyday journaling, letters, and signatures into
+                      keepsakes.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Kenya Delivery & Payment Assurance Bar */}
+            <div
+              id="kenya-delivery"
+              className="mt-16 pt-10 border-t border-white/15 grid grid-cols-1 md:grid-cols-3 gap-8"
+            >
+              <div className="flex items-start gap-3.5">
+                <Truck className="w-5 h-5 text-[#94B8D7] shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-semibold text-white font-sans">
+                    Same-Day Nairobi Dispatch
+                  </h3>
+                  <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
+                    Orders placed before 3:00 PM EAT are delivered the same afternoon across
+                    Nairobi (CBD, Westlands, Kilimani, Lavington, Karen, and Gigiri).
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3.5">
+                <MapPin className="w-5 h-5 text-[#94B8D7] shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-semibold text-white font-sans">
+                    Nationwide Kenya Courier
+                  </h3>
+                  <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
+                    Protective foam-lined packaging dispatched overnight to Mombasa, Kisumu,
+                    Nakuru, Eldoret, Nanyuki, and across all 47 counties.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3.5">
+                <ShieldCheck className="w-5 h-5 text-[#94B8D7] shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-semibold text-white font-sans">
+                    M-Pesa &amp; Cash on Delivery
+                  </h3>
+                  <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
+                    Settle effortlessly via M-Pesa Till/Paybill or opt for Cash on Delivery upon
+                    receiving your package. Free delivery nationwide on orders from KES 6,000.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* STRUCTURED EDITORIAL FOOTER (NO DUPLICATE LOGO TEXT) */}
+      <footer className="bg-[#FAF8F5] border-t border-[#E6E1D8] py-12">
+        <div className="max-w-[1280px] mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-8 border-b border-[#E6E1D8] items-start">
+            {/* Column 1: Single Official Brand Lockup & Provenance */}
+            <div className="md:col-span-5 space-y-2.5">
+              <a
+                href="#top"
+                aria-label="PENS R US — The Pen Specialists"
+                className="inline-block"
+              >
+                <BrandLogoLockup size="footer" />
+              </a>
+              <p className="text-xs text-[#5C5852] max-w-sm leading-relaxed">
+                Bringing the Art of Writing to Kenya. Authorized Nairobi purveyor of Japanese
+                Pilot fountain pens, 24-shade Iroshizuku bottled inks, and Waterman Paris inks.
+              </p>
+            </div>
+
+            {/* Column 2: Curated Collections */}
+            <div className="md:col-span-4 space-y-2 text-xs">
+              <p className="font-semibold uppercase tracking-[0.14em] text-[#0A2246]">
+                Writing Instruments &amp; Inks
+              </p>
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[#5C5852]">
+                <li>
+                  <a href="#kakuno-madoromi-showcase" className="hover:text-[#0A2246] transition-colors">
+                    Kakuno Madoromi
+                  </a>
+                </li>
+                <li>
+                  <a href="#kakuno-family-showcase" className="hover:text-[#0A2246] transition-colors">
+                    Kakuno Family
+                  </a>
+                </li>
+                <li>
+                  <a href="#pilot-prera-showcase" className="hover:text-[#0A2246] transition-colors">
+                    Pilot Prera · Teal
+                  </a>
+                </li>
+                <li>
+                  <a href="#iroshizuku-gallery" className="hover:text-[#0A2246] transition-colors">
+                    24 Iroshizuku Inks
+                  </a>
+                </li>
+                <li>
+                  <a href="#waterman-ink-showcase" className="hover:text-[#0A2246] transition-colors">
+                    Waterman Paris Inks
+                  </a>
+                </li>
+                <li>
+                  <a href="#writing-set-builder" className="hover:text-[#0A2246] transition-colors">
+                    CON-40 Set Builder
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 3: Kenya Dispatch & Client Care */}
+            <div className="md:col-span-3 space-y-2 text-xs text-[#5C5852]">
+              <p className="font-semibold uppercase tracking-[0.14em] text-[#0A2246]">
+                Nairobi &amp; Kenya Dispatch
+              </p>
+              <p className="leading-relaxed">
+                Same-day courier across Nairobi · Overnight delivery to all 47 counties · M-Pesa
+                Express &amp; Cash on Delivery.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#6E6A63]">
+            <span>© {new Date().getFullYear()} PENS R US Kenya · All Rights Reserved.</span>
+            <span className="font-mono-tabular">
+              Complimentary Delivery in Nairobi &amp; Nationwide on Orders from KES 6,000
+            </span>
+          </div>
+        </div>
+      </footer>
+
+      {/* QUICK BUY MODAL OVERLAY (ASTRO ISLAND) */}
+      <QuickBuyModalIsland
+        product={quickBuyProduct}
+        initialVariantId={
+          quickBuyProduct
+            ? selectedVariants[quickBuyProduct.id] || quickBuyProduct.variants[0].id
+            : ''
+        }
+        initialNibSize={
+          quickBuyProduct ? selectedNibs[quickBuyProduct.id] || 'Fine' : 'Fine'
+        }
+        isWishlisted={isItemWishlisted}
+        onClose={() => setQuickBuyProduct(null)}
+        onSelectVariantSync={handleSelectVariant}
+        onSelectNibSync={handleSelectNib}
+        onConfirmQuickBuy={handleConfirmQuickBuy}
+        onToggleWishlist={handleToggleWishlist}
+      />
+
+      {/* CONTIGUOUS PRODUCT DETAIL MODAL (PDP) */}
+      {activeProductModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pdp-modal-title"
+        >
+          <div className="relative w-full max-w-4xl bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden shadow-xl my-auto">
+            <button
+              type="button"
+              onClick={() => setActiveProductModal(null)}
+              aria-label="Close specification view"
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-[#FAF8F5]/90 text-[#171614] hover:bg-[#E6E1D8] transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 items-stretch">
+              {/* Left Gallery */}
+              <div className="md:col-span-6 bg-white flex flex-col justify-between border-b md:border-b-0 md:border-r border-[#E6E1D8]">
+                <div className="p-4 flex-1 flex flex-col items-center justify-center bg-white relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const modalSrc =
+                        activeImageByProduct[activeProductModal.id] ||
+                        activeProductModal.variants.find(
+                          (v) => v.id === selectedVariants[activeProductModal.id]
+                        )?.image ||
+                        activeProductModal.image;
+                      const matchedInk =
+                        activeProductModal.id === 'pilot-iroshizuku-ink'
+                          ? INK_STUDIO_SHADES.find(
+                              (s) => s.id === selectedVariants[activeProductModal.id]
+                            )
+                          : undefined;
+                      setZoomModal({
+                        src: modalSrc,
+                        secondarySrc: matchedInk?.swatchImage,
+                        activeView: 'primary',
+                        title: activeProductModal.name,
+                        subtitle: activeProductModal.japaneseTitle,
+                        swatchHex: matchedInk?.hex,
+                        inkShadeId: matchedInk?.id,
+                        zoomLevel: 2,
+                        panX: 50,
+                        panY: 50,
+                      });
+                    }}
+                    className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                    <span>Zoom 3×</span>
+                  </button>
+                  <ResilientImage
+                    src={
+                      activeImageByProduct[activeProductModal.id] ||
+                      activeProductModal.variants.find(
+                        (v) => v.id === selectedVariants[activeProductModal.id]
+                      )?.image ||
+                      activeProductModal.image
+                    }
+                    alt={activeProductModal.name}
+                    fallbackTitle={activeProductModal.name}
+                    className={`w-full max-h-[340px] ${
+                      activeProductModal.imageFit === 'contain' ||
+                      activeProductModal.id === 'pilot-kakuno-madoromi'
+                        ? 'object-contain'
+                        : 'object-cover rounded'
+                    }`}
+                  />
+                  {activeProductModal.galleryImages &&
+                    activeProductModal.galleryImages.length > 1 && (
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4 pt-3 border-t border-[#EAE5DC] w-full max-h-[116px] overflow-y-auto">
+                        {activeProductModal.galleryImages.map((imgItem) => {
+                          const currentModalImg =
+                            activeImageByProduct[activeProductModal.id] ||
+                            activeProductModal.image;
+                          const isSelectedImg = currentModalImg === imgItem.src;
+                          return (
+                            <button
+                              key={imgItem.src}
+                              type="button"
+                              onClick={() => {
+                                setActiveImageByProduct((prev) => ({
+                                  ...prev,
+                                  [activeProductModal.id]: imgItem.src,
+                                }));
+                                const matchingVar = activeProductModal.variants.find(
+                                  (v) => v.image === imgItem.src
+                                );
+                                if (matchingVar) {
+                                  setSelectedVariants((prev) => ({
+                                    ...prev,
+                                    [activeProductModal.id]: matchingVar.id,
+                                  }));
+                                }
+                              }}
+                              title={imgItem.caption}
+                              className={`w-10 h-10 rounded overflow-hidden border p-0.5 bg-white cursor-pointer transition-all shrink-0 ${
+                                isSelectedImg
+                                  ? 'border-[#163A5F] ring-1 ring-[#163A5F]'
+                                  : 'border-[#DCD5C7] opacity-70 hover:opacity-100'
+                              }`}
+                            >
+                              <img
+                                src={imgItem.src}
+                                alt={imgItem.caption}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-contain"
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                </div>
+                <div className="p-5 bg-[#F3EFE8] border-t border-[#E6E1D8]">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
+                    In the Presentation Box
+                  </p>
+                  <ul className="space-y-1 text-xs text-[#3F3D39]">
+                    {activeProductModal.includedItems.map((item) => (
+                      <li key={item} className="flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#163A5F] shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Right Contiguous Purchase Module */}
+              <div className="md:col-span-6 p-6 lg:p-8 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-xs text-[#6E6A63] mb-2">
+                    <span>{activeProductModal.category}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{activeProductModal.Origin}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="text-[#163A5F] font-medium">
+                      {activeProductModal.availability}
+                    </span>
+                  </div>
+
+                  <h2
+                    id="pdp-modal-title"
+                    className="font-serif-display text-2xl lg:text-3xl font-semibold text-[#171614]"
+                  >
+                    {activeProductModal.name}
+                  </h2>
+                  <p className="text-xs text-[#6E6A63] mt-0.5">
+                    {activeProductModal.japaneseTitle}
+                  </p>
+
+                  <p className="font-mono-tabular text-xl font-semibold text-[#171614] mt-3">
+                    {formatKes(activeProductModal.priceKes)}
+                  </p>
+
+                  <p className="text-sm text-[#4A4742] leading-relaxed mt-4">
+                    {activeProductModal.description}
+                  </p>
+
+                  {/* Variant Selector inside PDP */}
+                  <div className="mt-5 pt-4 border-t border-[#E6E1D8]">
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
+                      {activeProductModal.variantLabel}
+                    </span>
+                    <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                      {activeProductModal.variants.map((variant) => {
+                        const selectedId =
+                          selectedVariants[activeProductModal.id] ||
+                          activeProductModal.variants[0].id;
+                        const isSelected = variant.id === selectedId;
+                        return (
+                          <button
+                            key={variant.id}
+                            type="button"
+                            onClick={() =>
+                              handleSelectVariant(activeProductModal.id, variant.id)
+                            }
+                            className={`w-full p-2.5 text-left rounded border flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614]'
+                                : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {variant.swatchHex && (
+                                <span
+                                  className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0"
+                                  style={{ backgroundColor: variant.swatchHex }}
+                                />
+                              )}
+                              <div className="truncate">
+                                <div className="text-xs font-semibold text-[#171614] truncate">
+                                  {variant.label}
+                                </div>
+                                <div className="text-[11px] text-[#6E6A63] truncate">
+                                  {variant.sublabel}
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <Check className="w-4 h-4 text-[#163A5F] shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Nib Selector inside PDP */}
+                  {activeProductModal.hasNibSelector && (
+                    <div className="mt-4 pt-4 border-t border-[#E6E1D8] flex items-center justify-between gap-4">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#5C5852]">
+                        Select Nib Size
+                      </span>
+                      <div className="inline-flex items-center gap-2">
+                        {(['Fine', 'Medium'] as const).map((nib) => {
+                          const modalNib = selectedNibs[activeProductModal.id] || 'Fine';
+                          const selected = modalNib === nib;
+                          return (
+                            <button
+                              key={nib}
+                              type="button"
+                              onClick={() => handleSelectNib(activeProductModal.id, nib)}
+                              className={`px-3.5 py-1.5 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                selected
+                                  ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
+                                  : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                              }`}
+                            >
+                              {nib === 'Fine' ? 'Fine (0.35mm)' : 'Medium (0.50mm)'}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Technical Specifications Table */}
+                  <div className="mt-5 pt-4 border-t border-[#E6E1D8] space-y-1.5">
+                    {activeProductModal.specs.map((spec) => (
+                      <div
+                        key={spec.label}
+                        className="flex items-baseline justify-between gap-4 text-xs"
+                      >
+                        <span className="text-[#6E6A63]">{spec.label}</span>
+                        <span className="font-medium text-[#171614] text-right">
+                          {spec.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-[#E6E1D8] flex flex-wrap sm:flex-nowrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const chosenVariant =
+                        activeProductModal.variants.find(
+                          (v) => v.id === selectedVariants[activeProductModal.id]
+                        ) || activeProductModal.variants[0];
+                      const chosenNib = activeProductModal.hasNibSelector
+                        ? selectedNibs[activeProductModal.id] || 'Fine'
+                        : undefined;
+                      handleAddToCart(activeProductModal, chosenVariant, chosenNib, true);
+                      setActiveProductModal(null);
+                    }}
+                    className="flex-1 py-3 px-5 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] hover:bg-[#133468] text-white rounded transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    Add to Bag
+                    {activeProductModal.hasNibSelector
+                      ? ` (${selectedNibs[activeProductModal.id] || 'Fine'} Nib)`
+                      : ''}{' '}
+                    · {formatKes(activeProductModal.priceKes)}
+                  </button>
+
+                  {(() => {
+                    const modalVariantId =
+                      selectedVariants[activeProductModal.id] ||
+                      activeProductModal.variants[0].id;
+                    const modalVariant =
+                      activeProductModal.variants.find((v) => v.id === modalVariantId) ||
+                      activeProductModal.variants[0];
+                    const modalWishlisted = isItemWishlisted(
+                      activeProductModal.id,
+                      modalVariant.id
+                    );
+                    return (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleToggleWishlist(
+                            activeProductModal,
+                            modalVariant,
+                            activeProductModal.hasNibSelector
+                              ? selectedNibs[activeProductModal.id] || 'Fine'
+                              : undefined
+                          )
+                        }
+                        aria-pressed={modalWishlisted}
+                        className={`inline-flex items-center justify-center gap-1.5 py-3 px-4 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                          modalWishlisted
+                            ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                            : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                        }`}
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${
+                            modalWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                          }`}
+                        />
+                        <span>{modalWishlisted ? 'In Wishlist' : 'Add to Wishlist'}</span>
+                      </button>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SLIDE-OVER SHOPPING BAG, ORDER HISTORY & KENYA CHECKOUT DRAWER */}
+      {isCartOpen && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Shopping Bag, Order History, and Checkout"
+        >
+          <div className="w-full max-w-md bg-[#FAF8F5] h-full flex flex-col justify-between border-l border-[#E6E1D8] shadow-2xl overflow-hidden">
+            {/* Drawer Header with Bag / Order History Switcher */}
+            <div className="px-6 pt-4 pb-3 border-b border-[#E6E1D8] bg-[#FAF8F5]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-serif-display text-xl font-semibold text-[#0A2246]">
+                    {activeCartTab === 'history'
+                      ? 'Member Order History'
+                      : checkoutStep === 'bag'
+                      ? 'Your Writing Bag'
+                      : checkoutStep === 'checkout'
+                      ? 'Kenya Delivery & Settlement'
+                      : 'Order Confirmed'}
+                  </h2>
+                  <p className="text-xs text-[#6E6A63]">
+                    {activeCartTab === 'history'
+                      ? memberProfile
+                        ? `Signed in as ${memberProfile.name} (${memberProfile.emailOrPhone})`
+                        : 'Sign in to view your past PENS R US purchases & reorder'
+                      : checkoutStep === 'confirmed'
+                      ? 'Thank you for choosing PENS R US Kenya'
+                      : 'Complimentary delivery in Nairobi & on orders from KES 6,000'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCartOpen(false)}
+                  aria-label="Close bag drawer"
+                  className="p-2 rounded text-[#5C5852] hover:text-[#171614] hover:bg-[#EAE5DC] transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Segmented Tab Switcher: Writing Bag vs Order History */}
+              <div className="mt-3.5 grid grid-cols-2 gap-1.5 p-1 bg-[#EDE8DF] rounded border border-[#DCD5C7]">
+                <button
+                  type="button"
+                  onClick={() => setActiveCartTab('bag')}
+                  className={`inline-flex items-center justify-center gap-2 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${
+                    activeCartTab === 'bag'
+                      ? 'bg-[#0A2246] text-white shadow-2xs'
+                      : 'text-[#524E48] hover:text-[#0A2246]'
+                  }`}
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span className="font-mono-tabular">Writing Bag ({totalItemsCount})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveCartTab('history')}
+                  className={`inline-flex items-center justify-center gap-2 py-1.5 px-3 text-xs font-semibold rounded transition-colors cursor-pointer ${
+                    activeCartTab === 'history'
+                      ? 'bg-[#0A2246] text-white shadow-2xs'
+                      : 'text-[#524E48] hover:text-[#0A2246]'
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span className="font-mono-tabular">
+                    Order History{memberProfile ? ` (${userOrderHistory.length})` : ''}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {activeCartTab === 'history' ? (
+                !memberProfile ? (
+                  /* LOGGED-OUT VIEW IN ORDER HISTORY TAB */
+                  <div className="space-y-5">
+                    <div className="p-5 rounded-lg border border-[#DCD5C7] bg-white shadow-2xs">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <History className="w-4 h-4 text-[#C88A2E]" />
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#B58435]">
+                          PENS R US Collector Account
+                        </span>
+                      </div>
+                      <h3 className="font-serif-display text-xl font-semibold text-[#0A2246]">
+                        Sign In to View Your Order History
+                      </h3>
+                      <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
+                        Access your previous fountain pen, nib, and bottled ink purchases, view
+                        itemized KES receipts, and reorder your favourite writing instruments in one
+                        click.
+                      </p>
+
+                      {authStatusMessage && (
+                        <div className="mt-3 p-3 rounded bg-[#C88A2E]/12 border border-[#C88A2E]/40 text-xs text-[#0A2246]">
+                          {authStatusMessage}
+                        </div>
+                      )}
+
+                      {/* Option 1: Google Sign-In via Firebase Auth */}
+                      <button
+                        type="button"
+                        disabled={isSigningIn}
+                        onClick={handleGoogleSignIn}
+                        className="mt-4 w-full py-2.5 px-4 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] hover:bg-[#133468] text-white rounded border border-[#C88A2E]/40 flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        <LogIn className="w-3.5 h-3.5 text-[#E5B25D]" />
+                        <span>
+                          {isSigningIn ? 'Signing In...' : 'Sign In with Google'}
+                        </span>
+                      </button>
+
+                      <div className="my-4 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-[#E6E1D8]" />
+                        <span className="text-[11px] uppercase tracking-wider text-[#8C857B]">
+                          Or Atelier Member Login
+                        </span>
+                        <div className="h-px flex-1 bg-[#E6E1D8]" />
+                      </div>
+
+                      {/* Option 2: Direct Member Login Form (Works inside any iframe/session) */}
+                      <form onSubmit={handleMemberFormSignIn} className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                            Your Full Name
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={loginNameInput}
+                            onChange={(e) => setLoginNameInput(e.target.value)}
+                            placeholder="e.g. Wanjiku Mwangi"
+                            className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                            Email or Kenyan Mobile Number
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={loginContactInput}
+                            onChange={(e) => setLoginContactInput(e.target.value)}
+                            placeholder="e.g. +254 712 345 678 or wanjiku@example.co.ke"
+                            className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          className="w-full py-2.5 px-4 text-xs font-semibold tracking-wider uppercase bg-white hover:bg-[#0A2246] text-[#0A2246] hover:text-white border border-[#0A2246] rounded transition-colors cursor-pointer"
+                        >
+                          Sign In &amp; View Purchases
+                        </button>
+                      </form>
+
+                      {/* Instant Demo Collector Profile Button */}
+                      <div className="mt-3 pt-3 border-t border-[#ECE8DF] flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-[#6E6A63]">
+                          Testing the preview?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMemberProfile({
+                              uid: 'member-demo-wanjiku',
+                              name: 'Wanjiku Mwangi',
+                              emailOrPhone: '+254 712 345 678',
+                              authMode: 'member',
+                            });
+                            setCustomerName('Wanjiku Mwangi');
+                            setCustomerPhone('+254 712 345 678');
+                            setAuthStatusMessage(null);
+                          }}
+                          className="text-xs font-semibold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 cursor-pointer"
+                        >
+                          1-Click Demo Collector Login
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* LOGGED-IN ORDER HISTORY LIST */
+                  <div className="space-y-4">
+                    {/* Member Account Status Bar */}
+                    <div className="p-3.5 rounded-lg border border-[#DCD5C7] bg-white flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-[#0A2246] text-[#E5B25D] flex items-center justify-center shrink-0">
+                          <UserCheck className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-[#0A2246] truncate">
+                            {memberProfile.name}
+                          </p>
+                          <p className="text-[11px] text-[#6E6A63] truncate">
+                            {memberProfile.emailOrPhone}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSignOutAccount}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#524E48] hover:text-[#171614] bg-[#F3EFE8] hover:bg-[#E6E1D8] rounded border border-[#DCD5C7] transition-colors cursor-pointer shrink-0"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+
+                    {/* Order Tracking Filter & Quick Waybill Lookup */}
+                    <div className="p-3.5 rounded-lg border border-[#DCD5C7] bg-white space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Truck className="w-4 h-4 text-[#0A2246]" />
+                          <span className="text-xs font-semibold text-[#0A2246]">
+                            Live Order Tracking &amp; Status
+                          </span>
+                        </div>
+                        <span className="font-mono-tabular text-[11px] text-[#6E6A63]">
+                          {userOrderHistory.length}{' '}
+                          {userOrderHistory.length === 1 ? 'Order' : 'Orders'}
+                        </span>
+                      </div>
+
+                      {/* Search by Order # or Courier Waybill */}
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-[#8C857B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={orderTrackingSearch}
+                          onChange={(e) => setOrderTrackingSearch(e.target.value)}
+                          placeholder="Track by Order # (e.g. PRU-5104) or item..."
+                          className="w-full pl-8 pr-7 py-1.5 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                        />
+                        {orderTrackingSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setOrderTrackingSearch('')}
+                            aria-label="Clear tracking search"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-[#6E6A63] hover:text-[#171614] cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Interactive Status Filter Buttons */}
+                      <div className="grid grid-cols-4 gap-1 p-1 bg-[#F3EFE8] rounded border border-[#E6E1D8]">
+                        {(['All', 'Processing', 'Out for Courier', 'Delivered'] as const).map(
+                          (statusTab) => {
+                            const count =
+                              statusTab === 'All'
+                                ? userOrderHistory.length
+                                : userOrderHistory.filter(
+                                    (o) => (o.orderStatus || 'Processing') === statusTab
+                                  ).length;
+                            const isSelected = orderStatusFilter === statusTab;
+                            return (
+                              <button
+                                key={statusTab}
+                                type="button"
+                                onClick={() => setOrderStatusFilter(statusTab)}
+                                className={`py-1.5 px-1.5 text-[10px] font-semibold rounded transition-colors cursor-pointer whitespace-nowrap truncate ${
+                                  isSelected
+                                    ? 'bg-[#0A2246] text-white shadow-2xs'
+                                    : 'text-[#524E48] hover:text-[#0A2246]'
+                                }`}
+                              >
+                                {statusTab === 'Out for Courier' ? 'Courier' : statusTab} ({count})
+                              </button>
+                            );
+                          }
+                        )}
+                      </div>
+                    </div>
+
+                    {userOrderHistory.length === 0 ? (
+                      <div className="text-center py-10 px-4 rounded-lg border border-[#E6E1D8] bg-white">
+                        <History className="w-8 h-8 text-[#9E988E] mx-auto mb-2 stroke-[1.25]" />
+                        <p className="font-serif-display text-lg text-[#171614]">
+                          No Previous Purchases Yet
+                        </p>
+                        <p className="text-xs text-[#6E6A63] mt-1">
+                          Orders you confirm in checkout will automatically appear here for live
+                          tracking and reordering.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {userOrderHistory
+                          .filter((order) => {
+                            const currentStatus: OrderStatus =
+                              order.orderStatus || 'Processing';
+                            if (
+                              orderStatusFilter !== 'All' &&
+                              currentStatus !== orderStatusFilter
+                            ) {
+                              return false;
+                            }
+                            if (!orderTrackingSearch.trim()) return true;
+                            const q = orderTrackingSearch.trim().toLowerCase();
+                            const haystack = [
+                              order.orderNumber,
+                              order.trackingCode || '',
+                              currentStatus,
+                              order.city,
+                              order.address,
+                              ...order.items.map(
+                                (i) => `${i.product.name} ${i.variant.label}`
+                              ),
+                            ]
+                              .join(' ')
+                              .toLowerCase();
+                            return haystack.includes(q);
+                          })
+                          .map((order) => {
+                            const currentStatus: OrderStatus =
+                              order.orderStatus || 'Processing';
+                            const currentStageIdx = ORDER_TRACKING_STAGES.findIndex(
+                              (s) => s.status === currentStatus
+                            );
+                            const isTrackingExpanded =
+                              expandedTrackingOrders[order.orderNumber] ?? false;
+                            const trackingCode =
+                              order.trackingCode ||
+                              `NBO-COUR-${order.orderNumber.replace(/[^0-9]/g, '')}`;
+                            const etaText =
+                              order.estimatedDelivery ||
+                              (currentStatus === 'Delivered'
+                                ? `Delivered & Signed · ${order.address}`
+                                : currentStatus === 'Out for Courier'
+                                ? `Rider En Route to ${order.city.split(' ')[0]}`
+                                : 'Preparing at Nairobi Atelier · Nib Inspection');
+
+                            return (
+                              <div
+                                key={order.id || order.orderNumber}
+                                className="p-4 rounded-lg border border-[#DCD5C7] bg-white shadow-2xs space-y-3.5"
+                              >
+                                {/* Order Card Top Metadata */}
+                                <div className="flex items-start justify-between border-b border-[#ECE8DF] pb-2.5 gap-2">
+                                  <div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-mono-tabular text-xs font-bold text-[#0A2246]">
+                                        ORDER #{order.orderNumber}
+                                      </span>
+                                      <span className="text-[#8C857B]" aria-hidden="true">
+                                        ·
+                                      </span>
+                                      <span
+                                        className={`text-xs font-semibold ${
+                                          currentStatus === 'Delivered'
+                                            ? 'text-[#1D5B43]'
+                                            : currentStatus === 'Out for Courier'
+                                            ? 'text-[#B58435]'
+                                            : 'text-[#0A2246]'
+                                        }`}
+                                      >
+                                        {currentStatus}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-[#6E6A63] mt-0.5">
+                                      {order.timestamp} ·{' '}
+                                      {order.paymentMethod === 'mpesa'
+                                        ? 'M-Pesa Express'
+                                        : 'Cash on Delivery'}
+                                    </p>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span className="font-mono-tabular text-xs font-semibold text-[#171614]">
+                                      {formatKes(order.total)}
+                                    </span>
+                                    <p className="text-[10px] font-mono-tabular text-[#6E6A63]">
+                                      {trackingCode}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* 3-Stage Order Tracking Progress Stepper */}
+                                <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E1D8] space-y-2.5">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-semibold text-[#0A2246]">
+                                      Stage {currentStageIdx + 1} of 3: {currentStatus}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleToggleOrderTracking(order.orderNumber)
+                                      }
+                                      className="text-[11px] font-semibold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 cursor-pointer whitespace-nowrap"
+                                    >
+                                      {isTrackingExpanded
+                                        ? 'Hide Tracking Log'
+                                        : 'Track Shipment'}
+                                    </button>
+                                  </div>
+
+                                  {/* Horizontal 3-Step Visual Progress Bar */}
+                                  <div className="grid grid-cols-3 gap-1.5">
+                                    {ORDER_TRACKING_STAGES.map((stage, idx) => {
+                                      const isCompleted = idx <= currentStageIdx;
+                                      const isCurrent = idx === currentStageIdx;
+                                      return (
+                                        <div key={stage.status} className="space-y-1">
+                                          <div
+                                            className={`h-1.5 rounded-xs transition-colors ${
+                                              isCompleted
+                                                ? currentStatus === 'Delivered'
+                                                  ? 'bg-[#1D5B43]'
+                                                  : isCurrent
+                                                  ? 'bg-[#C88A2E]'
+                                                  : 'bg-[#0A2246]'
+                                                : 'bg-[#DFD9CE]'
+                                            }`}
+                                          />
+                                          <div className="flex items-center gap-1">
+                                            {isCompleted ? (
+                                              <Check
+                                                className={`w-3 h-3 shrink-0 ${
+                                                  currentStatus === 'Delivered'
+                                                    ? 'text-[#1D5B43]'
+                                                    : isCurrent
+                                                    ? 'text-[#B58435]'
+                                                    : 'text-[#0A2246]'
+                                                }`}
+                                              />
+                                            ) : (
+                                              <span className="font-mono-tabular text-[10px] text-[#8C857B]">
+                                                {stage.stepNumber}
+                                              </span>
+                                            )}
+                                            <span
+                                              className={`text-[10px] truncate ${
+                                                isCurrent
+                                                  ? 'font-bold text-[#171614]'
+                                                  : isCompleted
+                                                  ? 'font-medium text-[#3F3D39]'
+                                                  : 'text-[#8C857B]'
+                                              }`}
+                                            >
+                                              {stage.label}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+
+                                  <p className="text-[11px] text-[#524E48] leading-snug">
+                                    {etaText}
+                                  </p>
+
+                                  {/* Expandable Detailed Kenya Courier Tracking Log & Interactive Status Simulator */}
+                                  {isTrackingExpanded && (
+                                    <div className="pt-2.5 mt-2 border-t border-[#E6E1D8] space-y-3">
+                                      <div className="space-y-2">
+                                        {ORDER_TRACKING_STAGES.map((stage, idx) => {
+                                          const isCompleted = idx <= currentStageIdx;
+                                          const isCurrent = idx === currentStageIdx;
+                                          return (
+                                            <div
+                                              key={stage.status}
+                                              className="flex items-start gap-2.5 text-xs"
+                                            >
+                                              <div
+                                                className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-mono-tabular shrink-0 mt-0.5 ${
+                                                  isCompleted
+                                                    ? currentStatus === 'Delivered'
+                                                      ? 'bg-[#1D5B43] text-white'
+                                                      : isCurrent
+                                                      ? 'bg-[#C88A2E] text-white'
+                                                      : 'bg-[#0A2246] text-white'
+                                                    : 'bg-[#E6E1D8] text-[#6E6A63]'
+                                                }`}
+                                              >
+                                                {isCompleted ? (
+                                                  <Check className="w-2.5 h-2.5" />
+                                                ) : (
+                                                  idx + 1
+                                                )}
+                                              </div>
+                                              <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2">
+                                                  <span
+                                                    className={`text-[11px] ${
+                                                      isCurrent
+                                                        ? 'font-bold text-[#0A2246]'
+                                                        : isCompleted
+                                                        ? 'font-semibold text-[#171614]'
+                                                        : 'text-[#8C857B]'
+                                                    }`}
+                                                  >
+                                                    {stage.stepNumber}. {stage.label}
+                                                  </span>
+                                                  <span className="text-[10px] font-mono-tabular text-[#6E6A63]">
+                                                    {isCurrent
+                                                      ? 'Current Stage'
+                                                      : isCompleted
+                                                      ? 'Completed'
+                                                      : 'Pending'}
+                                                  </span>
+                                                </div>
+                                                <p className="text-[11px] text-[#6E6A63] leading-relaxed">
+                                                  {stage.atelierNote}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      {/* Courier Waybill & Destination Summary */}
+                                      <div className="p-2.5 rounded bg-white border border-[#E6E1D8] text-[11px] space-y-1">
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-[#6E6A63]">Courier Waybill</span>
+                                          <span className="font-mono-tabular font-semibold text-[#0A2246]">
+                                            {trackingCode}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-[#6E6A63]">Destination</span>
+                                          <span className="font-medium text-[#171614] text-right truncate">
+                                            {order.address} ({order.city.split(' ')[0]})
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Interactive Status Control (Allows member/tester to simulate live courier transition) */}
+                                      <div className="pt-1">
+                                        <span className="block text-[10px] font-semibold uppercase tracking-wider text-[#6E6A63] mb-1.5">
+                                          Update / Simulate Courier Status
+                                        </span>
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                          {ORDER_TRACKING_STAGES.map((stage) => {
+                                            const active = currentStatus === stage.status;
+                                            return (
+                                              <button
+                                                key={stage.status}
+                                                type="button"
+                                                onClick={() =>
+                                                  handleUpdateOrderStatus(order, stage.status)
+                                                }
+                                                className={`py-1.5 px-2 text-[10px] font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap truncate ${
+                                                  active
+                                                    ? 'bg-[#0A2246] text-white border-[#0A2246]'
+                                                    : 'bg-white text-[#3F3D39] border-[#DCD5C7] hover:border-[#0A2246]'
+                                                }`}
+                                              >
+                                                {stage.label}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Itemized Past Purchases */}
+                                <div className="space-y-2.5">
+                                  {order.items.map((item, idx) => (
+                                    <div
+                                      key={`${order.orderNumber}-${item.product.id}-${item.variant.id}-${idx}`}
+                                      className="flex items-center justify-between gap-3 text-xs"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <ResilientImage
+                                          src={item.variant.image || item.product.image}
+                                          alt={item.product.name}
+                                          fallbackTitle={item.product.name}
+                                          className="w-10 h-10 rounded object-contain bg-white border border-[#E6E1D8] shrink-0"
+                                        />
+                                        <div className="min-w-0">
+                                          <p className="font-medium text-[#171614] truncate">
+                                            {item.quantity}× {item.product.name}
+                                          </p>
+                                          <p className="text-[11px] text-[#6E6A63] truncate">
+                                            {item.variant.label}
+                                            {item.nibSize ? ` · ${item.nibSize} Nib` : ''}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <span className="font-mono-tabular text-xs font-medium text-[#171614] whitespace-nowrap">
+                                        {formatKes(item.product.priceKes * item.quantity)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Delivery & 1-Click Reorder Footer */}
+                                <div className="pt-2.5 border-t border-[#ECE8DF] flex items-center justify-between gap-2">
+                                  <span className="text-[11px] text-[#6E6A63] truncate">
+                                    {order.address}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReorderPastPurchase(order)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A2246] hover:text-white bg-[#F3EFE8] hover:bg-[#0A2246] rounded border border-[#DCD5C7] hover:border-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span>Reorder to Bag</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                )
+              ) : checkoutStep === 'confirmed' && confirmedOrder ? (
+                <div className="space-y-6">
+                  <div className="p-4 rounded border border-[#1D5B43]/30 bg-[#1D5B43]/8 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs text-[#1D5B43] font-mono-tabular">
+                      <span>ORDER #{confirmedOrder.orderNumber}</span>
+                      <span>{confirmedOrder.timestamp}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-[#171614]">
+                      Order Confirmed — Live Tracking Active ({confirmedOrder.orderStatus || 'Processing'})
+                    </p>
+                    <p className="text-xs text-[#4A4742] leading-relaxed">
+                      We have reserved your Japanese writing instruments for{' '}
+                      <span className="font-medium text-[#171614]">
+                        {confirmedOrder.customerName}
+                      </span>{' '}
+                      ({confirmedOrder.phone}). Waybill:{' '}
+                      <span className="font-mono-tabular font-semibold text-[#0A2246]">
+                        {confirmedOrder.trackingCode || 'NBO-COUR'}
+                      </span>
+                      .
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 text-xs border-b border-[#E6E1D8] pb-4">
+                    <div className="flex justify-between">
+                      <span className="text-[#6E6A63]">Destination</span>
+                      <span className="font-medium text-[#171614] text-right">
+                        {confirmedOrder.city}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6E6A63]">Address</span>
+                      <span className="font-medium text-[#171614] text-right">
+                        {confirmedOrder.address}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#6E6A63]">Payment Method</span>
+                      <span className="font-medium text-[#171614]">
+                        {confirmedOrder.paymentMethod === 'mpesa'
+                          ? 'M-Pesa STK Push / Paybill'
+                          : 'Cash on Delivery (KES)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#5C5852]">
+                      Itemized Summary
+                    </p>
+                    {confirmedOrder.items.map((item) => (
+                      <div
+                        key={`${item.product.id}-${item.variant.id}-${item.nibSize || 'none'}`}
+                        className="flex justify-between gap-3 text-xs"
+                      >
+                        <div>
+                          <span className="font-medium text-[#171614]">
+                            {item.quantity}× {item.product.name}
+                          </span>
+                          <p className="text-[#6E6A63]">
+                            {item.variant.label}
+                            {item.nibSize
+                              ? ` · ${item.nibSize} Nib (${
+                                  item.nibSize === 'Fine' ? '0.35mm' : '0.50mm'
+                                })`
+                              : ''}
+                          </p>
+                        </div>
+                        <span className="font-mono-tabular font-medium text-[#171614] whitespace-nowrap">
+                          {formatKes(item.product.priceKes * item.quantity)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-4 border-t border-[#E6E1D8] space-y-1.5 text-xs">
+                    <div className="flex justify-between text-[#5C5852]">
+                      <span>Subtotal</span>
+                      <span className="font-mono-tabular">
+                        {formatKes(confirmedOrder.subtotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[#5C5852]">
+                      <span>Courier Delivery</span>
+                      <span className="font-mono-tabular">
+                        {confirmedOrder.deliveryFee === 0
+                          ? 'Complimentary'
+                          : formatKes(confirmedOrder.deliveryFee)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm font-semibold text-[#171614] pt-2 border-t border-[#E6E1D8]">
+                      <span>Total Due</span>
+                      <span className="font-mono-tabular">{formatKes(confirmedOrder.total)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center py-12">
+                  <ShoppingBag className="w-10 h-10 text-[#9E988E] stroke-[1.25] mb-3" />
+                  <p className="font-serif-display text-xl text-[#171614]">
+                    Your Writing Bag is Empty
+                  </p>
+                  <p className="text-xs text-[#6E6A63] mt-1 max-w-xs leading-relaxed">
+                    Explore the Pilot Prera in Empress Teal (KES 8,500), Kakuno Madoromi (KES 3,500),
+                    Kakuno Family (KES 3,000), or all 24 shades of 50ml Iroshizuku bottled inks
+                    (KES 7,500).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveCartTab('history')}
+                    className="mt-5 inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#0A2246] bg-[#EDE8DF] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer"
+                  >
+                    <History className="w-3.5 h-3.5" />
+                    <span>View Past Orders &amp; Reorder</span>
+                  </button>
+                </div>
+              ) : checkoutStep === 'bag' ? (
+                <div className="space-y-4">
+                  {cart.map((item) => (
+                    <div
+                      key={`${item.product.id}-${item.variant.id}-${item.nibSize || 'none'}`}
+                      className="p-4 rounded border border-[#E6E1D8] bg-white flex gap-3.5"
+                    >
+                      <ResilientImage
+                        src={item.variant.image || item.product.image}
+                        alt={item.product.name}
+                        fallbackTitle={item.product.name}
+                        className="w-16 h-16 rounded object-contain bg-white shrink-0 border border-[#E6E1D8]"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-xs font-semibold text-[#171614] truncate">
+                            {item.product.name}
+                          </h3>
+                          <span className="font-mono-tabular text-xs font-semibold text-[#171614] whitespace-nowrap">
+                            {formatKes(item.product.priceKes * item.quantity)}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#6E6A63] mt-0.5 truncate">
+                          {item.variant.label}
+                          {item.nibSize
+                            ? ` · ${item.nibSize} Nib (${
+                                item.nibSize === 'Fine' ? '0.35mm' : '0.50mm'
+                              })`
+                            : ''}
+                        </p>
+
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="inline-flex items-center border border-[#E6E1D8] rounded">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateQuantity(
+                                  item.product.id,
+                                  item.variant.id,
+                                  item.nibSize,
+                                  -1
+                                )
+                              }
+                              aria-label="Decrease quantity"
+                              className="p-1 text-[#5C5852] hover:text-[#171614] cursor-pointer"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="px-2.5 text-xs font-mono-tabular">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateQuantity(
+                                  item.product.id,
+                                  item.variant.id,
+                                  item.nibSize,
+                                  1
+                                )
+                              }
+                              aria-label="Increase quantity"
+                              className="p-1 text-[#5C5852] hover:text-[#171614] cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          <span className="font-mono-tabular text-[11px] text-[#6E6A63]">
+                            {formatKes(item.product.priceKes)} each
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <form id="kenya-checkout-form" onSubmit={handlePlaceOrder} className="space-y-4">
+                  {checkoutError && (
+                    <div className="p-3 rounded bg-red-50 border border-red-200 text-xs text-red-800">
+                      {checkoutError}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="e.g. Wanjiku Mwangi"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                      Kenyan Mobile Number (For Courier &amp; M-Pesa)
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="e.g. +254 712 345 678"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                      County / Region
+                    </label>
+                    <select
+                      value={selectedLocationIdx}
+                      onChange={(e) => setSelectedLocationIdx(Number(e.target.value))}
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                    >
+                      {KENYA_LOCATIONS.map((loc, idx) => (
+                        <option key={loc.city} value={idx}>
+                          {loc.city} — {loc.eta}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                      Building, Road, or Landmark
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="e.g. Delta Corner Tower, Westlands, 4th Floor"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <span className="block text-xs font-medium text-[#3F3D39] mb-2">
+                      Settlement Method
+                    </span>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('mpesa')}
+                        className={`p-3 text-left rounded border text-xs cursor-pointer ${
+                          paymentMethod === 'mpesa'
+                            ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614]'
+                            : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                        }`}
+                      >
+                        <div>M-Pesa Express</div>
+                        <div className="text-[11px] font-normal text-[#6E6A63] mt-0.5">
+                          Instant STK / Paybill
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cod')}
+                        className={`p-3 text-left rounded border text-xs cursor-pointer ${
+                          paymentMethod === 'cod'
+                            ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614]'
+                            : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                        }`}
+                      >
+                        <div>Cash on Delivery</div>
+                        <div className="text-[11px] font-normal text-[#6E6A63] mt-0.5">
+                          Pay upon inspection
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-6 border-t border-[#E6E1D8] bg-[#F3EFE8]">
+              {activeCartTab === 'history' ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveCartTab('bag')}
+                  className="w-full py-2.5 px-4 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] text-white rounded hover:bg-[#133468] transition-colors cursor-pointer"
+                >
+                  Return to Writing Bag ({totalItemsCount})
+                </button>
+              ) : checkoutStep === 'confirmed' ? (
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCartTab('history')}
+                    className="flex-1 py-3 px-4 text-xs font-semibold tracking-wider uppercase border border-[#0A2246] text-[#0A2246] bg-white rounded hover:bg-[#EDE8DF] transition-colors cursor-pointer"
+                  >
+                    View Order History
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckoutStep('bag');
+                      setIsCartOpen(false);
+                    }}
+                    className="flex-1 py-3 px-4 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] text-white rounded hover:bg-[#133468] transition-colors cursor-pointer"
+                  >
+                    Continue Exploring
+                  </button>
+                </div>
+              ) : cart.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="space-y-1.5 text-xs">
+                    {inkMixingSetDiscount > 0 && (
+                      <>
+                        <div className="flex justify-between text-[#5C5852]">
+                          <span>Items Value</span>
+                          <span className="font-mono-tabular line-through text-[#8C857B]">
+                            {formatKes(cartRawSubtotal)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[#1D5B43] font-medium">
+                          <span>Ink Mixing Set (10% Trio Bundle)</span>
+                          <span className="font-mono-tabular">
+                            -{formatKes(inkMixingSetDiscount)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex justify-between text-[#5C5852]">
+                      <span>Subtotal</span>
+                      <span className="font-mono-tabular">{formatKes(cartSubtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-[#5C5852]">
+                      <span>Delivery ({selectedLocation.city.split(' ')[0]})</span>
+                      <span className="font-mono-tabular">
+                        {deliveryFee === 0 ? 'Complimentary' : formatKes(deliveryFee)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm font-semibold text-[#171614] pt-2 border-t border-[#DCD5C7]">
+                      <span>Total</span>
+                      <span className="font-mono-tabular">{formatKes(orderTotal)}</span>
+                    </div>
+                  </div>
+
+                  {checkoutStep === 'bag' ? (
+                    <button
+                      type="button"
+                      onClick={() => setCheckoutStep('checkout')}
+                      className="w-full py-3 px-4 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] hover:bg-[#133468] text-white rounded transition-colors cursor-pointer"
+                    >
+                      Proceed to Kenya Checkout · {formatKes(orderTotal)}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutStep('bag')}
+                        className="px-3.5 py-3 text-xs font-medium text-[#5C5852] hover:text-[#171614] border border-[#DCD5C7] rounded bg-white cursor-pointer whitespace-nowrap"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        form="kenya-checkout-form"
+                        className="flex-1 py-3 px-4 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] hover:bg-[#133468] text-white rounded transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        Confirm Order · {formatKes(orderTotal)}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsCartOpen(false)}
+                  className="w-full py-2.5 px-4 text-xs font-semibold tracking-wider uppercase border border-[#171614] text-[#171614] rounded hover:bg-[#171614] hover:text-white transition-colors cursor-pointer"
+                >
+                  Browse Collection
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN OPTICAL ZOOM & INK SWATCH INSPECTOR LIGHTBOX */}
+      {zoomModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Zoom Inspector: ${zoomModal.title}`}
+        >
+          <div className="relative w-full max-w-5xl bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+            {/* Top Inspector Bar */}
+            <div className="px-4 sm:px-6 py-3.5 border-b border-[#E6E1D8] bg-[#FAF8F5] flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                {zoomModal.swatchHex && (
+                  <span
+                    className="w-5 h-5 rounded-full border border-black/20 shrink-0 shadow-xs"
+                    style={{ backgroundColor: zoomModal.swatchHex }}
+                  />
+                )}
+                <div className="min-w-0">
+                  <h3 className="font-serif-display text-lg sm:text-xl font-semibold text-[#171614] truncate">
+                    {zoomModal.title}
+                  </h3>
+                  {zoomModal.subtitle && (
+                    <p className="text-xs text-[#6E6A63] truncate">{zoomModal.subtitle}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Bottle + Swatch vs Swatch Card Close-Up Toggle when secondarySrc is present */}
+                {zoomModal.secondarySrc && (
+                  <div className="inline-flex items-center bg-[#E6E1D8] p-0.5 rounded border border-[#DCD5C7]">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setZoomModal((prev) =>
+                          prev ? { ...prev, activeView: 'primary' } : null
+                        )
+                      }
+                      className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
+                        zoomModal.activeView === 'primary'
+                          ? 'bg-[#163A5F] text-white'
+                          : 'text-[#524E48] hover:text-[#171614]'
+                      }`}
+                    >
+                      Bottle + Swatch
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setZoomModal((prev) =>
+                          prev ? { ...prev, activeView: 'secondary' } : null
+                        )
+                      }
+                      className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
+                        zoomModal.activeView === 'secondary'
+                          ? 'bg-[#163A5F] text-white'
+                          : 'text-[#524E48] hover:text-[#171614]'
+                      }`}
+                    >
+                      Swatch Card Close-Up
+                    </button>
+                  </div>
+                )}
+
+                {/* Optical Zoom Level Buttons: 1x, 2x, 3x */}
+                <div className="inline-flex items-center gap-1 bg-white px-1.5 py-1 rounded border border-[#DCD5C7]">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setZoomModal((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              zoomLevel: prev.zoomLevel > 1 ? ((prev.zoomLevel - 1) as 1 | 2) : 1,
+                            }
+                          : null
+                      )
+                    }
+                    title="Zoom Out"
+                    className="p-1 text-[#524E48] hover:text-[#171614] cursor-pointer"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  {([1, 2, 3] as const).map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() =>
+                        setZoomModal((prev) => (prev ? { ...prev, zoomLevel: lvl } : null))
+                      }
+                      className={`px-2 py-0.5 text-xs font-mono-tabular rounded transition-colors cursor-pointer ${
+                        zoomModal.zoomLevel === lvl
+                          ? 'bg-[#163A5F] text-white font-semibold'
+                          : 'text-[#524E48] hover:bg-[#EAE5DC]'
+                      }`}
+                    >
+                      {lvl}×
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setZoomModal((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              zoomLevel: prev.zoomLevel < 3 ? ((prev.zoomLevel + 1) as 2 | 3) : 3,
+                            }
+                          : null
+                      )
+                    }
+                    title="Zoom In"
+                    className="p-1 text-[#524E48] hover:text-[#171614] cursor-pointer"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setZoomModal(null)}
+                  aria-label="Close zoom inspector"
+                  className="p-1.5 rounded bg-[#EAE5DC] text-[#171614] hover:bg-[#171614] hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive Zoom Viewport */}
+            <div
+              onMouseMove={(e) => {
+                if (zoomModal.zoomLevel === 1) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                setZoomModal((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        panX: Math.max(0, Math.min(100, x)),
+                        panY: Math.max(0, Math.min(100, y)),
+                      }
+                    : null
+                );
+              }}
+              onClick={() =>
+                setZoomModal((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        zoomLevel: prev.zoomLevel === 1 ? 2 : prev.zoomLevel === 2 ? 3 : 1,
+                      }
+                    : null
+                )
+              }
+              className={`relative flex-1 min-h-[380px] sm:min-h-[500px] bg-white flex items-center justify-center overflow-hidden select-none ${
+                zoomModal.zoomLevel > 1 ? 'cursor-crosshair' : 'cursor-zoom-in'
+              }`}
+            >
+              {(() => {
+                const activeSrc =
+                  zoomModal.activeView === 'secondary' && zoomModal.secondarySrc
+                    ? zoomModal.secondarySrc
+                    : zoomModal.src;
+
+                return (
+                  <img
+                    src={activeSrc}
+                    alt={zoomModal.title}
+                    referrerPolicy="no-referrer"
+                    style={{
+                      transform: `scale(${zoomModal.zoomLevel})`,
+                      transformOrigin: `${zoomModal.panX}% ${zoomModal.panY}%`,
+                    }}
+                    className="max-h-[66vh] max-w-full object-contain transition-transform duration-75"
+                  />
+                );
+              })()}
+
+              {/* Prev / Next Shade Navigation if viewing an Iroshizuku Ink Shade */}
+              {zoomModal.inkShadeId && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const currentIdx = INK_STUDIO_SHADES.findIndex(
+                        (s) => s.id === zoomModal.inkShadeId
+                      );
+                      const prevIdx =
+                        (currentIdx - 1 + INK_STUDIO_SHADES.length) %
+                        INK_STUDIO_SHADES.length;
+                      const prevShade = INK_STUDIO_SHADES[prevIdx];
+                      setZoomModal((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              src: prevShade.image,
+                              secondarySrc: prevShade.swatchImage,
+                              title: `Pilot Iroshizuku — ${prevShade.name} (${prevShade.kanji})`,
+                              subtitle: `${prevShade.meaning} · ${prevShade.sheenNote}`,
+                              swatchHex: prevShade.hex,
+                              inkShadeId: prevShade.id,
+                            }
+                          : null
+                      );
+                    }}
+                    title="Previous Iroshizuku Ink Shade"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#FAF8F5]/95 border border-[#DCD5C7] text-[#171614] hover:bg-[#163A5F] hover:text-white shadow-md transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const currentIdx = INK_STUDIO_SHADES.findIndex(
+                        (s) => s.id === zoomModal.inkShadeId
+                      );
+                      const nextIdx = (currentIdx + 1) % INK_STUDIO_SHADES.length;
+                      const nextShade = INK_STUDIO_SHADES[nextIdx];
+                      setZoomModal((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              src: nextShade.image,
+                              secondarySrc: nextShade.swatchImage,
+                              title: `Pilot Iroshizuku — ${nextShade.name} (${nextShade.kanji})`,
+                              subtitle: `${nextShade.meaning} · ${nextShade.sheenNote}`,
+                              swatchHex: nextShade.hex,
+                              inkShadeId: nextShade.id,
+                            }
+                          : null
+                      );
+                    }}
+                    title="Next Iroshizuku Ink Shade"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#FAF8F5]/95 border border-[#DCD5C7] text-[#171614] hover:bg-[#163A5F] hover:text-white shadow-md transition-colors cursor-pointer"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Bottom Inspector Helper & Quick Add Bar */}
+            <div className="px-4 sm:px-6 py-3 border-t border-[#E6E1D8] bg-[#F3EFE8] flex flex-wrap items-center justify-between gap-3 text-xs text-[#5C5852]">
+              <span>
+                Move cursor across image to pan at <strong>{zoomModal.zoomLevel}×</strong> magnification · Click image to cycle zoom (1× / 2× / 3×)
+              </span>
+
+              {zoomModal.inkShadeId && (
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const shade = INK_STUDIO_SHADES.find(
+                        (s) => s.id === zoomModal.inkShadeId
+                      );
+                      if (shade) {
+                        handleAddInkShadeDirectly(shade);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold tracking-wider uppercase rounded bg-[#163A5F] hover:bg-[#102B47] text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add 50ml Bottle · KES 7,500</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

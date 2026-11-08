@@ -1,0 +1,6 @@
+{
+  "name": "PENS R US — Japanese Fountain Pens & Inks Kenya",
+  "description": "Experience the beauty of Japanese craftsmanship through an exclusive collection of Pilot fountain pens and premium Iroshizuku inks in Kenya.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

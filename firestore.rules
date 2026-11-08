@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: orders
+    // Document ID: {orderId}
+    // Fields:
+    //   - userId: string (required, immutable) - UID of the customer
+    //   - userEmail: string (optional) - Email of the customer
+    //   - orderNumber: string (required, immutable) - Order reference e.g. PRU-4821
+    //   - orderStatus: string (optional) - 'Processing' | 'Out for Courier' | 'Delivered'
+    //   - trackingCode: string (optional) - Courier waybill code e.g. NBO-COUR-4821
+    //   - estimatedDelivery: string (optional) - Delivery ETA or signed status
+    //   - customerName: string (required) - Recipient full name
+    //   - phone: string (required) - Kenyan mobile number
+    //   - city: string (required) - Delivery county/city
+    //   - address: string (required) - Street/building address
+    //   - paymentMethod: string (required) - 'mpesa' or 'cod'
+    //   - items: list (required) - Purchased items (max 50)
+    //   - subtotal: number (required, >= 0) - Subtotal in KES
+    //   - deliveryFee: number (required, >= 0) - Delivery fee in KES
+    //   - total: number (required, >= 0) - Total in KES
+    //   - timestamp: string (required) - Human-readable date/time
+    //   - createdAt: number (required, immutable) - Epoch ms
+    //
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidOrder(data) {
+      return hasRequiredFields([
+          'userId',
+          'orderNumber',
+          'customerName',
+          'phone',
+          'city',
+          'address',
+          'paymentMethod',
+          'items',
+          'subtotal',
+          'deliveryFee',
+          'total',
+          'timestamp',
+          'createdAt'
+        ]) &&
+        hasOnlyAllowedFields([
+          'userId',
+          'userEmail',
+          'orderNumber',
+          'orderStatus',
+          'trackingCode',
+          'estimatedDelivery',
+          'customerName',
+          'phone',
+          'city',
+          'address',
+          'paymentMethod',
+          'items',
+          'subtotal',
+          'deliveryFee',
+          'total',
+          'timestamp',
+          'createdAt'
+        ]) &&
+        data.userId is string && data.userId == request.auth.uid &&
+        (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 160)) &&
+        (!('orderStatus' in data) || (data.orderStatus in ['Processing', 'Out for Courier', 'Delivered'])) &&
+        (!('trackingCode' in data) || (data.trackingCode is string && data.trackingCode.size() <= 64)) &&
+        (!('estimatedDelivery' in data) || (data.estimatedDelivery is string && data.estimatedDelivery.size() <= 160)) &&
+        data.orderNumber is string && data.orderNumber.size() >= 3 && data.orderNumber.size() <= 32 &&
+        data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120 &&
+        data.phone is string && data.phone.size() >= 4 && data.phone.size() <= 40 &&
+        data.city is string && data.city.size() >= 2 && data.city.size() <= 120 &&
+        data.address is string && data.address.size() >= 2 && data.address.size() <= 300 &&
+        data.paymentMethod in ['mpesa', 'cod'] &&
+        data.items is list && data.items.size() >= 1 && data.items.size() <= 50 &&
+        data.subtotal is number && data.subtotal >= 0 &&
+        data.deliveryFee is number && data.deliveryFee >= 0 &&
+        data.total is number && data.total >= 0 &&
+        data.timestamp is string && data.timestamp.size() >= 1 && data.timestamp.size() <= 80 &&
+        data.createdAt is number && data.createdAt >= 0;
+    }
+
+    match /orders/{orderId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && uidUnchanged() && isValidOrder(request.resource.data);
+      allow update: if isDocOwner() && uidUnchanged() && isValidOrder(request.resource.data) &&
+        areImmutableFieldsUnchanged(['userId', 'orderNumber', 'createdAt']);
+      allow delete: if isDocOwner();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

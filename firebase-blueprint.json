@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "OrderRecord": {
+      "title": "OrderRecord",
+      "description": "A customer fountain pen and bottled ink purchase placed on PENS R US Kenya with live order tracking status.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The authenticated Firebase UID of the customer who placed the order."
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "The email address of the authenticated user."
+        },
+        "orderNumber": {
+          "type": "string",
+          "description": "Human-readable order code, e.g. PRU-4821."
+        },
+        "orderStatus": {
+          "type": "string",
+          "enum": ["Processing", "Out for Courier", "Delivered"],
+          "description": "Current fulfillment and courier tracking status of the order."
+        },
+        "trackingCode": {
+          "type": "string",
+          "description": "Kenya courier tracking reference code, e.g. NBO-COUR-4821."
+        },
+        "estimatedDelivery": {
+          "type": "string",
+          "description": "Estimated delivery window or signed delivery confirmation note."
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Full name of the recipient."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Kenyan mobile number for courier and M-Pesa."
+        },
+        "city": {
+          "type": "string",
+          "description": "Kenyan county or delivery region."
+        },
+        "address": {
+          "type": "string",
+          "description": "Building, road, or landmark delivery address."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["mpesa", "cod"],
+          "description": "Settlement method: M-Pesa or Cash on Delivery."
+        },
+        "items": {
+          "type": "array",
+          "description": "Serialized list of purchased items with product, variant, nibSize, and quantity."
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "Order subtotal in KES."
+        },
+        "deliveryFee": {
+          "type": "number",
+          "description": "Courier delivery fee in KES."
+        },
+        "total": {
+          "type": "number",
+          "description": "Total order amount in KES."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Formatted date/time string when the order was placed."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Unix epoch timestamp in milliseconds."
+        }
+      },
+      "required": [
+        "userId",
+        "orderNumber",
+        "customerName",
+        "phone",
+        "city",
+        "address",
+        "paymentMethod",
+        "items",
+        "subtotal",
+        "deliveryFee",
+        "total",
+        "timestamp",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/OrderRecord"
+      },
+      "description": "Customer order history and live courier tracking records scoped strictly to the authenticated owner (userId == request.auth.uid)."
+    }
+  }
+}
