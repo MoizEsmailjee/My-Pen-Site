@@ -91,6 +91,91 @@
         "timestamp",
         "createdAt"
       ]
+    },
+    "ProductCatalogItem": {
+      "title": "ProductCatalogItem",
+      "description": "A fountain pen, converter, or bottled ink item managed via the PENS R US Merchant Admin Console.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique product slug ID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display title of the product."
+        },
+        "japaneseTitle": {
+          "type": "string",
+          "description": "Japanese edition subtitle."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Fountain Pens", "Bottled Inks", "Converters & Refills"],
+          "description": "Storefront category."
+        },
+        "priceKes": {
+          "type": "number",
+          "description": "Retail price in Kenyan Shillings (KES)."
+        },
+        "image": {
+          "type": "string",
+          "description": "Primary product image path or URL."
+        },
+        "availability": {
+          "type": "string",
+          "description": "Inventory status label."
+        },
+        "shortSummary": {
+          "type": "string",
+          "description": "Short product summary."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed product description."
+        },
+        "hasNibSelector": {
+          "type": "boolean",
+          "description": "Whether Fine/Medium nib selection applies."
+        },
+        "variants": {
+          "type": "array",
+          "description": "Available finishes or ink shade variants."
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Epoch timestamp in milliseconds when last edited."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "category",
+        "priceKes",
+        "image",
+        "availability",
+        "shortSummary"
+      ]
+    },
+    "StoreSettingsConfig": {
+      "title": "StoreSettingsConfig",
+      "description": "Global storefront bundle pricing and delivery threshold configuration.",
+      "type": "object",
+      "properties": {
+        "inkMixingSetBundleKes": {
+          "type": "number",
+          "description": "Discounted bundle price in KES for the 3-bottle Iroshizuku Ink Mixing Set."
+        },
+        "freeDeliveryThresholdKes": {
+          "type": "number",
+          "description": "Order subtotal in KES required for complimentary nationwide courier."
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Epoch timestamp in milliseconds."
+        }
+      },
+      "required": ["inkMixingSetBundleKes", "freeDeliveryThresholdKes"]
     }
   },
   "firestore": {
@@ -98,7 +183,19 @@
       "schema": {
         "$ref": "#/entities/OrderRecord"
       },
-      "description": "Customer order history and live courier tracking records scoped strictly to the authenticated owner (userId == request.auth.uid)."
+      "description": "Customer order history and live courier tracking records scoped to the authenticated owner or store admin."
+    },
+    "/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/ProductCatalogItem"
+      },
+      "description": "Storefront product catalog and KES pricing managed by the Merchant Admin Console."
+    },
+    "/store_settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/StoreSettingsConfig"
+      },
+      "description": "Global bundle pricing and delivery threshold settings."
     }
   }
 }

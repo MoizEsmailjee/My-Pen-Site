@@ -42,6 +42,7 @@ import { ChromaticInkRibbonIsland } from './islands/ChromaticInkRibbonIsland';
 import { WritingSetBuilderIsland } from './islands/WritingSetBuilderIsland';
 import { InkMixingSetBuilderIsland } from './islands/InkMixingSetBuilderIsland';
 import { QuickBuyModalIsland } from './islands/QuickBuyModalIsland';
+import { MerchantAdminIsland, StoreSettings } from './islands/MerchantAdminIsland';
 import {
   auth,
   db,
@@ -50,7 +51,9 @@ import {
   onAuthStateChanged,
   collection,
   addDoc,
+  setDoc,
   updateDoc,
+  deleteDoc,
   doc,
   query,
   where,
@@ -87,6 +90,8 @@ const BRAND_LOGO_SRC =
 const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
 const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v1';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
+const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v1';
+const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v1';
 
 interface MemberProfile {
   uid: string;
@@ -236,6 +241,171 @@ function BrandLogoLockup({
 }
 
 export default function App() {
+  // Dynamic Storefront Catalog State (Editable via Merchant Admin Console + Synced with Firestore /products)
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>(() => {
+    try {
+      const saved = window.localStorage.getItem(CATALOG_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Fallback to default catalog
+    }
+    return FEATURED_PRODUCTS;
+  });
+
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
+    try {
+      const saved = window.localStorage.getItem(STORE_SETTINGS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.inkMixingSetBundleKes === 'number') {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return {
+      inkMixingSetBundleKes: 20000,
+      freeDeliveryThresholdKes: 6000,
+    };
+  });
+
+  const [isMerchantAdminOpen, setIsMerchantAdminOpen] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(catalogProducts));
+    } catch {
+      // Ignore storage quota error
+    }
+  }, [catalogProducts]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        STORE_SETTINGS_STORAGE_KEY,
+        JSON.stringify(storeSettings)
+      );
+    } catch {
+      // Ignore storage quota error
+    }
+  }, [storeSettings]);
+
+  // Real-Time Firestore Listener for Storefront Product Catalog (/products) & Store Settings (/store_settings/config)
+  useEffect(() => {
+    const productsUnsub = onSnapshot(
+      collection(db, 'products'),
+      (snapshot) => {
+        if (snapshot.empty) return;
+        const cloudMap = new Map<string, Partial<Product>>();
+        snapshot.docs.forEach((docSnap) => {
+          cloudMap.set(docSnap.id, docSnap.data() as Partial<Product>);
+        });
+
+        setCatalogProducts((prev) => {
+          const merged = prev.map((prod) => {
+            const override = cloudMap.get(prod.id);
+            if (!override) return prod;
+            cloudMap.delete(prod.id);
+            return {
+              ...prod,
+              name: override.name ?? prod.name,
+              japaneseTitle: override.japaneseTitle ?? prod.japaneseTitle,
+              category: override.category ?? prod.category,
+              priceKes:
+                typeof override.priceKes === 'number'
+                  ? override.priceKes
+                  : prod.priceKes,
+              image: override.image ?? prod.image,
+              availability: override.availability ?? prod.availability,
+              shortSummary: override.shortSummary ?? prod.shortSummary,
+              description: override.description ?? prod.description,
+              hasNibSelector:
+                typeof override.hasNibSelector === 'boolean'
+                  ? override.hasNibSelector
+                  : prod.hasNibSelector,
+              variants:
+                Array.isArray(override.variants) && override.variants.length > 0
+                  ? override.variants
+                  : prod.variants,
+            };
+          });
+
+          // Append any custom merchant products created in Firestore
+          cloudMap.forEach((customProd, id) => {
+            if (customProd.name && typeof customProd.priceKes === 'number') {
+              merged.push({
+                id,
+                name: customProd.name,
+                japaneseTitle: customProd.japaneseTitle || 'Japanese Atelier Collection',
+                category: customProd.category || 'Fountain Pens',
+                priceKes: customProd.priceKes,
+                image: customProd.image || '/assets/prera/empress_teal_1.jpg',
+                imageFit: 'contain',
+                hasNibSelector: Boolean(customProd.hasNibSelector),
+                Origin: 'Made in Japan',
+                availability: customProd.availability || 'In Stock in Nairobi',
+                shortSummary: customProd.shortSummary || '',
+                description: customProd.description || customProd.shortSummary || '',
+                variantLabel: 'Select Finish',
+                variants:
+                  Array.isArray(customProd.variants) && customProd.variants.length > 0
+                    ? customProd.variants
+                    : [
+                        {
+                          id: `${id}-default`,
+                          label: customProd.name,
+                          sublabel: customProd.shortSummary || '',
+                          image: customProd.image || '/assets/prera/empress_teal_1.jpg',
+                        },
+                      ],
+                specs: [
+                  { label: 'Origin', value: 'Made in Japan' },
+                  { label: 'Dispatch', value: 'Same-Day Nairobi Courier' },
+                ],
+                includedItems: [customProd.name, 'Presentation Box'],
+              });
+            }
+          });
+          return merged;
+        });
+      },
+      () => {
+        // Fallback silently to local catalog if offline
+      }
+    );
+
+    const settingsUnsub = onSnapshot(
+      doc(db, 'store_settings', 'config'),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (
+            typeof data.inkMixingSetBundleKes === 'number' &&
+            typeof data.freeDeliveryThresholdKes === 'number'
+          ) {
+            setStoreSettings({
+              inkMixingSetBundleKes: data.inkMixingSetBundleKes,
+              freeDeliveryThresholdKes: data.freeDeliveryThresholdKes,
+            });
+          }
+        }
+      },
+      () => {
+        // Ignore offline error
+      }
+    );
+
+    return () => {
+      productsUnsub();
+      settingsUnsub();
+    };
+  }, []);
+
   // Category filter state for main Featured Collection
   const [activeCategory, setActiveCategory] = useState<
     'All' | 'Fountain Pens' | 'Bottled Inks' | 'Converters & Refills'
@@ -666,28 +836,45 @@ export default function App() {
   }, [memberProfile, firestoreOrders, localOrders]);
 
   const kakunoMadoromiProduct = useMemo(
-    () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-kakuno-madoromi')!,
-    []
+    () =>
+      catalogProducts.find((p) => p.id === 'pilot-kakuno-madoromi') ||
+      FEATURED_PRODUCTS.find((p) => p.id === 'pilot-kakuno-madoromi')!,
+    [catalogProducts]
   );
 
   const kakunoFamilyProduct = useMemo(
-    () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-kakuno-family')!,
-    []
+    () =>
+      catalogProducts.find((p) => p.id === 'pilot-kakuno-family') ||
+      FEATURED_PRODUCTS.find((p) => p.id === 'pilot-kakuno-family')!,
+    [catalogProducts]
   );
 
   const pilotPreraProduct = useMemo(
-    () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-prera')!,
-    []
+    () =>
+      catalogProducts.find((p) => p.id === 'pilot-prera') ||
+      FEATURED_PRODUCTS.find((p) => p.id === 'pilot-prera')!,
+    [catalogProducts]
   );
 
   const pilotCon40Product = useMemo(
-    () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-con-40')!,
-    []
+    () =>
+      catalogProducts.find((p) => p.id === 'pilot-con-40') ||
+      FEATURED_PRODUCTS.find((p) => p.id === 'pilot-con-40')!,
+    [catalogProducts]
   );
 
   const watermanInkProduct = useMemo(
-    () => FEATURED_PRODUCTS.find((p) => p.id === 'waterman-ink-bottle')!,
-    []
+    () =>
+      catalogProducts.find((p) => p.id === 'waterman-ink-bottle') ||
+      FEATURED_PRODUCTS.find((p) => p.id === 'waterman-ink-bottle')!,
+    [catalogProducts]
+  );
+
+  const iroshizukuProduct = useMemo(
+    () =>
+      catalogProducts.find((p) => p.id === 'pilot-iroshizuku-ink') ||
+      FEATURED_PRODUCTS.find((p) => p.id === 'pilot-iroshizuku-ink')!,
+    [catalogProducts]
   );
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -695,8 +882,8 @@ export default function App() {
   const filteredProducts = useMemo(() => {
     const base =
       activeCategory === 'All'
-        ? FEATURED_PRODUCTS
-        : FEATURED_PRODUCTS.filter((p) => p.category === activeCategory);
+        ? catalogProducts
+        : catalogProducts.filter((p) => p.category === activeCategory);
 
     if (!normalizedSearch) return base;
 
@@ -717,7 +904,7 @@ export default function App() {
 
       return productFields.includes(normalizedSearch);
     });
-  }, [activeCategory, normalizedSearch]);
+  }, [activeCategory, normalizedSearch, catalogProducts]);
 
   const filteredInkVariety = useMemo(() => {
     const base =
@@ -756,7 +943,7 @@ export default function App() {
       matchNote: string;
     }[] = [];
 
-    for (const product of FEATURED_PRODUCTS) {
+    for (const product of catalogProducts) {
       // Check if specific variants match first (e.g. "Ivory", "Papa", "Serenity Blue", "Demonstrator")
       const matchingVariants = product.variants.filter((v) =>
         `${v.label} ${v.sublabel}`.toLowerCase().includes(normalizedSearch)
@@ -817,7 +1004,7 @@ export default function App() {
       inkMatches: inkMatches.slice(0, 6),
       totalCount: penMatches.length + inkMatches.length,
     };
-  }, [normalizedSearch, selectedVariants]);
+  }, [normalizedSearch, selectedVariants, catalogProducts]);
 
   const totalItemsCount = useMemo(
     () => cart.reduce((acc, item) => acc + item.quantity, 0),
@@ -829,30 +1016,35 @@ export default function App() {
     [cart]
   );
 
-  // Automatic Ink Mixing Set Trio Discount: Every 3 × 50ml Pilot Iroshizuku bottles (KES 22,500)
-  // are bundled at KES 20,000 (10% Trio Bundle Privilege · saves KES 2,500 per trio)
+  // Automatic Ink Mixing Set Trio Discount: Every 3 × 50ml Pilot Iroshizuku bottles
+  // are bundled at storeSettings.inkMixingSetBundleKes (default KES 20,000)
   const inkMixingSetDiscount = useMemo(() => {
     const iroshizukuQty = cart
       .filter((item) => item.product.id === 'pilot-iroshizuku-ink')
       .reduce((acc, item) => acc + item.quantity, 0);
     const trioCount = Math.floor(iroshizukuQty / 3);
-    return trioCount * 2500;
-  }, [cart]);
+    const singlePrice = iroshizukuProduct.priceKes;
+    const discountPerTrio = Math.max(
+      0,
+      singlePrice * 3 - storeSettings.inkMixingSetBundleKes
+    );
+    return trioCount * discountPerTrio;
+  }, [cart, iroshizukuProduct.priceKes, storeSettings.inkMixingSetBundleKes]);
 
   const cartSubtotal = Math.max(0, cartRawSubtotal - inkMixingSetDiscount);
 
   const selectedLocation = KENYA_LOCATIONS[selectedLocationIdx];
   const deliveryFee = useMemo(() => {
     if (cartSubtotal === 0) return 0;
-    if (cartSubtotal >= 6000) return 0;
+    if (cartSubtotal >= storeSettings.freeDeliveryThresholdKes) return 0;
     return selectedLocation.fee;
-  }, [cartSubtotal, selectedLocation]);
+  }, [cartSubtotal, selectedLocation, storeSettings.freeDeliveryThresholdKes]);
 
   const orderTotal = cartSubtotal + deliveryFee;
 
   const handleSelectVariant = (productId: string, variantId: string) => {
     setSelectedVariants((prev) => ({ ...prev, [productId]: variantId }));
-    const product = FEATURED_PRODUCTS.find((p) => p.id === productId);
+    const product = catalogProducts.find((p) => p.id === productId);
     const variant = product?.variants.find((v) => v.id === variantId);
     if (variant?.image) {
       setActiveImageByProduct((prev) => ({ ...prev, [productId]: variant.image! }));
@@ -1237,24 +1429,71 @@ export default function App() {
       );
     }
 
-    // If this order is stored in Firestore and belongs to the signed-in Firebase user, persist the status transition
-    if (
-      auth.currentUser &&
-      order.id &&
-      !order.id.startsWith('seed-order-') &&
-      order.userId === auth.currentUser.uid
-    ) {
-      const orderDocPath = `orders/${order.id}`;
-      try {
-        await updateDoc(doc(db, 'orders', order.id), {
-          orderStatus: nextStatus,
-          estimatedDelivery: nextEta,
-        });
-      } catch (error) {
+    // If signed in with Firebase Auth, either update the existing Firestore document or promote the local order into Firestore
+    if (auth.currentUser) {
+      if (
+        order.id &&
+        !order.id.startsWith('seed-order-') &&
+        order.userId === auth.currentUser.uid
+      ) {
+        const orderDocPath = `orders/${order.id}`;
         try {
-          handleFirestoreError(error, OperationType.UPDATE, orderDocPath);
-        } catch {
-          // Structured error logged
+          await updateDoc(doc(db, 'orders', order.id), {
+            orderStatus: nextStatus,
+            estimatedDelivery: nextEta,
+          });
+        } catch (error) {
+          try {
+            handleFirestoreError(error, OperationType.UPDATE, orderDocPath);
+          } catch {
+            // Structured error logged
+          }
+        }
+      } else {
+        const firestorePayload = {
+          userId: auth.currentUser.uid,
+          userEmail: auth.currentUser.email || '',
+          orderNumber: order.orderNumber,
+          orderStatus: nextStatus,
+          trackingCode:
+            order.trackingCode ||
+            `NBO-COUR-${order.orderNumber.replace(/[^0-9]/g, '') || '4000'}`,
+          estimatedDelivery: nextEta,
+          customerName: order.customerName,
+          phone: order.phone,
+          city: order.city,
+          address: order.address,
+          paymentMethod: order.paymentMethod,
+          items: order.items.map((item) => ({
+            product: {
+              id: item.product.id,
+              name: item.product.name,
+              priceKes: item.product.priceKes,
+              image: item.product.image,
+            },
+            variant: {
+              id: item.variant.id,
+              label: item.variant.label,
+              sublabel: item.variant.sublabel,
+              image: item.variant.image || item.product.image,
+            },
+            nibSize: item.nibSize || null,
+            quantity: item.quantity,
+          })),
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
+          total: order.total,
+          timestamp: order.timestamp,
+          createdAt: order.createdAt || Date.now(),
+        };
+        try {
+          await addDoc(collection(db, 'orders'), firestorePayload);
+        } catch (error) {
+          try {
+            handleFirestoreError(error, OperationType.CREATE, 'orders');
+          } catch {
+            // Structured error logged
+          }
         }
       }
     }
@@ -1369,10 +1608,143 @@ export default function App() {
     setCart([]);
   };
 
+  // Merchant Admin Product & Store Settings Handlers (Local State + Cloud Firestore Sync)
+  const persistProductToFirestore = async (product: Product) => {
+    if (!auth.currentUser) return;
+    const docPath = `products/${product.id}`;
+    try {
+      await setDoc(doc(db, 'products', product.id), {
+        id: product.id,
+        name: product.name,
+        japaneseTitle: product.japaneseTitle,
+        category: product.category,
+        priceKes: product.priceKes,
+        image: product.image,
+        availability: product.availability,
+        shortSummary: product.shortSummary,
+        description: product.description,
+        hasNibSelector: product.hasNibSelector,
+        variants: product.variants,
+        updatedAt: Date.now(),
+      });
+      setCloudSyncStatus('Saved to Cloud Firestore');
+      setTimeout(() => setCloudSyncStatus(null), 2500);
+    } catch (error) {
+      try {
+        handleFirestoreError(error, OperationType.WRITE, docPath);
+      } catch {
+        // Structured log
+      }
+    }
+  };
+
+  const handleMerchantUpdateProduct = async (updatedProduct: Product) => {
+    setCatalogProducts((prev) =>
+      prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+    );
+    // Also update any matching items currently in the shopping bag so prices stay in sync
+    setCart((prev) =>
+      prev.map((item) =>
+        item.product.id === updatedProduct.id
+          ? { ...item, product: updatedProduct }
+          : item
+      )
+    );
+    await persistProductToFirestore(updatedProduct);
+  };
+
+  const handleMerchantAddProduct = async (newProduct: Product) => {
+    setCatalogProducts((prev) => [newProduct, ...prev]);
+    setSelectedVariants((prev) => ({
+      ...prev,
+      [newProduct.id]: newProduct.variants[0]?.id || '',
+    }));
+    if (newProduct.hasNibSelector) {
+      setSelectedNibs((prev) => ({
+        ...prev,
+        [newProduct.id]: 'Fine',
+      }));
+    }
+    await persistProductToFirestore(newProduct);
+  };
+
+  const handleMerchantDeleteProduct = async (productId: string) => {
+    setCatalogProducts((prev) => prev.filter((p) => p.id !== productId));
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'products', productId));
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.DELETE, `products/${productId}`);
+        } catch {
+          // Structured log
+        }
+      }
+    }
+  };
+
+  const handleMerchantResetCatalog = async () => {
+    setCatalogProducts(FEATURED_PRODUCTS);
+    setStoreSettings({
+      inkMixingSetBundleKes: 20000,
+      freeDeliveryThresholdKes: 6000,
+    });
+    if (auth.currentUser) {
+      for (const prod of FEATURED_PRODUCTS) {
+        await persistProductToFirestore(prod);
+      }
+    }
+  };
+
+  const handleSyncAllProductsToFirestore = async () => {
+    if (!auth.currentUser) {
+      await handleGoogleSignIn();
+    }
+    if (auth.currentUser) {
+      for (const prod of catalogProducts) {
+        await persistProductToFirestore(prod);
+      }
+      try {
+        await setDoc(doc(db, 'store_settings', 'config'), {
+          inkMixingSetBundleKes: storeSettings.inkMixingSetBundleKes,
+          freeDeliveryThresholdKes: storeSettings.freeDeliveryThresholdKes,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.WRITE, 'store_settings/config');
+        } catch {
+          // Structured log
+        }
+      }
+    }
+  };
+
+  const handleMerchantUpdateStoreSettings = async (next: StoreSettings) => {
+    setStoreSettings(next);
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'store_settings', 'config'), {
+          inkMixingSetBundleKes: next.inkMixingSetBundleKes,
+          freeDeliveryThresholdKes: next.freeDeliveryThresholdKes,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.WRITE, 'store_settings/config');
+        } catch {
+          // Structured log
+        }
+      }
+    }
+  };
+
   const activeStudioInk =
     INK_STUDIO_SHADES.find((s) => s.id === studioInkId) || INK_STUDIO_SHADES[0];
-  const activeStudioPen = FEATURED_PRODUCTS.find((p) => p.id === studioPenId)!;
-  const studioPairTotalKes = activeStudioPen.priceKes + 7500;
+  const activeStudioPen =
+    catalogProducts.find((p) => p.id === studioPenId) ||
+    FEATURED_PRODUCTS.find((p) => p.id === studioPenId)!;
+  const studioPairTotalKes = activeStudioPen.priceKes + iroshizukuProduct.priceKes;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#171614]">
@@ -1865,11 +2237,18 @@ export default function App() {
                             : 'text-[#5C5852] hover:text-[#171614]'
                         }`}
                       >
-                        {tab === 'All' ? `All Instruments (${FEATURED_PRODUCTS.length})` : tab}
+                        {tab === 'All' ? `All Instruments (${catalogProducts.length})` : tab}
                       </button>
                     );
                   }
                 )}
+                <button
+                  type="button"
+                  onClick={() => setIsMerchantAdminOpen(true)}
+                  className="px-3.5 py-1.5 text-xs font-semibold rounded bg-[#0A2246] text-white hover:bg-[#133468] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  Merchant Admin (Edit Prices)
+                </button>
               </div>
             </div>
 
@@ -4617,13 +4996,68 @@ export default function App() {
           </div>
 
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#6E6A63]">
-            <span>© {new Date().getFullYear()} PENS R US Kenya · All Rights Reserved.</span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span>© {new Date().getFullYear()} PENS R US Kenya · All Rights Reserved.</span>
+              <span aria-hidden="true">·</span>
+              <button
+                type="button"
+                onClick={() => setIsMerchantAdminOpen(true)}
+                className="font-semibold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 cursor-pointer"
+              >
+                Merchant Admin Console (Edit Catalog &amp; KES Prices)
+              </button>
+            </div>
             <span className="font-mono-tabular">
-              Complimentary Delivery in Nairobi &amp; Nationwide on Orders from KES 6,000
+              Complimentary Delivery in Nairobi &amp; Nationwide on Orders from{' '}
+              {formatKes(storeSettings.freeDeliveryThresholdKes)}
             </span>
           </div>
         </div>
       </footer>
+
+      {/* SHOPIFY-STYLE MERCHANT ADMIN BACK OFFICE (PRODUCTS, KES PRICES, ORDERS & BUNDLES) */}
+      <MerchantAdminIsland
+        isOpen={isMerchantAdminOpen}
+        onClose={() => setIsMerchantAdminOpen(false)}
+        products={catalogProducts}
+        onUpdateProduct={handleMerchantUpdateProduct}
+        onAddProduct={handleMerchantAddProduct}
+        onDeleteProduct={handleMerchantDeleteProduct}
+        onResetCatalogToDefaults={handleMerchantResetCatalog}
+        onSyncAllProductsToFirestore={handleSyncAllProductsToFirestore}
+        storeSettings={storeSettings}
+        onUpdateStoreSettings={handleMerchantUpdateStoreSettings}
+        orders={(userOrderHistory.length > 0 ? userOrderHistory : localOrders).map(
+          (ord) => ({
+            id: ord.id,
+            userId: ord.userId,
+            orderNumber: ord.orderNumber,
+            orderStatus: ord.orderStatus,
+            trackingCode: ord.trackingCode,
+            estimatedDelivery: ord.estimatedDelivery,
+            customerName: ord.customerName,
+            phone: ord.phone,
+            city: ord.city,
+            address: ord.address,
+            paymentMethod: ord.paymentMethod,
+            total: ord.total,
+            timestamp: ord.timestamp,
+            itemsCount: ord.items.reduce((acc, i) => acc + i.quantity, 0),
+          })
+        )}
+        onUpdateOrderStatusByNumber={(orderNumber, nextStatus) => {
+          const target =
+            userOrderHistory.find((o) => o.orderNumber === orderNumber) ||
+            localOrders.find((o) => o.orderNumber === orderNumber);
+          if (target) {
+            handleUpdateOrderStatus(target, nextStatus);
+          }
+        }}
+        firebaseAdminEmail={firebaseUser?.email || null}
+        isSigningIn={isSigningIn}
+        onGoogleSignIn={handleGoogleSignIn}
+        cloudSyncStatus={cloudSyncStatus}
+      />
 
       {/* QUICK BUY MODAL OVERLAY (ASTRO ISLAND) */}
       <QuickBuyModalIsland

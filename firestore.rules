@@ -1,35 +1,15 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: orders
-    // Document ID: {orderId}
-    // Fields:
-    //   - userId: string (required, immutable) - UID of the customer
-    //   - userEmail: string (optional) - Email of the customer
-    //   - orderNumber: string (required, immutable) - Order reference e.g. PRU-4821
-    //   - orderStatus: string (optional) - 'Processing' | 'Out for Courier' | 'Delivered'
-    //   - trackingCode: string (optional) - Courier waybill code e.g. NBO-COUR-4821
-    //   - estimatedDelivery: string (optional) - Delivery ETA or signed status
-    //   - customerName: string (required) - Recipient full name
-    //   - phone: string (required) - Kenyan mobile number
-    //   - city: string (required) - Delivery county/city
-    //   - address: string (required) - Street/building address
-    //   - paymentMethod: string (required) - 'mpesa' or 'cod'
-    //   - items: list (required) - Purchased items (max 50)
-    //   - subtotal: number (required, >= 0) - Subtotal in KES
-    //   - deliveryFee: number (required, >= 0) - Delivery fee in KES
-    //   - total: number (required, >= 0) - Total in KES
-    //   - timestamp: string (required) - Human-readable date/time
-    //   - createdAt: number (required, immutable) - Epoch ms
-    //
-    // ===============================================================
-
     function isAuthenticated() {
       return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == "ananyapoudel641@gmail.com" && request.auth.token.email_verified == true)
+      );
     }
 
     function isDocOwner() {
@@ -88,7 +68,7 @@ service cloud.firestore {
           'timestamp',
           'createdAt'
         ]) &&
-        data.userId is string && data.userId == request.auth.uid &&
+        data.userId is string &&
         (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 160)) &&
         (!('orderStatus' in data) || (data.orderStatus in ['Processing', 'Out for Courier', 'Delivered'])) &&
         (!('trackingCode' in data) || (data.trackingCode is string && data.trackingCode.size() <= 64)) &&
@@ -107,12 +87,57 @@ service cloud.firestore {
         data.createdAt is number && data.createdAt >= 0;
     }
 
+    function isValidProduct(data) {
+      return hasRequiredFields([
+          'id',
+          'name',
+          'category',
+          'priceKes',
+          'image',
+          'availability',
+          'shortSummary'
+        ]) &&
+        data.id is string && data.id.size() >= 2 && data.id.size() <= 100 &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 160 &&
+        data.category in ['Fountain Pens', 'Bottled Inks', 'Converters & Refills'] &&
+        data.priceKes is number && data.priceKes >= 0 && data.priceKes <= 1000000 &&
+        data.image is string && data.image.size() >= 1 && data.image.size() <= 300 &&
+        data.availability is string && data.availability.size() >= 1 && data.availability.size() <= 120 &&
+        data.shortSummary is string && data.shortSummary.size() <= 1000;
+    }
+
+    function isValidStoreSettings(data) {
+      return hasRequiredFields([
+          'inkMixingSetBundleKes',
+          'freeDeliveryThresholdKes'
+        ]) &&
+        data.inkMixingSetBundleKes is number && data.inkMixingSetBundleKes >= 0 &&
+        data.freeDeliveryThresholdKes is number && data.freeDeliveryThresholdKes >= 0;
+    }
+
     match /orders/{orderId} {
-      allow read: if isDocOwner();
-      allow create: if isAuthenticated() && uidUnchanged() && isValidOrder(request.resource.data);
-      allow update: if isDocOwner() && uidUnchanged() && isValidOrder(request.resource.data) &&
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && uidUnchanged() && data.userId == request.auth.uid && isValidOrder(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && isValidOrder(request.resource.data) &&
         areImmutableFieldsUnchanged(['userId', 'orderNumber', 'createdAt']);
-      allow delete: if isDocOwner();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /store_settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidStoreSettings(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{adminUid} {
+      allow read: if isAuthenticated() && request.auth.uid == adminUid;
+      allow write: if false;
     }
 
     match /{document=**} {
