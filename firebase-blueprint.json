@@ -293,6 +293,68 @@
         "timestamp",
         "createdAt"
       ]
+    },
+    "RestockAlert": {
+      "title": "RestockAlert",
+      "description": "A customer 'Notify Me' restock notification request for an out-of-stock product variant.",
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "Product slug ID."
+        },
+        "productName": {
+          "type": "string",
+          "description": "Display name of the product."
+        },
+        "variantId": {
+          "type": "string",
+          "description": "Out-of-stock variant ID."
+        },
+        "variantLabel": {
+          "type": "string",
+          "description": "Display name of the out-of-stock variant."
+        },
+        "nibSize": {
+          "type": "string",
+          "description": "Requested nib size (Fine or Medium), if applicable."
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Optional customer name."
+        },
+        "contact": {
+          "type": "string",
+          "description": "Customer email address or Kenyan phone number for restock alert."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Optional Firebase UID if signed in."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "notified"],
+          "description": "Whether the customer is waiting for restock or has been notified."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Formatted timestamp string."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Unix epoch timestamp in milliseconds."
+        }
+      },
+      "required": [
+        "productId",
+        "productName",
+        "variantId",
+        "variantLabel",
+        "contact",
+        "status",
+        "timestamp",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
@@ -325,6 +387,12 @@
         "$ref": "#/entities/ProductReview"
       },
       "description": "Publicly readable customer star ratings and short reviews created by authenticated users."
+    },
+    "/restock_alerts/{alertId}": {
+      "schema": {
+        "$ref": "#/entities/RestockAlert"
+      },
+      "description": "Customer 'Notify Me' waitlist entries for out-of-stock variants, readable and manageable by the Merchant Admin."
     }
   }
 }

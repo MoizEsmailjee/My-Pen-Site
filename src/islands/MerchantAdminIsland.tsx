@@ -25,6 +25,7 @@ import {
   Boxes,
   ArrowUpRight,
   CloudUpload,
+  Bell,
 } from 'lucide-react';
 import { Product, ProductVariant } from '../data/products';
 import { resolveAssetUrl } from '../utils/assetResolver';
@@ -74,6 +75,21 @@ export interface AdminOrderRecord {
   items?: AdminOrderItemSummary[];
 }
 
+export interface RestockAlertRecord {
+  id: string;
+  productId: string;
+  productName: string;
+  variantId: string;
+  variantLabel: string;
+  nibSize?: string;
+  customerName?: string;
+  contact: string;
+  userId?: string;
+  status: 'waiting' | 'notified';
+  timestamp: string;
+  createdAt: number;
+}
+
 interface MerchantAdminIslandProps {
   isOpen: boolean;
   onClose: () => void;
@@ -89,6 +105,9 @@ interface MerchantAdminIslandProps {
   onSavePromoCode: (promo: PromoCodeRecord) => Promise<void>;
   onTogglePromoCodeActive: (promoId: string) => Promise<void>;
   onDeletePromoCode: (promoId: string) => Promise<void>;
+  restockAlerts: RestockAlertRecord[];
+  onToggleRestockAlertStatus: (alert: RestockAlertRecord) => Promise<void>;
+  onDeleteRestockAlert: (alert: RestockAlertRecord) => Promise<void>;
   orders: AdminOrderRecord[];
   onUpdateOrderStatusByNumber: (
     orderNumber: string,
@@ -148,6 +167,9 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   onSavePromoCode,
   onTogglePromoCodeActive,
   onDeletePromoCode,
+  restockAlerts,
+  onToggleRestockAlertStatus,
+  onDeleteRestockAlert,
   orders,
   onUpdateOrderStatusByNumber,
   firebaseAdminEmail,
@@ -158,7 +180,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   cloudSyncStatus,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'products' | 'analytics' | 'promos' | 'bundles' | 'orders' | 'add-product'
+    'products' | 'analytics' | 'waitlist' | 'promos' | 'bundles' | 'orders' | 'add-product'
   >('products');
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [draftProduct, setDraftProduct] = useState<Product | null>(null);
@@ -663,6 +685,24 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               {analyticsData.lowStockVariants.length > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-900 font-bold">
                   {analyticsData.lowStockVariants.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('waitlist')}
+              className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+                activeTab === 'waitlist'
+                  ? 'border-[#0A2246] text-[#0A2246]'
+                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+              }`}
+            >
+              <Bell className="w-4 h-4 text-[#C88A2E]" />
+              <span>Notify Me Waitlist</span>
+              {restockAlerts.filter((a) => a.status === 'waiting').length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-rose-100 text-rose-900 font-bold">
+                  {restockAlerts.filter((a) => a.status === 'waiting').length}
                 </span>
               )}
             </button>
@@ -1416,6 +1456,318 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2B: OUT-OF-STOCK CUSTOMER WAITLIST & "NOTIFY ME" REQUESTS */}
+          {activeTab === 'waitlist' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl border border-[#E6E1D8] p-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
+                  <div>
+                    <h3 className="font-serif-display text-xl font-semibold text-[#0A2246] flex items-center gap-2">
+                      <Bell className="w-5 h-5 text-[#C88A2E]" />
+                      <span>Out-of-Stock Waitlist &amp; Interested Customers</span>
+                    </h3>
+                    <p className="text-xs text-[#6E6A63] mt-0.5">
+                      Customers who clicked &ldquo;Notify Me&rdquo; on out-of-stock fountain pen or ink variants (synced with Firestore `/restock_alerts`).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold">
+                      {restockAlerts.filter((a) => a.status === 'waiting').length} Waiting for Restock
+                    </span>
+                    <span className="px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold">
+                      {restockAlerts.filter((a) => a.status === 'notified').length} Notified
+                    </span>
+                  </div>
+                </div>
+
+                {(() => {
+                  // Group all out-of-stock variants AND any variant that has restock alerts
+                  const groupMap = new Map<
+                    string,
+                    {
+                      productId: string;
+                      productName: string;
+                      variantId: string;
+                      variantLabel: string;
+                      image: string;
+                      stockCount: number;
+                      productRef?: Product;
+                      alerts: RestockAlertRecord[];
+                    }
+                  >();
+
+                  // 1. Add all currently out-of-stock (stockCount === 0) variants from catalog
+                  products.forEach((p) => {
+                    p.variants.forEach((v) => {
+                      const count = typeof v.stockCount === 'number' ? v.stockCount : 10;
+                      if (count === 0) {
+                        const key = `${p.id}::${v.id}`;
+                        groupMap.set(key, {
+                          productId: p.id,
+                          productName: p.name,
+                          variantId: v.id,
+                          variantLabel: v.label,
+                          image: v.image || p.image,
+                          stockCount: count,
+                          productRef: p,
+                          alerts: [],
+                        });
+                      }
+                    });
+                  });
+
+                  // 2. Attach all restock alerts to their respective product/variant group
+                  restockAlerts.forEach((alert) => {
+                    const key = `${alert.productId}::${alert.variantId}`;
+                    const existing = groupMap.get(key);
+                    if (existing) {
+                      existing.alerts.push(alert);
+                    } else {
+                      const matchedProd = products.find((p) => p.id === alert.productId);
+                      const matchedVar = matchedProd?.variants.find(
+                        (v) => v.id === alert.variantId
+                      );
+                      groupMap.set(key, {
+                        productId: alert.productId,
+                        productName: matchedProd?.name || alert.productName,
+                        variantId: alert.variantId,
+                        variantLabel: matchedVar?.label || alert.variantLabel,
+                        image:
+                          matchedVar?.image ||
+                          matchedProd?.image ||
+                          '/assets/prera/empress_teal_1.jpg',
+                        stockCount:
+                          typeof matchedVar?.stockCount === 'number'
+                            ? matchedVar.stockCount
+                            : 0,
+                        productRef: matchedProd,
+                        alerts: [alert],
+                      });
+                    }
+                  });
+
+                  const groups = Array.from(groupMap.values()).sort(
+                    (a, b) => b.alerts.length - a.alerts.length
+                  );
+
+                  if (groups.length === 0) {
+                    return (
+                      <div className="p-8 rounded-xl bg-[#FAF8F5] border border-[#E6E1D8] text-center">
+                        <Check className="w-6 h-6 text-emerald-700 mx-auto mb-2" />
+                        <p className="text-sm font-semibold text-[#171614]">
+                          No Out-of-Stock Variants or Pending Waitlist Requests
+                        </p>
+                        <p className="text-xs text-[#6E6A63] mt-1">
+                          When a variant reaches 0 stock and a shopper clicks &ldquo;Notify Me&rdquo;, their contact details appear here grouped by item.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-5">
+                      {groups.map((group) => {
+                        const waitingCount = group.alerts.filter(
+                          (a) => a.status === 'waiting'
+                        ).length;
+                        return (
+                          <div
+                            key={`${group.productId}::${group.variantId}`}
+                            className="rounded-xl border border-[#DCD5C7] bg-[#FAF8F5] overflow-hidden"
+                          >
+                            {/* Variant Header Bar */}
+                            <div className="bg-white px-5 py-4 border-b border-[#E6E1D8] flex flex-wrap items-center justify-between gap-4">
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                <img
+                                  src={resolveAssetUrl(group.image)}
+                                  alt={group.variantLabel}
+                                  referrerPolicy="no-referrer"
+                                  className="w-12 h-12 rounded-lg object-contain bg-[#FAF8F5] border border-[#E6E1D8] p-1 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h4 className="text-sm font-bold text-[#0A2246]">
+                                      {group.productName} — {group.variantLabel.split(' · ')[0]}
+                                    </h4>
+                                    <span
+                                      className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                                        group.stockCount === 0
+                                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                      }`}
+                                    >
+                                      {group.stockCount === 0
+                                        ? 'SOLD OUT (0 in stock)'
+                                        : `Restocked (${group.stockCount} in stock)`}
+                                    </span>
+                                    <span className="text-[11px] font-semibold text-[#5C5852]">
+                                      · {group.alerts.length}{' '}
+                                      {group.alerts.length === 1
+                                        ? 'interested customer'
+                                        : 'interested customers'}{' '}
+                                      ({waitingCount} waiting)
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-[#6E6A63] truncate mt-0.5">
+                                    Variant ID: <span className="font-mono">{group.variantId}</span>
+                                  </p>
+                                </div>
+                              </div>
+
+                              {group.productRef && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleVariantStockCountChange(
+                                        group.productRef!,
+                                        group.variantId,
+                                        group.stockCount + 5
+                                      )
+                                    }
+                                    className="px-3 py-1.5 rounded-lg bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold cursor-pointer transition-colors"
+                                  >
+                                    +5 Units Restock
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleVariantStockCountChange(
+                                        group.productRef!,
+                                        group.variantId,
+                                        group.stockCount + 10
+                                      )
+                                    }
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors"
+                                  >
+                                    +10 Units Restock
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Interested Customers Table */}
+                            {group.alerts.length === 0 ? (
+                              <div className="px-5 py-4 text-xs text-[#6E6A63]">
+                                Currently out of stock (`stockCount: 0`). No customer &ldquo;Notify Me&rdquo; requests submitted for this variant yet.
+                              </div>
+                            ) : (
+                              <div className="divide-y divide-[#ECE8DF]">
+                                {group.alerts.map((alert) => {
+                                  const isEmail = alert.contact.includes('@');
+                                  const cleanPhone = alert.contact.replace(/[^0-9]/g, '');
+                                  const normalizedWaPhone = cleanPhone.startsWith('0')
+                                    ? `254${cleanPhone.slice(1)}`
+                                    : cleanPhone;
+                                  const notifyMessage = `Hello ${
+                                    alert.customerName || 'from PENS R US Nairobi'
+                                  }! Good news — the ${alert.productName} (${
+                                    alert.variantLabel.split(' · ')[0]
+                                  }${
+                                    alert.nibSize ? `, ${alert.nibSize} Nib` : ''
+                                  }) you requested is now back in stock at PENS R US Kenya for same-day Nairobi dispatch.`;
+                                  const contactHref = isEmail
+                                    ? `mailto:${alert.contact}?subject=${encodeURIComponent(
+                                        `Back in Stock at PENS R US Kenya: ${alert.productName} (${
+                                          alert.variantLabel.split(' · ')[0]
+                                        })`
+                                      )}&body=${encodeURIComponent(notifyMessage)}`
+                                    : `https://wa.me/${normalizedWaPhone}?text=${encodeURIComponent(
+                                        notifyMessage
+                                      )}`;
+
+                                  return (
+                                    <div
+                                      key={alert.id}
+                                      className="px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs hover:bg-white/60 transition-colors"
+                                    >
+                                      <div className="space-y-0.5 min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="font-bold text-[#171614]">
+                                            {alert.customerName || 'Atelier Shopper'}
+                                          </span>
+                                          <span className="font-mono font-semibold text-[#0A2246] bg-white px-2 py-0.5 rounded border border-[#E6E1D8]">
+                                            {alert.contact}
+                                          </span>
+                                          {alert.nibSize && (
+                                            <span className="text-[11px] font-semibold text-[#8A6421]">
+                                              · {alert.nibSize} Nib
+                                            </span>
+                                          )}
+                                          <span
+                                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                                              alert.status === 'notified'
+                                                ? 'bg-emerald-100 text-emerald-800'
+                                                : 'bg-amber-100 text-amber-900'
+                                            }`}
+                                          >
+                                            {alert.status === 'notified'
+                                              ? 'Notified ✓'
+                                              : 'Waiting'}
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] text-[#6E6A63]">
+                                          Requested: {alert.timestamp}
+                                        </p>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <a
+                                          href={contactHref}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-[11px] font-semibold transition-colors"
+                                        >
+                                          <MessageCircle className="w-3.5 h-3.5" />
+                                          <span>
+                                            {isEmail ? 'Send Email Alert' : 'WhatsApp Alert'}
+                                          </span>
+                                        </a>
+
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            await onToggleRestockAlertStatus(alert);
+                                            showToast(
+                                              alert.status === 'waiting'
+                                                ? `Marked ${alert.contact} as Notified`
+                                                : `Reopened waitlist request for ${alert.contact}`
+                                            );
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-lg border border-[#DCD5C7] bg-white hover:border-[#0A2246] text-[#0A2246] text-[11px] font-semibold cursor-pointer transition-colors"
+                                        >
+                                          {alert.status === 'waiting'
+                                            ? 'Mark Notified'
+                                            : 'Mark Waiting'}
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            await onDeleteRestockAlert(alert);
+                                            showToast(`Removed waitlist entry for ${alert.contact}`);
+                                          }}
+                                          className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer transition-colors"
+                                          title="Remove customer from waitlist"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}

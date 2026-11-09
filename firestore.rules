@@ -173,6 +173,43 @@ service cloud.firestore {
         data.createdAt is number && data.createdAt >= 0;
     }
 
+    function isValidRestockAlert(data) {
+      return hasRequiredFields([
+          'productId',
+          'productName',
+          'variantId',
+          'variantLabel',
+          'contact',
+          'status',
+          'timestamp',
+          'createdAt'
+        ]) &&
+        hasOnlyAllowedFields([
+          'productId',
+          'productName',
+          'variantId',
+          'variantLabel',
+          'nibSize',
+          'customerName',
+          'contact',
+          'userId',
+          'status',
+          'timestamp',
+          'createdAt'
+        ]) &&
+        data.productId is string && data.productId.size() >= 2 && data.productId.size() <= 100 &&
+        data.productName is string && data.productName.size() >= 2 && data.productName.size() <= 160 &&
+        data.variantId is string && data.variantId.size() >= 2 && data.variantId.size() <= 100 &&
+        data.variantLabel is string && data.variantLabel.size() >= 2 && data.variantLabel.size() <= 160 &&
+        (!('nibSize' in data) || (data.nibSize is string && data.nibSize.size() <= 30)) &&
+        (!('customerName' in data) || (data.customerName is string && data.customerName.size() <= 120)) &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+        data.contact is string && data.contact.size() >= 4 && data.contact.size() <= 160 &&
+        data.status in ['waiting', 'notified'] &&
+        data.timestamp is string && data.timestamp.size() >= 1 && data.timestamp.size() <= 80 &&
+        data.createdAt is number && data.createdAt >= 0;
+    }
+
     match /orders/{orderId} {
       allow read: if isDocOwner() || isAdmin();
       allow create: if isAuthenticated() && uidUnchanged() && request.resource.data.userId == request.auth.uid && isValidOrder(request.resource.data);
@@ -205,6 +242,13 @@ service cloud.firestore {
       allow update: if (isDocOwner() || isAdmin()) && isValidReview(request.resource.data) &&
         areImmutableFieldsUnchanged(['userId', 'productId', 'createdAt']);
       allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /restock_alerts/{alertId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isValidRestockAlert(request.resource.data) && request.resource.data.status == 'waiting';
+      allow update: if isAdmin() && isValidRestockAlert(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /admins/{adminUid} {

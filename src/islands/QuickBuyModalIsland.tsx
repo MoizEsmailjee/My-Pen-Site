@@ -129,14 +129,46 @@ export function QuickBuyModalIsland({
       >
         {/* Top Header Bar */}
         <div className="px-6 py-4 bg-white border-b border-[#E6E1D8] flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-[#6E6A63]">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-[#6E6A63]">
             <span className="font-semibold uppercase tracking-[0.16em] text-[#0A2246]">
               Quick Buy
             </span>
             <span aria-hidden="true">·</span>
             <span>{product.category}</span>
             <span aria-hidden="true">·</span>
-            <span className="text-[#B58435] font-medium">{product.availability}</span>
+            {(() => {
+              const vStock =
+                typeof chosenVariant.stockCount === 'number'
+                  ? chosenVariant.stockCount
+                  : 10;
+              if (vStock === 0) {
+                return (
+                  <span className="inline-flex items-center gap-1.5 text-rose-700 font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
+                    <span>Sold Out (0 left)</span>
+                  </span>
+                );
+              }
+              if (vStock < 3) {
+                return (
+                  <span className="inline-flex items-center gap-1.5 text-amber-700 font-semibold animate-pulse">
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                    </span>
+                    <span>Low Stock · Only {vStock} left in Nairobi</span>
+                  </span>
+                );
+              }
+              return (
+                <span className="inline-flex items-center gap-1.5 text-[#6E6A63]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#9E988E] shrink-0" />
+                  <span>
+                    {product.availability} ({vStock} in stock)
+                  </span>
+                </span>
+              );
+            })()}
           </div>
 
           <button
@@ -217,6 +249,9 @@ export function QuickBuyModalIsland({
               <div className="flex flex-wrap gap-1.5 max-h-[96px] overflow-y-auto p-1 bg-white rounded border border-[#E6E1D8]">
                 {product.variants.map((variant) => {
                   const active = variant.id === chosenVariant.id;
+                  const vCount =
+                    typeof variant.stockCount === 'number' ? variant.stockCount : 10;
+                  const isLow = vCount > 0 && vCount < 3;
                   return (
                     <button
                       key={variant.id}
@@ -235,6 +270,16 @@ export function QuickBuyModalIsland({
                         />
                       )}
                       <span>{variant.label.split(' · ')[0]}</span>
+                      {isLow && (
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold animate-pulse ${
+                            active ? 'text-amber-300' : 'text-amber-700'
+                          }`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <span>{vCount} left</span>
+                        </span>
+                      )}
                     </button>
                   );
                 })}

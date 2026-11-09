@@ -22,3 +22,6 @@
   - **Read (`get`, `list`)**: Public read access so all shoppers can read customer star ratings and reviews for each product.
   - **Create (`create`)**: Restricted to authenticated users where `request.resource.data.userId == request.auth.uid` and `isValidReview(request.resource.data)` holds (`rating` 1..5, bounded strings).
   - **Update / Delete (`update`, `delete`)**: Restricted to the review author (`resource.data.userId == request.auth.uid`) or `isAdmin()`, with immutable `userId`, `productId`, and `createdAt`.
+- **Collection `/restock_alerts/{alertId}`**:
+  - **Create (`create`)**: Any storefront shopper can submit a valid restock notification request (`isValidRestockAlert(request.resource.data)`), with strict bounds on `contact` (email/phone), `productId`, `variantId`, and initial `status == 'waiting'`.
+  - **Read / Update / Delete (`get`, `list`, `update`, `delete`)**: Strictly restricted to `isAdmin()` (or the authenticated creator `resource.data.userId == request.auth.uid` for read) to protect customer email/phone PII.

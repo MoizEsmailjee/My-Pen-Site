@@ -29,6 +29,7 @@ import {
   RotateCcw,
   UserCheck,
   Search,
+  Bell,
 } from 'lucide-react';
 import {
   FEATURED_PRODUCTS,
@@ -46,6 +47,7 @@ import {
   MerchantAdminIsland,
   StoreSettings,
   PromoCodeRecord,
+  RestockAlertRecord,
 } from './islands/MerchantAdminIsland';
 import {
   CustomerReviewsIsland,
@@ -100,11 +102,53 @@ const BRAND_LOGO_SRC =
 const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
 const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v1';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
-const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v2';
+const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v4';
 const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v2';
 const PROMO_CODES_STORAGE_KEY = 'pens_r_us_promo_codes_v1';
 const REVIEWS_STORAGE_KEY = 'pens_r_us_reviews_v1';
+const RESTOCK_ALERTS_STORAGE_KEY = 'pens_r_us_restock_alerts_v1';
 const AUTHORIZED_ADMIN_EMAIL = 'ananyapoudel641@gmail.com';
+
+const DEFAULT_SEED_RESTOCK_ALERTS: RestockAlertRecord[] = [
+  {
+    id: 'seed-alert-madoromi-lb-1',
+    productId: 'pilot-kakuno-madoromi',
+    productName: 'Pilot Kakuno Fountain Pen — Madoromi Series',
+    variantId: 'madoromi-lightblue',
+    variantLabel: 'Madoromi Light Blue',
+    nibSize: 'Medium',
+    customerName: 'Njeri Karanja',
+    contact: '+254 722 891 304',
+    status: 'waiting',
+    timestamp: '07 Nov · 04:15 PM',
+    createdAt: Date.now() - 3600000 * 18,
+  },
+  {
+    id: 'seed-alert-family-clear-1',
+    productId: 'pilot-kakuno-family',
+    productName: 'Pilot Kakuno Fountain Pen — Family Series',
+    variantId: 'family-clear',
+    variantLabel: 'Clear Demonstrator',
+    nibSize: 'Fine',
+    customerName: 'David Omondi',
+    contact: 'david.omondi@kilimani.co.ke',
+    status: 'waiting',
+    timestamp: '08 Nov · 09:40 AM',
+    createdAt: Date.now() - 3600000 * 6,
+  },
+  {
+    id: 'seed-alert-tsukiyo-1',
+    productId: 'pilot-iroshizuku-ink',
+    productName: 'Pilot Iroshizuku Bottled Fountain Pen Ink (50ml)',
+    variantId: 'iroshizuku-tsuki-yo',
+    variantLabel: 'Tsuki-yo (月夜) · Moonlight Deep Teal-Blue',
+    customerName: 'Farah Abdi',
+    contact: '+254 733 410 922',
+    status: 'waiting',
+    timestamp: '08 Nov · 11:20 AM',
+    createdAt: Date.now() - 3600000 * 3,
+  },
+];
 
 const DEFAULT_PROMO_CODES: PromoCodeRecord[] = [
   {
@@ -311,6 +355,54 @@ function formatKes(amount: number): string {
   return `KES ${amount.toLocaleString('en-KE')}`;
 }
 
+function VariantStockIndicator({
+  stockCount,
+  availabilityLabel,
+  compact = false,
+}: {
+  stockCount?: number;
+  availabilityLabel?: string;
+  compact?: boolean;
+}) {
+  const count = typeof stockCount === 'number' ? stockCount : 10;
+
+  if (count === 0) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-rose-700 font-semibold">
+        <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
+        <span>Sold Out (0 left)</span>
+      </span>
+    );
+  }
+
+  if (count < 3) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-amber-700 font-semibold animate-pulse">
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+        </span>
+        <span>
+          {compact
+            ? `Low Stock · Only ${count} left`
+            : `Low Stock · Only ${count} left in Nairobi`}
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[#6E6A63] font-normal">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#9E988E] shrink-0" />
+      <span>
+        {availabilityLabel && !compact
+          ? `${availabilityLabel} (${count} in stock)`
+          : `${count} in stock`}
+      </span>
+    </span>
+  );
+}
+
 /**
  * Resilient image component complying with the Zero-Broken-Image Policy.
  */
@@ -445,6 +537,56 @@ export default function App() {
 
   const [isMerchantAdminOpen, setIsMerchantAdminOpen] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
+
+  // Out-of-Stock "Notify Me" Waitlist State (Local + Real-Time Firestore /restock_alerts Sync)
+  const [localRestockAlerts, setLocalRestockAlerts] = useState<RestockAlertRecord[]>(() => {
+    try {
+      const saved = window.localStorage.getItem(RESTOCK_ALERTS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return DEFAULT_SEED_RESTOCK_ALERTS;
+  });
+  const [firestoreRestockAlerts, setFirestoreRestockAlerts] = useState<RestockAlertRecord[]>([]);
+  const [notifyModalTarget, setNotifyModalTarget] = useState<{
+    product: Product;
+    variant: ProductVariant;
+    nibSize?: NibOption;
+  } | null>(null);
+  const [notifyNameInput, setNotifyNameInput] = useState('');
+  const [notifyContactInput, setNotifyContactInput] = useState('');
+  const [notifySubmittedMessage, setNotifySubmittedMessage] = useState<string | null>(null);
+  const [notifyError, setNotifyError] = useState<string | null>(null);
+  const [submittingNotify, setSubmittingNotify] = useState(false);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        RESTOCK_ALERTS_STORAGE_KEY,
+        JSON.stringify(localRestockAlerts)
+      );
+    } catch {
+      // Ignore storage error
+    }
+  }, [localRestockAlerts]);
+
+  const allRestockAlerts = useMemo(() => {
+    const map = new Map<string, RestockAlertRecord>();
+    for (const a of firestoreRestockAlerts) {
+      map.set(`${a.variantId}::${a.contact.toLowerCase()}`, a);
+    }
+    for (const a of localRestockAlerts) {
+      const key = `${a.variantId}::${a.contact.toLowerCase()}`;
+      if (!map.has(key)) {
+        map.set(key, a);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+  }, [firestoreRestockAlerts, localRestockAlerts]);
 
   // Customer Reviews State (Local + Real-Time Firestore /reviews Sync)
   const [localReviews, setLocalReviews] = useState<ProductReviewRecord[]>(() => {
@@ -1179,6 +1321,47 @@ export default function App() {
           handleFirestoreError(error, OperationType.LIST, ordersPath);
         } catch {
           // Handled structured log
+        }
+      }
+    );
+    return () => unsubscribe();
+  }, [firebaseUser, isAuthorizedAdmin]);
+
+  // Subscribe to /restock_alerts in real time when signed in as verified Merchant Admin
+  useEffect(() => {
+    if (!firebaseUser || !isAuthorizedAdmin) {
+      setFirestoreRestockAlerts([]);
+      return;
+    }
+    const alertsPath = 'restock_alerts';
+    const unsubscribe = onSnapshot(
+      collection(db, alertsPath),
+      (snapshot) => {
+        const fetched: RestockAlertRecord[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            productId: String(data.productId || ''),
+            productName: String(data.productName || ''),
+            variantId: String(data.variantId || ''),
+            variantLabel: String(data.variantLabel || ''),
+            nibSize: data.nibSize ? String(data.nibSize) : undefined,
+            customerName: data.customerName ? String(data.customerName) : undefined,
+            contact: String(data.contact || ''),
+            userId: data.userId ? String(data.userId) : undefined,
+            status: data.status === 'notified' ? 'notified' : 'waiting',
+            timestamp: String(data.timestamp || ''),
+            createdAt: Number(data.createdAt) || Date.now(),
+          };
+        });
+        fetched.sort((a, b) => b.createdAt - a.createdAt);
+        setFirestoreRestockAlerts(fetched);
+      },
+      (error) => {
+        try {
+          handleFirestoreError(error, OperationType.LIST, alertsPath);
+        } catch {
+          // Structured log
         }
       }
     );
@@ -2313,6 +2496,160 @@ export default function App() {
     }
   };
 
+  const handleOpenNotifyMeModal = (
+    product: Product,
+    variant: ProductVariant,
+    nibSize?: NibOption
+  ) => {
+    setNotifyModalTarget({ product, variant, nibSize });
+    setNotifyNameInput(
+      firebaseUser?.displayName || memberProfile?.name || customerName || ''
+    );
+    setNotifyContactInput(
+      firebaseUser?.email || memberProfile?.emailOrPhone || customerPhone || ''
+    );
+    setNotifySubmittedMessage(null);
+    setNotifyError(null);
+  };
+
+  const handleSubmitRestockAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifyModalTarget) return;
+    const trimmedContact = notifyContactInput.trim();
+    if (trimmedContact.length < 4) {
+      setNotifyError('Please enter a valid email address or Kenyan phone number.');
+      return;
+    }
+    setNotifyError(null);
+    setSubmittingNotify(true);
+
+    const createdAtMs = Date.now();
+    const nowFormatted =
+      new Date().toLocaleDateString('en-KE', {
+        day: '2-digit',
+        month: 'short',
+      }) +
+      ' · ' +
+      new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const newAlert: RestockAlertRecord = {
+      id: `local-alert-${createdAtMs}`,
+      productId: notifyModalTarget.product.id.slice(0, 100),
+      productName: notifyModalTarget.product.name.slice(0, 160),
+      variantId: notifyModalTarget.variant.id.slice(0, 100),
+      variantLabel: notifyModalTarget.variant.label.slice(0, 160),
+      nibSize: notifyModalTarget.nibSize,
+      customerName: notifyNameInput.trim()
+        ? notifyNameInput.trim().slice(0, 120)
+        : undefined,
+      contact: trimmedContact.slice(0, 160),
+      userId: auth.currentUser?.uid,
+      status: 'waiting',
+      timestamp: nowFormatted,
+      createdAt: createdAtMs,
+    };
+
+    setLocalRestockAlerts((prev) => [newAlert, ...prev]);
+
+    const firestorePayload: Record<string, unknown> = {
+      productId: newAlert.productId,
+      productName: newAlert.productName,
+      variantId: newAlert.variantId,
+      variantLabel: newAlert.variantLabel,
+      contact: newAlert.contact,
+      status: 'waiting',
+      timestamp: newAlert.timestamp,
+      createdAt: newAlert.createdAt,
+    };
+    if (newAlert.nibSize) firestorePayload.nibSize = newAlert.nibSize;
+    if (newAlert.customerName) firestorePayload.customerName = newAlert.customerName;
+    if (auth.currentUser?.uid) firestorePayload.userId = auth.currentUser.uid;
+
+    try {
+      await addDoc(collection(db, 'restock_alerts'), firestorePayload);
+    } catch (error) {
+      try {
+        handleFirestoreError(error, OperationType.CREATE, 'restock_alerts');
+      } catch {
+        // Stored locally in fallback
+      }
+    } finally {
+      setSubmittingNotify(false);
+      setNotifySubmittedMessage(
+        `We'll notify ${newAlert.contact} as soon as ${
+          notifyModalTarget.variant.label.split(' · ')[0]
+        } is back in stock in Nairobi.`
+      );
+    }
+  };
+
+  const handleToggleRestockAlertStatus = async (alert: RestockAlertRecord) => {
+    if (!isAuthorizedAdmin) return;
+    const nextStatus: 'waiting' | 'notified' =
+      alert.status === 'waiting' ? 'notified' : 'waiting';
+    setLocalRestockAlerts((prev) =>
+      prev.map((a) =>
+        a.id === alert.id ||
+        (a.variantId === alert.variantId && a.contact === alert.contact)
+          ? { ...a, status: nextStatus }
+          : a
+      )
+    );
+    if (
+      auth.currentUser &&
+      alert.id &&
+      !alert.id.startsWith('local-alert-') &&
+      !alert.id.startsWith('seed-alert-')
+    ) {
+      try {
+        await updateDoc(doc(db, 'restock_alerts', alert.id), {
+          status: nextStatus,
+        });
+      } catch (error) {
+        try {
+          handleFirestoreError(
+            error,
+            OperationType.UPDATE,
+            `restock_alerts/${alert.id}`
+          );
+        } catch {
+          // Structured log
+        }
+      }
+    }
+  };
+
+  const handleDeleteRestockAlert = async (alert: RestockAlertRecord) => {
+    if (!isAuthorizedAdmin) return;
+    setLocalRestockAlerts((prev) =>
+      prev.filter(
+        (a) =>
+          a.id !== alert.id &&
+          !(a.variantId === alert.variantId && a.contact === alert.contact)
+      )
+    );
+    if (
+      auth.currentUser &&
+      alert.id &&
+      !alert.id.startsWith('local-alert-') &&
+      !alert.id.startsWith('seed-alert-')
+    ) {
+      try {
+        await deleteDoc(doc(db, 'restock_alerts', alert.id));
+      } catch (error) {
+        try {
+          handleFirestoreError(
+            error,
+            OperationType.DELETE,
+            `restock_alerts/${alert.id}`
+          );
+        } catch {
+          // Structured log
+        }
+      }
+    }
+  };
+
   const handleSubmitProductReview = async ({
     productId,
     rating,
@@ -3291,31 +3628,10 @@ export default function App() {
                           <span aria-hidden="true">·</span>
                           <span>{product.Origin}</span>
                           <span aria-hidden="true">·</span>
-                          {(() => {
-                            const variantStock =
-                              typeof chosenVariant.stockCount === 'number'
-                                ? chosenVariant.stockCount
-                                : 10;
-                            if (variantStock === 0) {
-                              return (
-                                <span className="text-rose-700 font-semibold">
-                                  Sold Out (0 left)
-                                </span>
-                              );
-                            }
-                            if (variantStock <= 3) {
-                              return (
-                                <span className="text-amber-800 font-semibold">
-                                  Low Stock · Only {variantStock} left in Nairobi
-                                </span>
-                              );
-                            }
-                            return (
-                              <span className="text-[#163A5F] font-medium">
-                                {product.availability} ({variantStock} in stock)
-                              </span>
-                            );
-                          })()}
+                          <VariantStockIndicator
+                            stockCount={chosenVariant.stockCount}
+                            availabilityLabel={product.availability}
+                          />
                         </div>
 
                         <div className="flex items-baseline justify-between gap-4 mt-1">
@@ -3431,6 +3747,11 @@ export default function App() {
                           <div className="flex flex-wrap gap-1.5 max-h-[118px] overflow-y-auto pr-1">
                             {product.variants.map((variant) => {
                               const isSelected = variant.id === chosenVariant.id;
+                              const vStock =
+                                typeof variant.stockCount === 'number'
+                                  ? variant.stockCount
+                                  : 10;
+                              const isLow = vStock > 0 && vStock < 3;
                               return (
                                 <button
                                   key={variant.id}
@@ -3449,6 +3770,12 @@ export default function App() {
                                     />
                                   )}
                                   <span>{variant.label.split(' · ')[0]}</span>
+                                  {isLow && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 animate-pulse">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                      <span>{vStock} left</span>
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}
@@ -3495,41 +3822,63 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Card Footer Actions: Add to Bag + Quick Buy side-by-side + Add to Wishlist */}
+                    {/* Card Footer Actions: Add to Bag (or Notify Me if Sold Out) + Quick Buy side-by-side + Add to Wishlist */}
                     <div className="px-6 pb-6 pt-2 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleAddToCart(
-                              product,
-                              chosenVariant,
-                              product.hasNibSelector ? chosenNib : undefined,
-                              false
-                            )
-                          }
-                          className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                            isAdded
-                              ? 'bg-[#1D5B43] text-white'
-                              : 'bg-[#0A2246] hover:bg-[#133468] text-white'
-                          }`}
-                        >
-                          {isAdded ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              <span>Added to Bag</span>
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-4 h-4" />
-                              <span>
-                                Add to Bag
-                                {product.hasNibSelector ? ` (${chosenNib})` : ''} ·{' '}
-                                {formatKes(product.priceKes)}
-                              </span>
-                            </>
-                          )}
-                        </button>
+                        {(typeof chosenVariant.stockCount === 'number'
+                          ? chosenVariant.stockCount
+                          : 10) === 0 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleOpenNotifyMeModal(
+                                product,
+                                chosenVariant,
+                                product.hasNibSelector ? chosenNib : undefined
+                              )
+                            }
+                            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          >
+                            <Bell className="w-4 h-4" />
+                            <span>
+                              Notify Me When Available
+                              {product.hasNibSelector ? ` (${chosenNib})` : ''}
+                            </span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleAddToCart(
+                                product,
+                                chosenVariant,
+                                product.hasNibSelector ? chosenNib : undefined,
+                                false
+                              )
+                            }
+                            className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                              isAdded
+                                ? 'bg-[#1D5B43] text-white'
+                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                            }`}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-4 h-4" />
+                                <span>Added to Bag</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4" />
+                                <span>
+                                  Add to Bag
+                                  {product.hasNibSelector ? ` (${chosenNib})` : ''} ·{' '}
+                                  {formatKes(product.priceKes)}
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        )}
 
                         <button
                           type="button"
@@ -3736,12 +4085,14 @@ export default function App() {
                         </div>
 
                         <div className="p-5">
-                          <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#6E6A63]">
                             <span>Kakuno Madoromi LE</span>
                             <span aria-hidden="true">·</span>
                             <span className="text-[#8A6421] font-medium">
                               {variant.nibEngraving || 'Gold-Tone Smiley Nib'}
                             </span>
+                            <span aria-hidden="true">·</span>
+                            <VariantStockIndicator stockCount={variant.stockCount} compact />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-2 mt-1.5">
@@ -3785,37 +4136,56 @@ export default function App() {
 
                       <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleSelectVariant('pilot-kakuno-madoromi', variant.id);
-                              handleSelectNib('pilot-kakuno-madoromi', activeNib);
-                              handleAddToCart(
-                                kakunoMadoromiProduct,
-                                variant,
-                                activeNib,
-                                false,
-                                customKey
-                              );
-                            }}
-                            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                              isAdded
-                                ? 'bg-[#1D5B43] text-white'
-                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
-                            }`}
-                          >
-                            {isAdded ? (
-                              <>
-                                <Check className="w-3.5 h-3.5" />
-                                <span>Added ({activeNib})</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>Add to Bag ({activeNib})</span>
-                              </>
-                            )}
-                          </button>
+                          {(typeof variant.stockCount === 'number'
+                            ? variant.stockCount
+                            : 10) === 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleOpenNotifyMeModal(
+                                  kakunoMadoromiProduct,
+                                  variant,
+                                  activeNib
+                                )
+                              }
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                              <span>Notify Me ({activeNib})</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSelectVariant('pilot-kakuno-madoromi', variant.id);
+                                handleSelectNib('pilot-kakuno-madoromi', activeNib);
+                                handleAddToCart(
+                                  kakunoMadoromiProduct,
+                                  variant,
+                                  activeNib,
+                                  false,
+                                  customKey
+                                );
+                              }}
+                              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                isAdded
+                                  ? 'bg-[#1D5B43] text-white'
+                                  : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                              }`}
+                            >
+                              {isAdded ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Added ({activeNib})</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Add to Bag ({activeNib})</span>
+                                </>
+                              )}
+                            </button>
+                          )}
 
                           <button
                             type="button"
@@ -4091,12 +4461,14 @@ export default function App() {
                         </div>
 
                         <div className="p-5">
-                          <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#6E6A63]">
                             <span>Kakuno Family Series</span>
                             <span aria-hidden="true">·</span>
                             <span className="text-[#163A5F] font-medium">
                               {variant.nibEngraving}
                             </span>
+                            <span aria-hidden="true">·</span>
+                            <VariantStockIndicator stockCount={variant.stockCount} compact />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-2 mt-1.5">
@@ -4140,37 +4512,56 @@ export default function App() {
 
                       <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleSelectVariant('pilot-kakuno-family', variant.id);
-                              handleSelectNib('pilot-kakuno-family', activeNib);
-                              handleAddToCart(
-                                kakunoFamilyProduct,
-                                variant,
-                                activeNib,
-                                false,
-                                customKey
-                              );
-                            }}
-                            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                              isAdded
-                                ? 'bg-[#1D5B43] text-white'
-                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
-                            }`}
-                          >
-                            {isAdded ? (
-                              <>
-                                <Check className="w-3.5 h-3.5" />
-                                <span>Added ({activeNib})</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>Add to Bag ({activeNib})</span>
-                              </>
-                            )}
-                          </button>
+                          {(typeof variant.stockCount === 'number'
+                            ? variant.stockCount
+                            : 10) === 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleOpenNotifyMeModal(
+                                  kakunoFamilyProduct,
+                                  variant,
+                                  activeNib
+                                )
+                              }
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                              <span>Notify Me ({activeNib})</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSelectVariant('pilot-kakuno-family', variant.id);
+                                handleSelectNib('pilot-kakuno-family', activeNib);
+                                handleAddToCart(
+                                  kakunoFamilyProduct,
+                                  variant,
+                                  activeNib,
+                                  false,
+                                  customKey
+                                );
+                              }}
+                              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                isAdded
+                                  ? 'bg-[#1D5B43] text-white'
+                                  : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                              }`}
+                            >
+                              {isAdded ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Added ({activeNib})</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Add to Bag ({activeNib})</span>
+                                </>
+                              )}
+                            </button>
+                          )}
 
                           <button
                             type="button"
@@ -4383,9 +4774,10 @@ export default function App() {
                               Pilot Japan · Café Demonstrator Series
                             </span>
                             <span aria-hidden="true">·</span>
-                            <span className="text-[#1D5B43] font-medium">
-                              In Stock for Same-Day Nairobi Dispatch
-                            </span>
+                            <VariantStockIndicator
+                              stockCount={empressVariant.stockCount}
+                              availabilityLabel="Same-Day Nairobi Dispatch"
+                            />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-4">
@@ -4636,12 +5028,14 @@ export default function App() {
                         </div>
 
                         <div className="p-5">
-                          <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#6E6A63]">
                             <span>Pilot Prera Japan</span>
                             <span aria-hidden="true">·</span>
                             <span className="text-[#163A5F] font-medium">
-                              CON-40 Converter Included
+                              CON-40 Included
                             </span>
+                            <span aria-hidden="true">·</span>
+                            <VariantStockIndicator stockCount={variant.stockCount} compact />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-2 mt-1.5">
@@ -4973,10 +5367,18 @@ export default function App() {
                         </div>
 
                         <div className="p-4">
-                          <div className="flex items-center gap-1.5 text-[11px] text-[#6E6A63]">
+                          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#6E6A63]">
                             <span>{shade.colorFamily}</span>
                             <span aria-hidden="true">·</span>
-                            <span>50ml Flacon</span>
+                            <span>50ml</span>
+                            <span aria-hidden="true">·</span>
+                            <VariantStockIndicator
+                              stockCount={
+                                iroshizukuProduct.variants.find((v) => v.id === shade.id)
+                                  ?.stockCount
+                              }
+                              compact
+                            />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-2 mt-1">
@@ -5002,27 +5404,52 @@ export default function App() {
 
                       <div className="px-4 pb-4 pt-1 flex flex-col gap-2">
                         <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleAddInkShadeDirectly(shade)}
-                            className={`flex-1 inline-flex items-center justify-center gap-1 py-2 px-2.5 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                              isAdded
-                                ? 'bg-[#1D5B43] text-white'
-                                : 'bg-[#0A2246] hover:bg-[#133468] text-white'
-                            }`}
-                          >
-                            {isAdded ? (
-                              <>
-                                <Check className="w-3.5 h-3.5" />
-                                <span>Added</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>Add to Bag</span>
-                              </>
-                            )}
-                          </button>
+                          {(() => {
+                            const matchedVar =
+                              iroshizukuProduct.variants.find((v) => v.id === shade.id) ||
+                              iroshizukuProduct.variants[0];
+                            const shadeStock =
+                              typeof matchedVar?.stockCount === 'number'
+                                ? matchedVar.stockCount
+                                : 10;
+                            if (shadeStock === 0) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleOpenNotifyMeModal(iroshizukuProduct, matchedVar)
+                                  }
+                                  className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-2.5 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                                >
+                                  <Bell className="w-3.5 h-3.5" />
+                                  <span>Notify Me</span>
+                                </button>
+                              );
+                            }
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleAddInkShadeDirectly(shade)}
+                                className={`flex-1 inline-flex items-center justify-center gap-1 py-2 px-2.5 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                  isAdded
+                                    ? 'bg-[#1D5B43] text-white'
+                                    : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                                }`}
+                              >
+                                {isAdded ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>Added</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>Add to Bag</span>
+                                  </>
+                                )}
+                              </button>
+                            );
+                          })()}
 
                           <button
                             type="button"
@@ -5192,10 +5619,12 @@ export default function App() {
                         </div>
 
                         <div className="p-5">
-                          <div className="flex items-center gap-1.5 text-xs text-[#6E6A63]">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#6E6A63]">
                             <span>Waterman Paris · 50ml</span>
                             <span aria-hidden="true">·</span>
                             <span className="text-[#163A5F] font-medium">{frenchTitle}</span>
+                            <span aria-hidden="true">·</span>
+                            <VariantStockIndicator stockCount={variant.stockCount} compact />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-2 mt-1.5">
@@ -5517,6 +5946,9 @@ export default function App() {
         onSavePromoCode={handleSavePromoCode}
         onTogglePromoCodeActive={handleTogglePromoCodeActive}
         onDeletePromoCode={handleDeletePromoCode}
+        restockAlerts={allRestockAlerts}
+        onToggleRestockAlertStatus={handleToggleRestockAlertStatus}
+        onDeleteRestockAlert={handleDeleteRestockAlert}
         orders={(userOrderHistory.length > 0 ? userOrderHistory : localOrders).map(
           (ord) => ({
             id: ord.id,
@@ -5559,6 +5991,141 @@ export default function App() {
         onSignOut={handleSignOutAccount}
         cloudSyncStatus={cloudSyncStatus}
       />
+
+      {/* OUT-OF-STOCK "NOTIFY ME" WAITLIST MODAL (SAVES TO FIRESTORE /restock_alerts) */}
+      {notifyModalTarget && (
+        <div
+          onClick={() => setNotifyModalTarget(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xs p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md bg-[#FAF8F5] border border-[#DCD5C7] rounded-2xl shadow-2xl overflow-hidden"
+          >
+            <div className="bg-[#0A2246] text-white px-6 py-4 flex items-center justify-between border-b border-white/15">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300">
+                  <Bell className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-serif-display text-lg font-semibold">
+                    Notify Me When Back in Stock
+                  </h3>
+                  <p className="text-[11px] text-white/75">
+                    Nairobi Atelier Priority Restock Alert
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotifyModalTarget(null)}
+                className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-white border border-[#E6E1D8]">
+                <img
+                  src={resolveAssetUrl(
+                    notifyModalTarget.variant.image || notifyModalTarget.product.image
+                  )}
+                  alt={notifyModalTarget.variant.label}
+                  referrerPolicy="no-referrer"
+                  className="w-14 h-14 object-contain rounded-lg bg-[#FAF8F5] border border-[#E6E1D8] p-1 shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#0A2246] truncate">
+                    {notifyModalTarget.product.name}
+                  </p>
+                  <p className="text-xs text-[#5C5852] font-medium mt-0.5">
+                    {notifyModalTarget.variant.label.split(' · ')[0]}
+                    {notifyModalTarget.nibSize ? ` · ${notifyModalTarget.nibSize} Nib` : ''}
+                  </p>
+                  <span className="inline-block mt-1 text-[11px] font-mono-tabular font-semibold text-rose-700">
+                    Currently Out of Stock · {formatKes(notifyModalTarget.product.priceKes)}
+                  </span>
+                </div>
+              </div>
+
+              {notifySubmittedMessage ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1.5">
+                    <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
+                      <Check className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <span>Priority Restock Alert Registered</span>
+                    </div>
+                    <p className="text-xs leading-relaxed">{notifySubmittedMessage}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNotifyModalTarget(null)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                  >
+                    Continue Exploring Collection
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitRestockAlert} className="space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                      Your Name (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={notifyNameInput}
+                      onChange={(e) => setNotifyNameInput(e.target.value)}
+                      placeholder="e.g. Wanjiku Mwangi"
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                      Email or Kenyan WhatsApp / Phone Number *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={notifyContactInput}
+                      onChange={(e) => setNotifyContactInput(e.target.value)}
+                      placeholder="e.g. +254 712 345 678 or collector@email.com"
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                    />
+                  </div>
+
+                  {notifyError && (
+                    <p className="text-xs font-semibold text-rose-700">{notifyError}</p>
+                  )}
+
+                  <div className="pt-1 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={submittingNotify}
+                      className="flex-1 py-3 px-4 rounded-xl bg-[#0A2246] hover:bg-[#133468] disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Bell className="w-4 h-4 text-[#E5B25D]" />
+                      <span>
+                        {submittingNotify ? 'Saving Alert...' : 'Notify Me on Restock'}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotifyModalTarget(null)}
+                      className="py-3 px-4 rounded-xl border border-[#DCD5C7] bg-white hover:bg-[#F3EFE8] text-[#5C5852] text-xs font-semibold cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* QUICK BUY MODAL OVERLAY (ASTRO ISLAND) */}
       <QuickBuyModalIsland

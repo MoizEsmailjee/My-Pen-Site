@@ -453,7 +453,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_lightblue.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
-        stockCount: 7,
+        stockCount: 0,
       },
     ],
     specs: [
@@ -574,7 +574,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_clear.jpg',
         nibEngraving: 'Classic Winking Smiley',
-        stockCount: 10,
+        stockCount: 0,
       },
     ],
     specs: [
@@ -712,7 +712,8 @@ export const FEATURED_PRODUCTS: Product[] = [
       swatchHex: shade.hex,
       image: shade.image,
       colorFamily: shade.colorFamily,
-      stockCount: idx % 6 === 2 ? 2 : 7,
+      stockCount:
+        shade.id === 'iroshizuku-tsuki-yo' ? 0 : idx % 6 === 2 ? 2 : 7,
     })),
     specs: [
       { label: 'Complete Range', value: '24 Authentic Japanese Nature Shades Available' },
@@ -839,7 +840,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Vibrant, expressive Parisian crimson-red for editing, annotations, and bold notes',
         swatchHex: '#C42828',
         image: '/assets/waterman/waterman_audacious_red.jpg',
-        stockCount: 3,
+        stockCount: 2,
       },
     ],
     specs: [
