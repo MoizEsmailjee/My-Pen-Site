@@ -61,6 +61,9 @@ service cloud.firestore {
           'city',
           'address',
           'paymentMethod',
+          'promoCode',
+          'promoDiscountKes',
+          'bundleDiscountKes',
           'items',
           'subtotal',
           'deliveryFee',
@@ -73,12 +76,15 @@ service cloud.firestore {
         (!('orderStatus' in data) || (data.orderStatus in ['Processing', 'Out for Courier', 'Delivered'])) &&
         (!('trackingCode' in data) || (data.trackingCode is string && data.trackingCode.size() <= 64)) &&
         (!('estimatedDelivery' in data) || (data.estimatedDelivery is string && data.estimatedDelivery.size() <= 160)) &&
+        (!('promoCode' in data) || (data.promoCode is string && data.promoCode.size() <= 40)) &&
+        (!('promoDiscountKes' in data) || (data.promoDiscountKes is number && data.promoDiscountKes >= 0)) &&
+        (!('bundleDiscountKes' in data) || (data.bundleDiscountKes is number && data.bundleDiscountKes >= 0)) &&
         data.orderNumber is string && data.orderNumber.size() >= 3 && data.orderNumber.size() <= 32 &&
         data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120 &&
         data.phone is string && data.phone.size() >= 4 && data.phone.size() <= 40 &&
         data.city is string && data.city.size() >= 2 && data.city.size() <= 120 &&
         data.address is string && data.address.size() >= 2 && data.address.size() <= 300 &&
-        data.paymentMethod in ['mpesa', 'cod'] &&
+        data.paymentMethod in ['mpesa', 'cod', 'whatsapp'] &&
         data.items is list && data.items.size() >= 1 && data.items.size() <= 50 &&
         data.subtotal is number && data.subtotal >= 0 &&
         data.deliveryFee is number && data.deliveryFee >= 0 &&
@@ -112,7 +118,27 @@ service cloud.firestore {
           'freeDeliveryThresholdKes'
         ]) &&
         data.inkMixingSetBundleKes is number && data.inkMixingSetBundleKes >= 0 &&
-        data.freeDeliveryThresholdKes is number && data.freeDeliveryThresholdKes >= 0;
+        data.freeDeliveryThresholdKes is number && data.freeDeliveryThresholdKes >= 0 &&
+        (!('whatsappConciergePhone' in data) || (data.whatsappConciergePhone is string && data.whatsappConciergePhone.size() <= 30));
+    }
+
+    function isValidPromoCode(data) {
+      return hasRequiredFields([
+          'id',
+          'code',
+          'discountType',
+          'discountValue',
+          'minSpendKes',
+          'description',
+          'active'
+        ]) &&
+        data.id is string && data.id.size() >= 2 && data.id.size() <= 40 &&
+        data.code is string && data.code.size() >= 2 && data.code.size() <= 40 &&
+        data.discountType in ['percentage', 'fixed'] &&
+        data.discountValue is number && data.discountValue >= 1 && data.discountValue <= 500000 &&
+        data.minSpendKes is number && data.minSpendKes >= 0 && data.minSpendKes <= 1000000 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 240 &&
+        data.active is bool;
     }
 
     function isValidReview(data) {
@@ -164,6 +190,12 @@ service cloud.firestore {
     match /store_settings/{settingId} {
       allow read: if true;
       allow create, update: if isAdmin() && isValidStoreSettings(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /promo_codes/{promoId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidPromoCode(request.resource.data);
       allow delete: if isAdmin();
     }
 

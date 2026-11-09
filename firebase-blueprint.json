@@ -48,8 +48,20 @@
         },
         "paymentMethod": {
           "type": "string",
-          "enum": ["mpesa", "cod"],
-          "description": "Settlement method: M-Pesa or Cash on Delivery."
+          "enum": ["mpesa", "cod", "whatsapp"],
+          "description": "Settlement method: M-Pesa, Cash on Delivery, or WhatsApp Order Concierge."
+        },
+        "promoCode": {
+          "type": "string",
+          "description": "Applied promotional voucher code, if any."
+        },
+        "promoDiscountKes": {
+          "type": "number",
+          "description": "KES discount applied via promotional voucher."
+        },
+        "bundleDiscountKes": {
+          "type": "number",
+          "description": "KES discount applied via Iroshizuku Ink Mixing Set bundle."
         },
         "items": {
           "type": "array",
@@ -140,7 +152,7 @@
         },
         "variants": {
           "type": "array",
-          "description": "Available finishes or ink shade variants."
+          "description": "Available finishes or ink shade variants including stockCount."
         },
         "updatedAt": {
           "type": "number",
@@ -159,7 +171,7 @@
     },
     "StoreSettingsConfig": {
       "title": "StoreSettingsConfig",
-      "description": "Global storefront bundle pricing and delivery threshold configuration.",
+      "description": "Global storefront bundle pricing, delivery threshold, and WhatsApp concierge configuration.",
       "type": "object",
       "properties": {
         "inkMixingSetBundleKes": {
@@ -170,12 +182,65 @@
           "type": "number",
           "description": "Order subtotal in KES required for complimentary nationwide courier."
         },
+        "whatsappConciergePhone": {
+          "type": "string",
+          "description": "Nairobi Atelier WhatsApp phone number in international format."
+        },
         "updatedAt": {
           "type": "number",
           "description": "Epoch timestamp in milliseconds."
         }
       },
       "required": ["inkMixingSetBundleKes", "freeDeliveryThresholdKes"]
+    },
+    "PromoCode": {
+      "title": "PromoCode",
+      "description": "A promotional discount code managed in the Merchant Admin Console and validated at checkout.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Uppercase promo code identifier (e.g. NAIROBI10)."
+        },
+        "code": {
+          "type": "string",
+          "description": "Uppercase promo code string entered by shoppers."
+        },
+        "discountType": {
+          "type": "string",
+          "enum": ["percentage", "fixed"],
+          "description": "Whether the discount is a percentage (1-90) or fixed KES amount."
+        },
+        "discountValue": {
+          "type": "number",
+          "description": "Percentage value or fixed KES discount amount."
+        },
+        "minSpendKes": {
+          "type": "number",
+          "description": "Minimum cart subtotal in KES required to apply the voucher."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable campaign description."
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether the promo code is currently active or paused/expired."
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Epoch timestamp in milliseconds."
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "discountType",
+        "discountValue",
+        "minSpendKes",
+        "description",
+        "active"
+      ]
     },
     "ProductReview": {
       "title": "ProductReview",
@@ -241,13 +306,19 @@
       "schema": {
         "$ref": "#/entities/ProductCatalogItem"
       },
-      "description": "Storefront product catalog and KES pricing managed by the Merchant Admin Console."
+      "description": "Storefront product catalog, per-variant stock counts, and KES pricing managed by the Merchant Admin Console."
     },
     "/store_settings/{settingId}": {
       "schema": {
         "$ref": "#/entities/StoreSettingsConfig"
       },
-      "description": "Global bundle pricing and delivery threshold settings."
+      "description": "Global bundle pricing, delivery threshold, and WhatsApp concierge settings."
+    },
+    "/promo_codes/{promoId}": {
+      "schema": {
+        "$ref": "#/entities/PromoCode"
+      },
+      "description": "Publicly readable promotional discount vouchers managed by the Merchant Admin Console."
     },
     "/reviews/{reviewId}": {
       "schema": {

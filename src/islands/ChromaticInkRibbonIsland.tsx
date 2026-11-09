@@ -24,7 +24,6 @@ interface ChromaticInkRibbonIslandProps {
     swatchHex?: string;
     inkShadeId?: string;
   }) => void;
-  onSelectForStudio: (shadeId: string) => void;
 }
 
 export function ChromaticInkRibbonIsland({
@@ -33,7 +32,6 @@ export function ChromaticInkRibbonIsland({
   isShadeWishlisted,
   onToggleShadeWishlist,
   onOpenZoomModal,
-  onSelectForStudio,
 }: ChromaticInkRibbonIslandProps) {
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const activeShade = INK_STUDIO_SHADES[selectedIdx] || INK_STUDIO_SHADES[0];
@@ -240,7 +238,7 @@ export function ChromaticInkRibbonIsland({
                 </span>
               </h4>
               <span className="font-mono-tabular text-lg font-semibold text-[#0A2246] whitespace-nowrap shrink-0">
-                KES 7,500
+                KES 6,000
               </span>
             </div>
 
@@ -286,7 +284,7 @@ export function ChromaticInkRibbonIsland({
                 ) : (
                   <>
                     <Plus className="w-4 h-4" />
-                    <span>Add Bottle · KES 7,500</span>
+                    <span>Add Bottle · KES 6,000</span>
                   </>
                 )}
               </button>
@@ -309,14 +307,6 @@ export function ChromaticInkRibbonIsland({
                 <span>{wishlisted ? 'Wishlisted' : 'Add to Wishlist'}</span>
               </button>
             </div>
-
-            <a
-              href="#writing-studio"
-              onClick={() => onSelectForStudio(activeShade.id)}
-              className="w-full inline-flex items-center justify-center py-2 px-4 text-xs font-medium text-[#0A2246] bg-white hover:bg-[#EAE5DC] border border-[#DCD5C7] rounded transition-colors whitespace-nowrap"
-            >
-              Test {activeShade.name} on Washi Paper in Nib Studio ↓
-            </a>
           </div>
         </div>
       </div>

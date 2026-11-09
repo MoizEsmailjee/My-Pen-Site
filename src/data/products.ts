@@ -9,6 +9,7 @@ export interface ProductVariant {
   image?: string;
   colorFamily?: string;
   nibEngraving?: string;
+  stockCount?: number;
 }
 
 export interface Product {
@@ -361,7 +362,7 @@ export const FEATURED_PRODUCTS: Product[] = [
     name: 'PILOT KAKUNO · MADOROMI SERIES',
     japaneseTitle: '万年筆 カクノ まどろみカラー · Limited Slumber Edition',
     category: 'Fountain Pens',
-    priceKes: 3500,
+    priceKes: 3200,
     image: '/assets/madoromi/madoromi_series.jpg',
     imageFit: 'cover',
     hasNibSelector: true,
@@ -412,6 +413,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_ivory.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
+        stockCount: 6,
       },
       {
         id: 'madoromi-blue',
@@ -421,6 +423,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_blue.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
+        stockCount: 5,
       },
       {
         id: 'madoromi-pink',
@@ -430,6 +433,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_pink.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
+        stockCount: 2,
       },
       {
         id: 'madoromi-brown',
@@ -439,6 +443,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_brown.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
+        stockCount: 4,
       },
       {
         id: 'madoromi-lightblue',
@@ -448,6 +453,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_lightblue.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
+        stockCount: 7,
       },
     ],
     specs: [
@@ -467,7 +473,7 @@ export const FEATURED_PRODUCTS: Product[] = [
     name: 'PILOT KAKUNO · FAMILY SERIES',
     japaneseTitle: '万年筆 カクノ ファミリーシリーズ · Individual Translucent Character Pens',
     category: 'Fountain Pens',
-    priceKes: 3000,
+    priceKes: 2500,
     image: '/assets/kakuno_family/family_papa_blue.jpg',
     imageFit: 'contain',
     hasNibSelector: true,
@@ -518,6 +524,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_papa_blue.jpg',
         nibEngraving: 'Papa Face (Mustache & Bow Tie)',
+        stockCount: 9,
       },
       {
         id: 'family-mama-red',
@@ -527,6 +534,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_mama_red.jpg',
         nibEngraving: 'Mama Face (Eyelashes & Necklace)',
+        stockCount: 7,
       },
       {
         id: 'family-boy-green',
@@ -536,6 +544,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_boy_green.jpg',
         nibEngraving: 'Boy Face (Cheerful Smile)',
+        stockCount: 6,
       },
       {
         id: 'family-girl-pink',
@@ -545,6 +554,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_girl_pink.jpg',
         nibEngraving: 'Girl Face (Ribbon Bow)',
+        stockCount: 8,
       },
       {
         id: 'family-baby-yellow',
@@ -554,6 +564,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_baby_yellow.jpg',
         nibEngraving: 'Baby Face (Pacifier)',
+        stockCount: 2,
       },
       {
         id: 'family-clear',
@@ -563,6 +574,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_clear.jpg',
         nibEngraving: 'Classic Winking Smiley',
+        stockCount: 10,
       },
     ],
     specs: [
@@ -637,6 +649,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/prera/empress_teal_1.jpg',
         nibEngraving: 'Super Quality Japan Steel Nib',
+        stockCount: 8,
       },
       {
         id: 'prera-cinnamon-brown',
@@ -646,6 +659,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/prera/cinnamon_brown.jpg',
         nibEngraving: 'Super Quality Japan Steel Nib',
+        stockCount: 5,
       },
       {
         id: 'prera-porcelain-white',
@@ -655,6 +669,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/prera/porcelain_white.jpg',
         nibEngraving: 'Super Quality Japan Steel Nib',
+        stockCount: 2,
       },
     ],
     specs: [
@@ -675,7 +690,7 @@ export const FEATURED_PRODUCTS: Product[] = [
     name: 'PILOT IROSHIZUKU INK · 24 SHADES',
     japaneseTitle: '色彩雫 いろしずく · Complete 24-Color 50ml Glass Flacon Collection',
     category: 'Bottled Inks',
-    priceKes: 7500,
+    priceKes: 6000,
     image: '/assets/iroshizuku/ama_iro.jpg',
     imageFit: 'contain',
     hasNibSelector: false,
@@ -690,13 +705,14 @@ export const FEATURED_PRODUCTS: Product[] = [
     description:
       'Directly translated as "Color Droplets," Pilot Iroshizuku inks are formulated in Japan to offer extraordinary lubrication, nuanced shading, and effortless cleaning. Browse all 24 botanical and seasonal shades below—from Kon-peki (Deep Cerulean) and Tsuki-yo (Moonlight) to Yama-budo (Crimson Wild Grape) and Shin-ryoku (Deep Forest Green). Each heavy 50ml glass flacon features an internal dip reservoir to fill your fountain pen down to the very last drop.',
     variantLabel: 'Select Iroshizuku Shade (24 Colors · 50ml)',
-    variants: INK_STUDIO_SHADES.map((shade) => ({
+    variants: INK_STUDIO_SHADES.map((shade, idx) => ({
       id: shade.id,
       label: `${shade.name} (${shade.kanji}) · ${shade.meaning}`,
       sublabel: shade.sheenNote,
       swatchHex: shade.hex,
       image: shade.image,
       colorFamily: shade.colorFamily,
+      stockCount: idx % 6 === 2 ? 2 : 7,
     })),
     specs: [
       { label: 'Complete Range', value: '24 Authentic Japanese Nature Shades Available' },
@@ -747,6 +763,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Fits all Pilot Kakuno (Madoromi & Family), Prera, Explorer & Vanishing Point pens',
         swatchHex: '#CBD5E1',
         image: '/assets/converters/pilot_con40.jpg',
+        stockCount: 14,
       },
       {
         id: 'con-40-vertical',
@@ -754,6 +771,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Clear screw-type piston chamber with 4 stainless agitator beads (0.4ml capacity)',
         swatchHex: '#64748B',
         image: '/assets/converters/pilot_con40_3.jpg',
+        stockCount: 10,
       },
     ],
     specs: [
@@ -805,6 +823,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Classic royal sapphire blue with benchmark flow and easy-wash maintenance',
         swatchHex: '#15489C',
         image: '/assets/waterman/waterman_serenity_blue.jpg',
+        stockCount: 9,
       },
       {
         id: 'waterman-intense-black',
@@ -812,6 +831,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Deep, authoritative charcoal-black for crisp everyday correspondence and signatures',
         swatchHex: '#1C1C1B',
         image: '/assets/waterman/waterman_intense_black.jpg',
+        stockCount: 7,
       },
       {
         id: 'waterman-audacious-red',
@@ -819,6 +839,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Vibrant, expressive Parisian crimson-red for editing, annotations, and bold notes',
         swatchHex: '#C42828',
         image: '/assets/waterman/waterman_audacious_red.jpg',
+        stockCount: 3,
       },
     ],
     specs: [

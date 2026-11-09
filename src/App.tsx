@@ -42,7 +42,11 @@ import { ChromaticInkRibbonIsland } from './islands/ChromaticInkRibbonIsland';
 import { WritingSetBuilderIsland } from './islands/WritingSetBuilderIsland';
 import { InkMixingSetBuilderIsland } from './islands/InkMixingSetBuilderIsland';
 import { QuickBuyModalIsland } from './islands/QuickBuyModalIsland';
-import { MerchantAdminIsland, StoreSettings } from './islands/MerchantAdminIsland';
+import {
+  MerchantAdminIsland,
+  StoreSettings,
+  PromoCodeRecord,
+} from './islands/MerchantAdminIsland';
 import {
   CustomerReviewsIsland,
   ProductReviewRecord,
@@ -96,9 +100,44 @@ const BRAND_LOGO_SRC =
 const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
 const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v1';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
-const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v1';
-const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v1';
+const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v2';
+const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v2';
+const PROMO_CODES_STORAGE_KEY = 'pens_r_us_promo_codes_v1';
 const REVIEWS_STORAGE_KEY = 'pens_r_us_reviews_v1';
+const AUTHORIZED_ADMIN_EMAIL = 'ananyapoudel641@gmail.com';
+
+const DEFAULT_PROMO_CODES: PromoCodeRecord[] = [
+  {
+    id: 'nairobi10',
+    code: 'NAIROBI10',
+    discountType: 'percentage',
+    discountValue: 10,
+    minSpendKes: 5000,
+    description: '10% privilege on orders from KES 5,000',
+    active: true,
+    updatedAt: Date.now() - 86400000 * 5,
+  },
+  {
+    id: 'collector1000',
+    code: 'COLLECTOR1000',
+    discountType: 'fixed',
+    discountValue: 1000,
+    minSpendKes: 10000,
+    description: 'KES 1,000 off orders from KES 10,000',
+    active: true,
+    updatedAt: Date.now() - 86400000 * 3,
+  },
+  {
+    id: 'atelier15',
+    code: 'ATELIER15',
+    discountType: 'percentage',
+    discountValue: 15,
+    minSpendKes: 18000,
+    description: '15% VIP Collector discount on orders from KES 18,000',
+    active: true,
+    updatedAt: Date.now() - 86400000 * 2,
+  },
+];
 
 const DEFAULT_SEED_REVIEWS: ProductReviewRecord[] = [
   {
@@ -241,7 +280,10 @@ interface OrderConfirmation {
   phone: string;
   city: string;
   address: string;
-  paymentMethod: 'mpesa' | 'cod';
+  paymentMethod: 'mpesa' | 'cod' | 'whatsapp';
+  promoCode?: string;
+  promoDiscountKes?: number;
+  bundleDiscountKes?: number;
   items: CartItem[];
   subtotal: number;
   deliveryFee: number;
@@ -374,10 +416,32 @@ export default function App() {
       // Ignore storage error
     }
     return {
-      inkMixingSetBundleKes: 20000,
+      inkMixingSetBundleKes: 16200,
       freeDeliveryThresholdKes: 6000,
+      whatsappConciergePhone: '254700000000',
     };
   });
+
+  const [promoCodes, setPromoCodes] = useState<PromoCodeRecord[]>(() => {
+    try {
+      const saved = window.localStorage.getItem(PROMO_CODES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return DEFAULT_PROMO_CODES;
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PROMO_CODES_STORAGE_KEY, JSON.stringify(promoCodes));
+    } catch {
+      // Ignore storage error
+    }
+  }, [promoCodes]);
 
   const [isMerchantAdminOpen, setIsMerchantAdminOpen] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
@@ -567,9 +631,13 @@ export default function App() {
             typeof data.inkMixingSetBundleKes === 'number' &&
             typeof data.freeDeliveryThresholdKes === 'number'
           ) {
-            setStoreSettings({
+          setStoreSettings({
               inkMixingSetBundleKes: data.inkMixingSetBundleKes,
               freeDeliveryThresholdKes: data.freeDeliveryThresholdKes,
+              whatsappConciergePhone:
+                typeof data.whatsappConciergePhone === 'string'
+                  ? data.whatsappConciergePhone
+                  : '254700000000',
             });
           }
         }
@@ -579,11 +647,104 @@ export default function App() {
       }
     );
 
+    const promosUnsub = onSnapshot(
+      collection(db, 'promo_codes'),
+      (snapshot) => {
+        if (snapshot.empty) return;
+        const fetched: PromoCodeRecord[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            code: String(data.code || docSnap.id).toUpperCase(),
+            discountType: data.discountType === 'fixed' ? 'fixed' : 'percentage',
+            discountValue: Number(data.discountValue) || 10,
+            minSpendKes: Number(data.minSpendKes) || 0,
+            description: String(data.description || ''),
+            active: Boolean(data.active),
+            updatedAt: Number(data.updatedAt) || Date.now(),
+          };
+        });
+        setPromoCodes((prev) => {
+          const map = new Map<string, PromoCodeRecord>();
+          prev.forEach((p) => map.set(p.code.toUpperCase(), p));
+          fetched.forEach((p) => map.set(p.code.toUpperCase(), p));
+          return Array.from(map.values());
+        });
+      },
+      () => {
+        // Ignore offline error
+      }
+    );
+
     return () => {
       productsUnsub();
       settingsUnsub();
+      promosUnsub();
     };
   }, []);
+
+  // Dynamically sync live catalog prices, stock status, and review counts into Schema.org JSON-LD
+  useEffect(() => {
+    const scriptEl = document.getElementById('schema-org-static');
+    if (!scriptEl) return;
+    try {
+      const totalReviews = allProductReviews.length || 18;
+      const avgRating =
+        allProductReviews.length > 0
+          ? (
+              allProductReviews.reduce((sum, r) => sum + r.rating, 0) /
+              allProductReviews.length
+            ).toFixed(1)
+          : '4.9';
+      const productGraphs = catalogProducts.map((p) => {
+        const totalUnits = p.variants.reduce(
+          (sum, v) => sum + (typeof v.stockCount === 'number' ? v.stockCount : 10),
+          0
+        );
+        return {
+          '@type': 'Product',
+          '@id': `https://pensrus.co.ke/#product-${p.id}`,
+          name: p.name,
+          description: p.shortSummary || p.description,
+          category: p.category,
+          offers: {
+            '@type': 'Offer',
+            priceCurrency: 'KES',
+            price: String(p.priceKes),
+            availability:
+              totalUnits > 0
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            itemCondition: 'https://schema.org/NewCondition',
+          },
+        };
+      });
+      const schemaPayload = {
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'Store',
+            '@id': 'https://pensrus.co.ke/#store',
+            name: 'PENS R US — The Pen Specialists',
+            url: 'https://pensrus.co.ke/',
+            currenciesAccepted: 'KES',
+            paymentAccepted: 'M-Pesa, Cash on Delivery, WhatsApp Concierge',
+            aggregateRating: {
+              '@type': 'AggregateRating',
+              ratingValue: avgRating,
+              reviewCount: String(totalReviews),
+              bestRating: '5',
+              worstRating: '1',
+            },
+          },
+          ...productGraphs,
+        ],
+      };
+      scriptEl.textContent = JSON.stringify(schemaPayload);
+    } catch {
+      // Ignore DOM JSON-LD update error
+    }
+  }, [catalogProducts, allProductReviews]);
 
   // Category filter state for main Featured Collection
   const [activeCategory, setActiveCategory] = useState<
@@ -703,17 +864,6 @@ export default function App() {
   // Active Product Detail Modal & Quick Buy Modal Overlay
   const [activeProductModal, setActiveProductModal] = useState<Product | null>(null);
   const [quickBuyProduct, setQuickBuyProduct] = useState<Product | null>(null);
-  const [studioInkId, setStudioInkId] = useState<string>('iroshizuku-ama-iro');
-
-  // Interactive Nib & Ink Pairing Studio State
-  const [studioPenId, setStudioPenId] = useState<
-    'pilot-kakuno-madoromi' | 'pilot-kakuno-family' | 'pilot-prera'
-  >('pilot-prera');
-  const [studioNibSize, setStudioNibSize] = useState<NibOption>('Fine');
-  const [studioSampleText, setStudioSampleText] = useState<string>(
-    'Some things deserve to be written by hand. Nairobi, Kenya.'
-  );
-  const [studioPairAdded, setStudioPairAdded] = useState(false);
 
   // Checkout & Order History state inside Cart Drawer
   const [activeCartTab, setActiveCartTab] = useState<'bag' | 'history'>('bag');
@@ -722,12 +872,29 @@ export default function App() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [selectedLocationIdx, setSelectedLocationIdx] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'cod'>('mpesa');
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'cod' | 'whatsapp'>('mpesa');
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromoCode, setAppliedPromoCode] = useState<PromoCodeRecord | null>(null);
+  const [promoFeedbackMsg, setPromoFeedbackMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  const [copiedWhatsAppOrderNo, setCopiedWhatsAppOrderNo] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [confirmedOrder, setConfirmedOrder] = useState<OrderConfirmation | null>(null);
 
   // User Login & Order History State (Firebase Auth + Atelier Member Login)
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [isFirestoreAdminDoc, setIsFirestoreAdminDoc] = useState(false);
+
+  const isAuthorizedAdmin = useMemo(() => {
+    if (!firebaseUser) return false;
+    const isBootstrappedOwner =
+      firebaseUser.email?.toLowerCase() === AUTHORIZED_ADMIN_EMAIL &&
+      firebaseUser.emailVerified;
+    return Boolean(isBootstrappedOwner || isFirestoreAdminDoc);
+  }, [firebaseUser, isFirestoreAdminDoc]);
+
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(() => {
     try {
       const saved = window.localStorage.getItem(MEMBER_SESSION_STORAGE_KEY);
@@ -808,9 +975,9 @@ export default function App() {
             quantity: 1,
           },
         ],
-        subtotal: 5000,
+        subtotal: 4500,
         deliveryFee: 0,
-        total: 5000,
+        total: 4500,
         timestamp: 'Yesterday · 03:45 PM',
         createdAt: Date.now() - 86400000,
       },
@@ -843,9 +1010,9 @@ export default function App() {
             quantity: 1,
           },
         ],
-        subtotal: 12200,
+        subtotal: 10400,
         deliveryFee: 0,
-        total: 12200,
+        total: 10400,
         timestamp: '14 Oct · 11:20 AM',
         createdAt: Date.now() - 86400000 * 7,
       },
@@ -928,14 +1095,35 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Subscribe to authenticated user's Firestore orders in real time
+  // Verify whether the signed-in Firebase user has a document in /admins/{uid}
+  useEffect(() => {
+    if (!firebaseUser) {
+      setIsFirestoreAdminDoc(false);
+      return;
+    }
+    const adminDocRef = doc(db, 'admins', firebaseUser.uid);
+    const unsubscribe = onSnapshot(
+      adminDocRef,
+      (snap) => {
+        setIsFirestoreAdminDoc(snap.exists());
+      },
+      () => {
+        setIsFirestoreAdminDoc(false);
+      }
+    );
+    return () => unsubscribe();
+  }, [firebaseUser]);
+
+  // Subscribe to authenticated user's Firestore orders in real time (or all orders for verified admin)
   useEffect(() => {
     if (!firebaseUser) {
       setFirestoreOrders([]);
       return;
     }
     const ordersPath = 'orders';
-    const q = query(collection(db, ordersPath), where('userId', '==', firebaseUser.uid));
+    const q = isAuthorizedAdmin
+      ? collection(db, ordersPath)
+      : query(collection(db, ordersPath), where('userId', '==', firebaseUser.uid));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -995,7 +1183,7 @@ export default function App() {
       }
     );
     return () => unsubscribe();
-  }, [firebaseUser]);
+  }, [firebaseUser, isAuthorizedAdmin]);
 
   // Combined deduplicated order history for the logged-in user
   const userOrderHistory = useMemo(() => {
@@ -1210,7 +1398,18 @@ export default function App() {
     return trioCount * discountPerTrio;
   }, [cart, iroshizukuProduct.priceKes, storeSettings.inkMixingSetBundleKes]);
 
-  const cartSubtotal = Math.max(0, cartRawSubtotal - inkMixingSetDiscount);
+  const cartSubtotalAfterBundle = Math.max(0, cartRawSubtotal - inkMixingSetDiscount);
+
+  const promoDiscountKes = useMemo(() => {
+    if (!appliedPromoCode || !appliedPromoCode.active) return 0;
+    if (cartSubtotalAfterBundle < appliedPromoCode.minSpendKes) return 0;
+    if (appliedPromoCode.discountType === 'percentage') {
+      return Math.round((cartSubtotalAfterBundle * appliedPromoCode.discountValue) / 100);
+    }
+    return Math.min(cartSubtotalAfterBundle, appliedPromoCode.discountValue);
+  }, [appliedPromoCode, cartSubtotalAfterBundle]);
+
+  const cartSubtotal = Math.max(0, cartSubtotalAfterBundle - promoDiscountKes);
 
   const selectedLocation = KENYA_LOCATIONS[selectedLocationIdx];
   const deliveryFee = useMemo(() => {
@@ -1220,6 +1419,42 @@ export default function App() {
   }, [cartSubtotal, selectedLocation, storeSettings.freeDeliveryThresholdKes]);
 
   const orderTotal = cartSubtotal + deliveryFee;
+
+  const handleApplyPromoCode = (codeToApply?: string) => {
+    const raw = (codeToApply ?? promoCodeInput).trim().toUpperCase();
+    if (!raw) {
+      setPromoFeedbackMsg({ type: 'error', text: 'Enter a promo voucher code.' });
+      return;
+    }
+    const matched = promoCodes.find((p) => p.code.toUpperCase() === raw);
+    if (!matched) {
+      setPromoFeedbackMsg({
+        type: 'error',
+        text: `Code "${raw}" was not found. Try NAIROBI10 or COLLECTOR1000.`,
+      });
+      return;
+    }
+    if (!matched.active) {
+      setPromoFeedbackMsg({
+        type: 'error',
+        text: `Promo code "${matched.code}" is currently paused or expired.`,
+      });
+      return;
+    }
+    if (cartSubtotalAfterBundle < matched.minSpendKes) {
+      setPromoFeedbackMsg({
+        type: 'error',
+        text: `${matched.code} requires a minimum bag total of ${formatKes(matched.minSpendKes)}.`,
+      });
+      return;
+    }
+    setAppliedPromoCode(matched);
+    setPromoCodeInput(matched.code);
+    setPromoFeedbackMsg({
+      type: 'success',
+      text: `Applied ${matched.code}: ${matched.description}`,
+    });
+  };
 
   const handleSelectVariant = (productId: string, variantId: string) => {
     setSelectedVariants((prev) => ({ ...prev, [productId]: variantId }));
@@ -1452,22 +1687,7 @@ export default function App() {
     );
   };
 
-  const handleAddStudioPairing = () => {
-    const penProduct = FEATURED_PRODUCTS.find((p) => p.id === studioPenId)!;
-    const inkProduct = FEATURED_PRODUCTS.find((p) => p.id === 'pilot-iroshizuku-ink')!;
 
-    const penVariant =
-      penProduct.variants.find((v) => v.id === selectedVariants[penProduct.id]) ||
-      penProduct.variants[0];
-
-    const inkVariant =
-      inkProduct.variants.find((v) => v.id === studioInkId) || inkProduct.variants[0];
-
-    handleAddToCart(penProduct, penVariant, studioNibSize, false);
-    handleAddToCart(inkProduct, inkVariant, undefined, true);
-    setStudioPairAdded(true);
-    setTimeout(() => setStudioPairAdded(false), 2000);
-  };
 
   const handleAddBundleToCart = (
     items: {
@@ -1577,6 +1797,7 @@ export default function App() {
     order: OrderConfirmation,
     nextStatus: OrderStatus
   ) => {
+    if (!isAuthorizedAdmin) return;
     const nextEta =
       nextStatus === 'Processing'
         ? 'Preparing at Nairobi Atelier · Nib Inspection in Progress'
@@ -1708,6 +1929,9 @@ export default function App() {
       city: selectedLocation.city,
       address: deliveryAddress.trim(),
       paymentMethod,
+      promoCode: appliedPromoCode && promoDiscountKes > 0 ? appliedPromoCode.code : undefined,
+      promoDiscountKes: promoDiscountKes > 0 ? promoDiscountKes : undefined,
+      bundleDiscountKes: inkMixingSetDiscount > 0 ? inkMixingSetDiscount : undefined,
       items: [...cart],
       subtotal: cartSubtotal,
       deliveryFee,
@@ -1725,6 +1949,30 @@ export default function App() {
     // Save to local orders immediately so Order History updates instantaneously
     setLocalOrders((prev) => [confirmation, ...prev]);
 
+    // Deduct ordered quantities from per-variant stockCount in catalogProducts
+    setCatalogProducts((prevCatalog) =>
+      prevCatalog.map((prod) => {
+        const orderedForProd = cart.filter((c) => c.product.id === prod.id);
+        if (orderedForProd.length === 0) return prod;
+        const nextVariants = prod.variants.map((v) => {
+          const orderedQty = orderedForProd
+            .filter((c) => c.variant.id === v.id)
+            .reduce((sum, c) => sum + c.quantity, 0);
+          if (orderedQty === 0) return v;
+          const currStock = typeof v.stockCount === 'number' ? v.stockCount : 10;
+          return {
+            ...v,
+            stockCount: Math.max(0, currStock - orderedQty),
+          };
+        });
+        const updatedProd = { ...prod, variants: nextVariants };
+        if (auth.currentUser && isAuthorizedAdmin) {
+          persistProductToFirestore(updatedProd);
+        }
+        return updatedProd;
+      })
+    );
+
     // Auto-sign in customer to Member Profile if they placed an order while logged out
     if (!memberProfile) {
       setMemberProfile({
@@ -1737,7 +1985,7 @@ export default function App() {
 
     // If authenticated with Firebase Auth, also persist the order to Firestore /orders
     if (auth.currentUser) {
-      const firestorePayload = {
+      const firestorePayload: Record<string, unknown> = {
         userId: auth.currentUser.uid,
         userEmail: auth.currentUser.email || '',
         orderNumber: confirmation.orderNumber,
@@ -1771,6 +2019,15 @@ export default function App() {
         timestamp: confirmation.timestamp,
         createdAt: createdAtMs,
       };
+      if (confirmation.promoCode) {
+        firestorePayload.promoCode = confirmation.promoCode;
+      }
+      if (typeof confirmation.promoDiscountKes === 'number') {
+        firestorePayload.promoDiscountKes = confirmation.promoDiscountKes;
+      }
+      if (typeof confirmation.bundleDiscountKes === 'number') {
+        firestorePayload.bundleDiscountKes = confirmation.bundleDiscountKes;
+      }
       try {
         await addDoc(collection(db, 'orders'), firestorePayload);
       } catch (error) {
@@ -1785,11 +2042,76 @@ export default function App() {
     setConfirmedOrder(confirmation);
     setCheckoutStep('confirmed');
     setCart([]);
+    setAppliedPromoCode(null);
+    setPromoCodeInput('');
+    setPromoFeedbackMsg(null);
+  };
+
+  const buildWhatsAppOrderText = (order: OrderConfirmation): string => {
+    const lines = [
+      `*PENS R US KENYA — ORDER #${order.orderNumber}*`,
+      `Customer: ${order.customerName} (${order.phone})`,
+      `Region: ${order.city}`,
+      `Delivery Address: ${order.address}`,
+      `Waybill: ${order.trackingCode || 'NBO-COUR'}`,
+      ``,
+      `*Items Ordered:*`,
+      ...order.items.map(
+        (item) =>
+          `• ${item.quantity}x ${item.product.name} (${item.variant.label.split(' · ')[0]}${
+            item.nibSize ? `, ${item.nibSize} Nib` : ''
+          }) — KES ${(item.product.priceKes * item.quantity).toLocaleString()}`
+      ),
+      ``,
+    ];
+    if (order.bundleDiscountKes && order.bundleDiscountKes > 0) {
+      lines.push(`3-Bottle Ink Bundle Privilege: -KES ${order.bundleDiscountKes.toLocaleString()}`);
+    }
+    if (order.promoCode && order.promoDiscountKes) {
+      lines.push(
+        `Promo Voucher (${order.promoCode}): -KES ${order.promoDiscountKes.toLocaleString()}`
+      );
+    }
+    lines.push(
+      `Courier Delivery: ${
+        order.deliveryFee === 0 ? 'Complimentary' : `KES ${order.deliveryFee.toLocaleString()}`
+      }`
+    );
+    lines.push(`*Total Due: KES ${order.total.toLocaleString()}*`);
+    lines.push(
+      `Settlement: ${
+        order.paymentMethod === 'whatsapp'
+          ? 'WhatsApp Order Concierge'
+          : order.paymentMethod === 'mpesa'
+          ? 'M-Pesa Express'
+          : 'Cash on Delivery'
+      }`
+    );
+    return lines.join('\n');
+  };
+
+  const buildWhatsAppOrderUrl = (order: OrderConfirmation): string => {
+    const phone = (storeSettings.whatsappConciergePhone || '254700000000').replace(
+      /[^0-9]/g,
+      ''
+    );
+    const text = encodeURIComponent(buildWhatsAppOrderText(order));
+    return `https://wa.me/${phone}?text=${text}`;
+  };
+
+  const handleCopyWhatsAppOrder = async (order: OrderConfirmation) => {
+    try {
+      await navigator.clipboard.writeText(buildWhatsAppOrderText(order));
+      setCopiedWhatsAppOrderNo(order.orderNumber);
+      setTimeout(() => setCopiedWhatsAppOrderNo(null), 2500);
+    } catch {
+      // Fallback if clipboard blocked
+    }
   };
 
   // Merchant Admin Product & Store Settings Handlers (Local State + Cloud Firestore Sync)
   const persistProductToFirestore = async (product: Product) => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || !isAuthorizedAdmin) return;
     const docPath = `products/${product.id}`;
     try {
       await setDoc(doc(db, 'products', product.id), {
@@ -1818,10 +2140,10 @@ export default function App() {
   };
 
   const handleMerchantUpdateProduct = async (updatedProduct: Product) => {
+    if (!isAuthorizedAdmin) return;
     setCatalogProducts((prev) =>
       prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
     );
-    // Also update any matching items currently in the shopping bag so prices stay in sync
     setCart((prev) =>
       prev.map((item) =>
         item.product.id === updatedProduct.id
@@ -1833,6 +2155,7 @@ export default function App() {
   };
 
   const handleMerchantAddProduct = async (newProduct: Product) => {
+    if (!isAuthorizedAdmin) return;
     setCatalogProducts((prev) => [newProduct, ...prev]);
     setSelectedVariants((prev) => ({
       ...prev,
@@ -1848,6 +2171,7 @@ export default function App() {
   };
 
   const handleMerchantDeleteProduct = async (productId: string) => {
+    if (!isAuthorizedAdmin) return;
     setCatalogProducts((prev) => prev.filter((p) => p.id !== productId));
     if (auth.currentUser) {
       try {
@@ -1863,10 +2187,12 @@ export default function App() {
   };
 
   const handleMerchantResetCatalog = async () => {
+    if (!isAuthorizedAdmin) return;
     setCatalogProducts(FEATURED_PRODUCTS);
     setStoreSettings({
-      inkMixingSetBundleKes: 20000,
+      inkMixingSetBundleKes: 16200,
       freeDeliveryThresholdKes: 6000,
+      whatsappConciergePhone: '254700000000',
     });
     if (auth.currentUser) {
       for (const prod of FEATURED_PRODUCTS) {
@@ -1879,6 +2205,7 @@ export default function App() {
     if (!auth.currentUser) {
       await handleGoogleSignIn();
     }
+    if (!isAuthorizedAdmin) return;
     if (auth.currentUser) {
       for (const prod of catalogProducts) {
         await persistProductToFirestore(prod);
@@ -1887,6 +2214,7 @@ export default function App() {
         await setDoc(doc(db, 'store_settings', 'config'), {
           inkMixingSetBundleKes: storeSettings.inkMixingSetBundleKes,
           freeDeliveryThresholdKes: storeSettings.freeDeliveryThresholdKes,
+          whatsappConciergePhone: storeSettings.whatsappConciergePhone || '254700000000',
           updatedAt: Date.now(),
         });
       } catch (error) {
@@ -1900,17 +2228,84 @@ export default function App() {
   };
 
   const handleMerchantUpdateStoreSettings = async (next: StoreSettings) => {
+    if (!isAuthorizedAdmin) return;
     setStoreSettings(next);
     if (auth.currentUser) {
       try {
         await setDoc(doc(db, 'store_settings', 'config'), {
           inkMixingSetBundleKes: next.inkMixingSetBundleKes,
           freeDeliveryThresholdKes: next.freeDeliveryThresholdKes,
+          whatsappConciergePhone: next.whatsappConciergePhone || '254700000000',
           updatedAt: Date.now(),
         });
       } catch (error) {
         try {
           handleFirestoreError(error, OperationType.WRITE, 'store_settings/config');
+        } catch {
+          // Structured log
+        }
+      }
+    }
+  };
+
+  const handleSavePromoCode = async (promo: PromoCodeRecord) => {
+    if (!isAuthorizedAdmin) return;
+    setPromoCodes((prev) => {
+      const exists = prev.some((p) => p.id === promo.id || p.code === promo.code);
+      if (exists) {
+        return prev.map((p) => (p.id === promo.id || p.code === promo.code ? promo : p));
+      }
+      return [promo, ...prev];
+    });
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'promo_codes', promo.id), {
+          id: promo.id,
+          code: promo.code,
+          discountType: promo.discountType,
+          discountValue: promo.discountValue,
+          minSpendKes: promo.minSpendKes,
+          description: promo.description,
+          active: promo.active,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.WRITE, `promo_codes/${promo.id}`);
+        } catch {
+          // Structured log
+        }
+      }
+    }
+  };
+
+  const handleTogglePromoCodeActive = async (promoId: string) => {
+    if (!isAuthorizedAdmin) return;
+    const target = promoCodes.find((p) => p.id === promoId);
+    if (!target) return;
+    const updated: PromoCodeRecord = {
+      ...target,
+      active: !target.active,
+      updatedAt: Date.now(),
+    };
+    await handleSavePromoCode(updated);
+    if (appliedPromoCode?.id === promoId && !updated.active) {
+      setAppliedPromoCode(null);
+    }
+  };
+
+  const handleDeletePromoCode = async (promoId: string) => {
+    if (!isAuthorizedAdmin) return;
+    setPromoCodes((prev) => prev.filter((p) => p.id !== promoId));
+    if (appliedPromoCode?.id === promoId) {
+      setAppliedPromoCode(null);
+    }
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'promo_codes', promoId));
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.DELETE, `promo_codes/${promoId}`);
         } catch {
           // Structured log
         }
@@ -2026,13 +2421,6 @@ export default function App() {
     if (!customerName) setCustomerName(name);
   };
 
-  const activeStudioInk =
-    INK_STUDIO_SHADES.find((s) => s.id === studioInkId) || INK_STUDIO_SHADES[0];
-  const activeStudioPen =
-    catalogProducts.find((p) => p.id === studioPenId) ||
-    FEATURED_PRODUCTS.find((p) => p.id === studioPenId)!;
-  const studioPairTotalKes = activeStudioPen.priceKes + iroshizukuProduct.priceKes;
-
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#171614]">
       {/* TOP BAR CONTRACT: Strictly 1 row, 3 zones separated by gap-8 */}
@@ -2075,10 +2463,10 @@ export default function App() {
                 24 Ink Shades
               </a>
               <a
-                href="#writing-studio"
+                href="#writing-set-builder"
                 className="hover:text-[#0A2246] hover:underline underline-offset-8 transition-colors whitespace-nowrap shrink-0"
               >
-                Nib Studio
+                Set Builder
               </a>
             </nav>
 
@@ -2310,7 +2698,7 @@ export default function App() {
                                 </button>
                                 <div className="flex items-center gap-2 shrink-0">
                                   <span className="font-mono-tabular text-xs font-semibold text-[#171614]">
-                                    KES 7,500
+                                    KES 6,000
                                   </span>
                                   <button
                                     type="button"
@@ -2436,7 +2824,7 @@ export default function App() {
                     </p>
                   </div>
                   <span className="font-mono-tabular text-xs text-white/90 whitespace-nowrap shrink-0">
-                    From KES 3,000
+                    From KES 2,500
                   </span>
                 </div>
               </div>
@@ -2531,13 +2919,15 @@ export default function App() {
                     );
                   }
                 )}
-                <button
-                  type="button"
-                  onClick={() => setIsMerchantAdminOpen(true)}
-                  className="px-3.5 py-1.5 text-xs font-semibold rounded bg-[#0A2246] text-white hover:bg-[#133468] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  Merchant Admin (Edit Prices)
-                </button>
+                {isAuthorizedAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setIsMerchantAdminOpen(true)}
+                    className="px-3.5 py-1.5 text-xs font-semibold rounded bg-[#0A2246] text-white hover:bg-[#133468] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    Merchant Admin (Edit Prices)
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2560,9 +2950,9 @@ export default function App() {
                   [
                     { id: 'all', label: 'All Series Overview' },
                     { id: 'prera', label: 'Pilot Prera · Empress Teal (KES 8,500)' },
-                    { id: 'madoromi', label: 'Kakuno Madoromi (KES 3,500)' },
-                    { id: 'family', label: 'Kakuno Family (KES 3,000)' },
-                    { id: 'iroshizuku', label: '24 Iroshizuku Inks (KES 7,500)' },
+                    { id: 'madoromi', label: 'Kakuno Madoromi (KES 3,200)' },
+                    { id: 'family', label: 'Kakuno Family (KES 2,500)' },
+                    { id: 'iroshizuku', label: '24 Iroshizuku Inks (KES 6,000)' },
                     { id: 'waterman', label: 'Waterman Inks (KES 2,000)' },
                   ] as const
                 ).map((series) => {
@@ -2896,12 +3286,36 @@ export default function App() {
 
                       {/* Card Body: Unboxed Metadata + Product Name + Tabular KES Price */}
                       <div className="p-6">
-                        <div className="flex items-center gap-2 text-xs text-[#6E6A63] mb-2">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#6E6A63] mb-2">
                           <span className="uppercase tracking-wider">{product.category}</span>
                           <span aria-hidden="true">·</span>
                           <span>{product.Origin}</span>
                           <span aria-hidden="true">·</span>
-                          <span className="text-[#163A5F] font-medium">{product.availability}</span>
+                          {(() => {
+                            const variantStock =
+                              typeof chosenVariant.stockCount === 'number'
+                                ? chosenVariant.stockCount
+                                : 10;
+                            if (variantStock === 0) {
+                              return (
+                                <span className="text-rose-700 font-semibold">
+                                  Sold Out (0 left)
+                                </span>
+                              );
+                            }
+                            if (variantStock <= 3) {
+                              return (
+                                <span className="text-amber-800 font-semibold">
+                                  Low Stock · Only {variantStock} left in Nairobi
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="text-[#163A5F] font-medium">
+                                {product.availability} ({variantStock} in stock)
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-baseline justify-between gap-4 mt-1">
@@ -3205,7 +3619,7 @@ export default function App() {
               <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
                 <div>
                   <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
-                    万年筆 カクノ まどろみカラー · Limited Slumber Lineup (KES 3,500)
+                    万年筆 カクノ まどろみカラー · Limited Slumber Lineup (KES 3,200)
                   </p>
                   <h3
                     className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
@@ -3335,7 +3749,7 @@ export default function App() {
                               Pilot Kakuno — {variant.label}
                             </h4>
                             <span className="font-mono-tabular text-sm font-semibold text-[#171614] whitespace-nowrap shrink-0">
-                              KES 3,500
+                              KES 3,200
                             </span>
                           </div>
 
@@ -3561,7 +3975,7 @@ export default function App() {
               <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
                 <div>
                   <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
-                    万年筆 カクノ ファミリーシリーズ · Individual Demonstrator Lineup (KES 3,000)
+                    万年筆 カクノ ファミリーシリーズ · Individual Demonstrator Lineup (KES 2,500)
                   </p>
                   <h3
                     className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
@@ -3690,7 +4104,7 @@ export default function App() {
                               Pilot Kakuno — {variant.label}
                             </h4>
                             <span className="font-mono-tabular text-sm font-semibold text-[#171614] whitespace-nowrap shrink-0">
-                              KES 3,000
+                              KES 2,500
                             </span>
                           </div>
 
@@ -4357,7 +4771,7 @@ export default function App() {
               <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
                 <div>
                   <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
-                    色彩雫 · Complete 24-Shade Bottled Ink Library with Handwritten Swatches (50ml · KES 7,500)
+                    色彩雫 · Complete 24-Shade Bottled Ink Library with Handwritten Swatches (50ml · KES 6,000)
                   </p>
                   <h3
                     className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
@@ -4418,7 +4832,6 @@ export default function App() {
                     panY: 45,
                   })
                 }
-                onSelectForStudio={(shadeId) => setStudioInkId(shadeId)}
               />
 
               {/* 4-Column Bottle + Swatch Grid */}
@@ -4426,7 +4839,6 @@ export default function App() {
                 {filteredInkVariety.map((shade) => {
                   const feedbackKey = `pilot-iroshizuku-ink-${shade.id}`;
                   const isAdded = justAddedKey === feedbackKey;
-                  const isSelectedInStudio = studioInkId === shade.id;
                   const viewMode = inkCardViewMode[shade.id] || 'bottle';
                   const activeCardImg =
                     viewMode === 'swatch' ? shade.swatchImage : shade.image;
@@ -4575,7 +4987,7 @@ export default function App() {
                               </span>
                             </h4>
                             <span className="font-mono-tabular text-xs font-semibold text-[#171614] whitespace-nowrap shrink-0">
-                              KES 7,500
+                              KES 6,000
                             </span>
                           </div>
 
@@ -4647,17 +5059,26 @@ export default function App() {
                             <span>{isWishlisted ? 'In Wishlist' : 'Wishlist'}</span>
                           </button>
 
-                          <a
-                            href="#writing-studio"
-                            onClick={() => setStudioInkId(shade.id)}
-                            className={`px-2.5 py-1.5 text-xs font-medium rounded border transition-colors whitespace-nowrap shrink-0 ${
-                              isSelectedInStudio
-                                ? 'border-[#0A2246] bg-[#0A2246]/10 text-[#0A2246]'
-                                : 'border-[#DCD5C7] bg-white text-[#524E48] hover:text-[#171614]'
-                            }`}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setZoomModal({
+                                src: shade.image,
+                                secondarySrc: shade.swatchImage,
+                                activeView: 'secondary',
+                                title: `Pilot Iroshizuku — ${shade.name} (${shade.kanji})`,
+                                subtitle: `${shade.meaning} · ${shade.sheenNote}`,
+                                swatchHex: shade.hex,
+                                inkShadeId: shade.id,
+                                zoomLevel: 2,
+                                panX: 50,
+                                panY: 45,
+                              })
+                            }
+                            className="px-2.5 py-1.5 text-xs font-medium rounded border border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                           >
-                            Test Stroke
-                          </a>
+                            Swatch Card
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -4867,295 +5288,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* SECTION 3: INTERACTIVE JAPANESE NIB & IROSHIZUKU INK PAIRING STUDIO */}
-        <section id="writing-studio" className="py-16 lg:py-24 max-w-[1280px] mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-stretch">
-            {/* Left Column: Controls for Pen, Nib Width (Fine / Medium), and All 24 Iroshizuku Shades */}
-            <div className="lg:col-span-5 flex flex-col justify-between">
-              <div>
-                <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
-                  Interactive Nib &amp; Ink Workbench
-                </p>
-                <h2
-                  className="font-serif-display text-3xl lg:text-4xl font-semibold text-[#171614] tracking-tight mb-4"
-                  style={{ textWrap: 'balance' }}
-                >
-                  Experience Your Stroke Before You Write.
-                </h2>
-                <p className="text-sm text-[#4A4742] leading-relaxed mb-6">
-                  Japanese nibs are calibrated one grade finer than Western equivalents, making
-                  them ideal for detailed handwriting, journals, and ledger work. Select a Pilot
-                  instrument, <strong>Fine (0.35mm)</strong> or <strong>Medium (0.50mm)</strong>{' '}
-                  nib, and any of the 24 Iroshizuku bottles below to preview the line character on
-                  cream Washi paper.
-                </p>
-
-                {/* Step 1: Select Pen Model */}
-                <div className="mb-5">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
-                    1. Choose Fountain Pen Series
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {(
-                      [
-                        { id: 'pilot-prera', shortLabel: 'Pilot Prera' },
-                        { id: 'pilot-kakuno-madoromi', shortLabel: 'Kakuno Madoromi' },
-                        { id: 'pilot-kakuno-family', shortLabel: 'Kakuno Family' },
-                      ] as const
-                    ).map((item) => {
-                      const pen = FEATURED_PRODUCTS.find((p) => p.id === item.id)!;
-                      const selected = studioPenId === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setStudioPenId(item.id)}
-                          className={`p-2.5 text-left rounded border transition-colors cursor-pointer ${
-                            selected
-                              ? 'border-[#163A5F] bg-[#163A5F]/6 text-[#171614]'
-                              : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
-                          }`}
-                        >
-                          <div className="text-xs font-semibold text-[#171614] truncate">
-                            {item.shortLabel}
-                          </div>
-                          <div className="font-mono-tabular text-xs text-[#6E6A63] mt-0.5">
-                            {formatKes(pen.priceKes)}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Step 2: Select Japanese Nib Width (Fine vs Medium) */}
-                <div className="mb-5">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
-                    2. Select Japanese Nib Option
-                  </span>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      {
-                        code: 'Fine' as const,
-                        name: 'Fine Nib (F)',
-                        mm: '0.35 mm',
-                        note: 'Crisp precision for everyday notebooks, planners & small script',
-                      },
-                      {
-                        code: 'Medium' as const,
-                        name: 'Medium Nib (M)',
-                        mm: '0.50 mm',
-                        note: 'Smooth, generous flow that highlights Iroshizuku ink shading',
-                      },
-                    ].map((nib) => {
-                      const active = studioNibSize === nib.code;
-                      return (
-                        <button
-                          key={nib.code}
-                          type="button"
-                          onClick={() => setStudioNibSize(nib.code)}
-                          className={`p-3 text-left rounded border transition-colors cursor-pointer ${
-                            active
-                              ? 'border-[#163A5F] bg-[#163A5F]/6 text-[#171614]'
-                              : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
-                          }`}
-                        >
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-xs font-semibold text-[#171614]">{nib.name}</span>
-                            <span className="font-mono-tabular text-[11px] text-[#163A5F]">
-                              {nib.mm}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[#6E6A63] mt-1 leading-snug">{nib.note}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Step 3: Select from All 24 Iroshizuku Ink Shades */}
-                <div className="mb-6">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
-                    3. Select Pilot Iroshizuku Ink (All 24 Shades · KES 7,500)
-                  </span>
-                  <div className="grid grid-cols-2 gap-2 max-h-[230px] overflow-y-auto pr-1">
-                    {INK_STUDIO_SHADES.map((shade) => {
-                      const active = studioInkId === shade.id;
-                      return (
-                        <button
-                          key={shade.id}
-                          type="button"
-                          onClick={() => setStudioInkId(shade.id)}
-                          className={`p-2 text-left rounded border flex items-center gap-2.5 transition-colors cursor-pointer ${
-                            active
-                              ? 'border-[#163A5F] bg-[#163A5F]/6 text-[#171614]'
-                              : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
-                          }`}
-                        >
-                          <img
-                            src={resolveAssetUrl(shade.image)}
-                            alt={shade.name}
-                            referrerPolicy="no-referrer"
-                            className="w-8 h-8 object-contain rounded bg-white border border-[#E6E1D8] shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <div className="text-xs font-semibold text-[#171614] truncate">
-                              {shade.name} ({shade.kanji})
-                            </div>
-                            <div className="text-[11px] text-[#6E6A63] truncate">
-                              {shade.meaning}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Add Combined Pen + Ink Pairing CTA */}
-              <div className="pt-4 border-t border-[#E6E1D8] flex items-center justify-between gap-4">
-                <div>
-                  <span className="text-xs text-[#6E6A63] block">
-                    Selected Pen ({studioNibSize} Nib) + 50ml Ink Set
-                  </span>
-                  <span className="font-mono-tabular text-base font-semibold text-[#171614]">
-                    {formatKes(studioPairTotalKes)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddStudioPairing}
-                  className="inline-flex items-center gap-2 px-5 py-3 text-xs font-semibold tracking-wider uppercase text-white bg-[#163A5F] hover:bg-[#102B47] rounded transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  {studioPairAdded ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      <span>Pairing Added to Bag</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Add Pairing to Bag</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Right Column: Live Cream Washi Paper Preview Sheet + Bottle Preview */}
-            <div className="lg:col-span-7 flex">
-              <div className="w-full rounded-lg border border-[#DCD5C7] bg-[#FBF9F3] p-6 lg:p-10 flex flex-col justify-between">
-                {/* Sheet Header Metadata + Active Bottle Thumbnail */}
-                <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-[#E6E1D8]">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={resolveAssetUrl(activeStudioInk.image)}
-                      alt={activeStudioInk.name}
-                      referrerPolicy="no-referrer"
-                      className="w-12 h-12 object-contain rounded border border-[#E6E1D8] bg-white p-1 shrink-0"
-                    />
-                    <div>
-                      <div className="flex items-center gap-2 text-xs text-[#6E6A63]">
-                        <span>{activeStudioPen.name}</span>
-                        <span aria-hidden="true">·</span>
-                        <span className="font-mono-tabular">
-                          {studioNibSize === 'Fine' ? '0.35mm Fine Nib' : '0.50mm Medium Nib'}
-                        </span>
-                      </div>
-                      <p className="text-sm font-semibold text-[#171614] mt-0.5">
-                        Iroshizuku {activeStudioInk.name} ({activeStudioInk.kanji}) —{' '}
-                        <span className="font-normal text-[#5C5852]">
-                          {activeStudioInk.meaning}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-[#6E6A63] font-mono-tabular">
-                    85gsm Cream Cotton Sheet
-                  </span>
-                </div>
-
-                {/* Simulated Ruled Lines + Custom Handwriting Input & Flourish Curve */}
-                <div className="my-8 space-y-6">
-                  <div>
-                    <label
-                      htmlFor="custom-writing-input"
-                      className="block text-xs text-[#6E6A63] mb-2"
-                    >
-                      Type below to test your personal inscription or signature:
-                    </label>
-                    <input
-                      id="custom-writing-input"
-                      type="text"
-                      value={studioSampleText}
-                      onChange={(e) => setStudioSampleText(e.target.value)}
-                      maxLength={95}
-                      placeholder="Write a personal note..."
-                      className="w-full px-3.5 py-2 text-xs bg-white border border-[#E6E1D8] rounded text-[#171614] focus:outline-none focus:border-[#163A5F]"
-                    />
-                  </div>
-
-                  {/* Ruled Paper Area */}
-                  <div
-                    className="p-6 rounded border border-[#EAE4D7] bg-[#FDFBF7]"
-                    style={{
-                      backgroundImage:
-                        'repeating-linear-gradient(to bottom, transparent, transparent 35px, rgba(22, 58, 95, 0.08) 36px)',
-                    }}
-                  >
-                    <p
-                      className="font-serif-display italic transition-all duration-150 break-words"
-                      style={{
-                        color: activeStudioInk.hex,
-                        fontSize: studioNibSize === 'Fine' ? '1.62rem' : '1.88rem',
-                        fontWeight: studioNibSize === 'Fine' ? 500 : 600,
-                        lineHeight: '36px',
-                      }}
-                    >
-                      {studioSampleText || 'Discover the Art of Writing at PENS R US.'}
-                    </p>
-
-                    {/* Expressive Nib Stroke SVG */}
-                    <svg
-                      viewBox="0 0 500 54"
-                      className="w-full h-12 mt-3 overflow-visible"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M 10 34 C 95 8, 170 48, 265 24 C 340 6, 410 42, 485 18"
-                        fill="none"
-                        stroke={activeStudioInk.hex}
-                        strokeWidth={studioNibSize === 'Fine' ? 2.0 : 3.5}
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M 45 44 C 150 32, 290 48, 430 35"
-                        fill="none"
-                        stroke={activeStudioInk.secondaryHex}
-                        strokeWidth={studioNibSize === 'Fine' ? 1.2 : 2.1}
-                        strokeLinecap="round"
-                        opacity="0.7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Ink Shade Character Footer */}
-                <div className="pt-4 border-t border-[#E6E1D8] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#5C5852]">
-                  <div>
-                    <span className="font-semibold text-[#171614]">Ink Character: </span>
-                    <span>{activeStudioInk.sheenNote}</span>
-                  </div>
-                  <span className="font-mono-tabular text-[#163A5F] shrink-0">
-                    Complimentary Nairobi Delivery Included
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* SECTION 4: MORE THAN JUST WRITING (Editorial Story & Kenyan Provenance) */}
         <section
           id="craftsmanship"
@@ -5356,7 +5488,9 @@ export default function App() {
                 onClick={() => setIsMerchantAdminOpen(true)}
                 className="font-semibold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 cursor-pointer"
               >
-                Merchant Admin Console (Edit Catalog &amp; KES Prices)
+                {isAuthorizedAdmin
+                  ? 'Merchant Admin Console (Edit Catalog & KES Prices)'
+                  : 'Staff Portal'}
               </button>
             </div>
             <span className="font-mono-tabular">
@@ -5367,7 +5501,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* SHOPIFY-STYLE MERCHANT ADMIN BACK OFFICE (PRODUCTS, KES PRICES, ORDERS & BUNDLES) */}
+      {/* SHOPIFY-STYLE MERCHANT ADMIN BACK OFFICE (PRODUCTS, KES PRICES, STOCK, PROMOS, ANALYTICS & ORDERS) */}
       <MerchantAdminIsland
         isOpen={isMerchantAdminOpen}
         onClose={() => setIsMerchantAdminOpen(false)}
@@ -5379,6 +5513,10 @@ export default function App() {
         onSyncAllProductsToFirestore={handleSyncAllProductsToFirestore}
         storeSettings={storeSettings}
         onUpdateStoreSettings={handleMerchantUpdateStoreSettings}
+        promoCodes={promoCodes}
+        onSavePromoCode={handleSavePromoCode}
+        onTogglePromoCodeActive={handleTogglePromoCodeActive}
+        onDeletePromoCode={handleDeletePromoCode}
         orders={(userOrderHistory.length > 0 ? userOrderHistory : localOrders).map(
           (ord) => ({
             id: ord.id,
@@ -5392,9 +5530,18 @@ export default function App() {
             city: ord.city,
             address: ord.address,
             paymentMethod: ord.paymentMethod,
+            promoCode: ord.promoCode,
+            promoDiscountKes: ord.promoDiscountKes,
             total: ord.total,
             timestamp: ord.timestamp,
             itemsCount: ord.items.reduce((acc, i) => acc + i.quantity, 0),
+            items: ord.items.map((i) => ({
+              productName: i.product.name,
+              variantLabel: i.variant.label,
+              nibSize: i.nibSize,
+              quantity: i.quantity,
+              priceKes: i.product.priceKes,
+            })),
           })
         )}
         onUpdateOrderStatusByNumber={(orderNumber, nextStatus) => {
@@ -5406,8 +5553,10 @@ export default function App() {
           }
         }}
         firebaseAdminEmail={firebaseUser?.email || null}
+        isAuthorizedAdmin={isAuthorizedAdmin}
         isSigningIn={isSigningIn}
         onGoogleSignIn={handleGoogleSignIn}
+        onSignOut={handleSignOutAccount}
         cloudSyncStatus={cloudSyncStatus}
       />
 
@@ -6147,7 +6296,10 @@ export default function App() {
                                       {order.timestamp} ·{' '}
                                       {order.paymentMethod === 'mpesa'
                                         ? 'M-Pesa Express'
+                                        : order.paymentMethod === 'whatsapp'
+                                        ? 'WhatsApp Concierge'
                                         : 'Cash on Delivery'}
+                                      {order.promoCode ? ` · Promo ${order.promoCode}` : ''}
                                     </p>
                                   </div>
                                   <div className="text-right shrink-0">
@@ -6309,33 +6461,35 @@ export default function App() {
                                         </div>
                                       </div>
 
-                                      {/* Interactive Status Control (Allows member/tester to simulate live courier transition) */}
-                                      <div className="pt-1">
-                                        <span className="block text-[10px] font-semibold uppercase tracking-wider text-[#6E6A63] mb-1.5">
-                                          Update / Simulate Courier Status
-                                        </span>
-                                        <div className="grid grid-cols-3 gap-1.5">
-                                          {ORDER_TRACKING_STAGES.map((stage) => {
-                                            const active = currentStatus === stage.status;
-                                            return (
-                                              <button
-                                                key={stage.status}
-                                                type="button"
-                                                onClick={() =>
-                                                  handleUpdateOrderStatus(order, stage.status)
-                                                }
-                                                className={`py-1.5 px-2 text-[10px] font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap truncate ${
-                                                  active
-                                                    ? 'bg-[#0A2246] text-white border-[#0A2246]'
-                                                    : 'bg-white text-[#3F3D39] border-[#DCD5C7] hover:border-[#0A2246]'
-                                                }`}
-                                              >
-                                                {stage.label}
-                                              </button>
-                                            );
-                                          })}
+                                      {/* Admin-Only Courier Status Control */}
+                                      {isAuthorizedAdmin && (
+                                        <div className="pt-1">
+                                          <span className="block text-[10px] font-semibold uppercase tracking-wider text-[#6E6A63] mb-1.5">
+                                            Admin · Update Courier Status
+                                          </span>
+                                          <div className="grid grid-cols-3 gap-1.5">
+                                            {ORDER_TRACKING_STAGES.map((stage) => {
+                                              const active = currentStatus === stage.status;
+                                              return (
+                                                <button
+                                                  key={stage.status}
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleUpdateOrderStatus(order, stage.status)
+                                                  }
+                                                  className={`py-1.5 px-2 text-[10px] font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap truncate ${
+                                                    active
+                                                      ? 'bg-[#0A2246] text-white border-[#0A2246]'
+                                                      : 'bg-white text-[#3F3D39] border-[#DCD5C7] hover:border-[#0A2246]'
+                                                  }`}
+                                                >
+                                                  {stage.label}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
                                         </div>
-                                      </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -6371,19 +6525,29 @@ export default function App() {
                                   ))}
                                 </div>
 
-                                {/* Delivery & 1-Click Reorder Footer */}
-                                <div className="pt-2.5 border-t border-[#ECE8DF] flex items-center justify-between gap-2">
+                                {/* Delivery, WhatsApp Concierge & 1-Click Reorder Footer */}
+                                <div className="pt-2.5 border-t border-[#ECE8DF] flex flex-wrap items-center justify-between gap-2">
                                   <span className="text-[11px] text-[#6E6A63] truncate">
                                     {order.address}
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleReorderPastPurchase(order)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A2246] hover:text-white bg-[#F3EFE8] hover:bg-[#0A2246] rounded border border-[#DCD5C7] hover:border-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                                  >
-                                    <RotateCcw className="w-3 h-3" />
-                                    <span>Reorder to Bag</span>
-                                  </button>
+                                  <div className="flex items-center gap-1.5">
+                                    <a
+                                      href={buildWhatsAppOrderUrl(order)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-[#1D5B43] hover:bg-[#154633] rounded transition-colors whitespace-nowrap shrink-0"
+                                    >
+                                      <span>WhatsApp Atelier</span>
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleReorderPastPurchase(order)}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A2246] hover:text-white bg-[#F3EFE8] hover:bg-[#0A2246] rounded border border-[#DCD5C7] hover:border-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                                    >
+                                      <RotateCcw className="w-3 h-3" />
+                                      <span>Reorder to Bag</span>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -6433,8 +6597,53 @@ export default function App() {
                       <span className="font-medium text-[#171614]">
                         {confirmedOrder.paymentMethod === 'mpesa'
                           ? 'M-Pesa STK Push / Paybill'
+                          : confirmedOrder.paymentMethod === 'whatsapp'
+                          ? 'WhatsApp Order Concierge'
                           : 'Cash on Delivery (KES)'}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Instant WhatsApp Concierge Dispatch Box */}
+                  <div className="p-3.5 rounded-lg border border-[#1D5B43]/40 bg-white space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#1D5B43]">
+                        WhatsApp Order Concierge · Saved to History
+                      </span>
+                      <span className="text-[11px] font-mono-tabular text-[#6E6A63]">
+                        #{confirmedOrder.orderNumber}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#4A4742] leading-relaxed">
+                      Your order is saved in your{' '}
+                      <button
+                        type="button"
+                        onClick={() => setActiveCartTab('history')}
+                        className="font-semibold text-[#0A2246] underline cursor-pointer"
+                      >
+                        Order History
+                      </button>
+                      . Click below to send your itemized KES receipt directly to our Nairobi Atelier on WhatsApp for priority dispatch.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <a
+                        href={buildWhatsAppOrderUrl(confirmedOrder)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3.5 text-xs font-semibold uppercase tracking-wider bg-[#1D5B43] hover:bg-[#154633] text-white rounded transition-colors whitespace-nowrap"
+                      >
+                        <span>Send Order on WhatsApp</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyWhatsAppOrder(confirmedOrder)}
+                        className="py-2.5 px-3 text-xs font-semibold border border-[#DCD5C7] bg-[#FAF8F5] hover:bg-[#EDE8DF] text-[#171614] rounded transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        {copiedWhatsAppOrderNo === confirmedOrder.orderNumber
+                          ? 'Copied Summary!'
+                          : 'Copy Summary'}
+                      </button>
                     </div>
                   </div>
 
@@ -6468,6 +6677,14 @@ export default function App() {
                   </div>
 
                   <div className="pt-4 border-t border-[#E6E1D8] space-y-1.5 text-xs">
+                    {confirmedOrder.promoCode && confirmedOrder.promoDiscountKes && (
+                      <div className="flex justify-between text-[#1D5B43] font-medium">
+                        <span>Promo Voucher ({confirmedOrder.promoCode})</span>
+                        <span className="font-mono-tabular">
+                          -{formatKes(confirmedOrder.promoDiscountKes)}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-[#5C5852]">
                       <span>Subtotal</span>
                       <span className="font-mono-tabular">
@@ -6495,9 +6712,9 @@ export default function App() {
                     Your Writing Bag is Empty
                   </p>
                   <p className="text-xs text-[#6E6A63] mt-1 max-w-xs leading-relaxed">
-                    Explore the Pilot Prera in Empress Teal (KES 8,500), Kakuno Madoromi (KES 3,500),
-                    Kakuno Family (KES 3,000), or all 24 shades of 50ml Iroshizuku bottled inks
-                    (KES 7,500).
+                    Explore the Pilot Prera in Empress Teal (KES 8,500), Kakuno Madoromi (KES 3,200),
+                    Kakuno Family (KES 2,500), or all 24 shades of 50ml Iroshizuku bottled inks
+                    (KES 6,000).
                   </p>
                   <button
                     type="button"
@@ -6653,34 +6870,48 @@ export default function App() {
 
                   <div className="pt-2">
                     <span className="block text-xs font-medium text-[#3F3D39] mb-2">
-                      Settlement Method
+                      Settlement &amp; Order Method
                     </span>
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('mpesa')}
-                        className={`p-3 text-left rounded border text-xs cursor-pointer ${
+                        className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
                           paymentMethod === 'mpesa'
                             ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614]'
                             : 'border-[#E6E1D8] bg-white text-[#5C5852]'
                         }`}
                       >
                         <div>M-Pesa Express</div>
-                        <div className="text-[11px] font-normal text-[#6E6A63] mt-0.5">
+                        <div className="text-[10px] font-normal text-[#6E6A63] mt-0.5">
                           Instant STK / Paybill
                         </div>
                       </button>
                       <button
                         type="button"
+                        onClick={() => setPaymentMethod('whatsapp')}
+                        className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
+                          paymentMethod === 'whatsapp'
+                            ? 'border-[#1D5B43] bg-[#1D5B43]/10 font-semibold text-[#171614]'
+                            : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                        }`}
+                      >
+                        <div>WhatsApp Concierge</div>
+                        <div className="text-[10px] font-normal text-[#6E6A63] mt-0.5">
+                          Itemized KES Chat + Saved History
+                        </div>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setPaymentMethod('cod')}
-                        className={`p-3 text-left rounded border text-xs cursor-pointer ${
+                        className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
                           paymentMethod === 'cod'
                             ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614]'
                             : 'border-[#E6E1D8] bg-white text-[#5C5852]'
                         }`}
                       >
                         <div>Cash on Delivery</div>
-                        <div className="text-[11px] font-normal text-[#6E6A63] mt-0.5">
+                        <div className="text-[10px] font-normal text-[#6E6A63] mt-0.5">
                           Pay upon inspection
                         </div>
                       </button>
@@ -6722,22 +6953,94 @@ export default function App() {
                 </div>
               ) : cart.length > 0 ? (
                 <div className="space-y-4">
+                  {/* Promo Voucher Code Bar */}
+                  <div className="p-3 rounded-lg bg-white border border-[#DCD5C7] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#0A2246]">
+                        Promo Voucher Code
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {promoCodes
+                          .filter((p) => p.active)
+                          .slice(0, 2)
+                          .map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => handleApplyPromoCode(p.code)}
+                              className="px-2 py-0.5 text-[10px] font-mono-tabular font-bold rounded bg-[#F3EFE8] hover:bg-[#0A2246] text-[#0A2246] hover:text-white border border-[#DCD5C7] transition-colors cursor-pointer"
+                              title={p.description}
+                            >
+                              {p.code}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={promoCodeInput}
+                        onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                        placeholder="Enter code (e.g. NAIROBI10)"
+                        className="flex-1 px-2.5 py-1.5 text-xs font-mono-tabular uppercase bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                      />
+                      {appliedPromoCode ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppliedPromoCode(null);
+                            setPromoCodeInput('');
+                            setPromoFeedbackMsg(null);
+                          }}
+                          className="px-3 py-1.5 text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded hover:bg-rose-100 cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleApplyPromoCode()}
+                          className="px-3.5 py-1.5 text-xs font-semibold bg-[#0A2246] text-white rounded hover:bg-[#133468] cursor-pointer"
+                        >
+                          Apply
+                        </button>
+                      )}
+                    </div>
+                    {promoFeedbackMsg && (
+                      <p
+                        className={`text-[11px] font-medium ${
+                          promoFeedbackMsg.type === 'success'
+                            ? 'text-[#1D5B43]'
+                            : 'text-rose-700'
+                        }`}
+                      >
+                        {promoFeedbackMsg.text}
+                      </p>
+                    )}
+                  </div>
+
                   <div className="space-y-1.5 text-xs">
+                    {(inkMixingSetDiscount > 0 || promoDiscountKes > 0) && (
+                      <div className="flex justify-between text-[#5C5852]">
+                        <span>Items Value</span>
+                        <span className="font-mono-tabular line-through text-[#8C857B]">
+                          {formatKes(cartRawSubtotal)}
+                        </span>
+                      </div>
+                    )}
                     {inkMixingSetDiscount > 0 && (
-                      <>
-                        <div className="flex justify-between text-[#5C5852]">
-                          <span>Items Value</span>
-                          <span className="font-mono-tabular line-through text-[#8C857B]">
-                            {formatKes(cartRawSubtotal)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-[#1D5B43] font-medium">
-                          <span>Ink Mixing Set (10% Trio Bundle)</span>
-                          <span className="font-mono-tabular">
-                            -{formatKes(inkMixingSetDiscount)}
-                          </span>
-                        </div>
-                      </>
+                      <div className="flex justify-between text-[#1D5B43] font-medium">
+                        <span>Ink Mixing Set (10% Trio Bundle)</span>
+                        <span className="font-mono-tabular">
+                          -{formatKes(inkMixingSetDiscount)}
+                        </span>
+                      </div>
+                    )}
+                    {appliedPromoCode && promoDiscountKes > 0 && (
+                      <div className="flex justify-between text-[#1D5B43] font-medium">
+                        <span>Promo Voucher ({appliedPromoCode.code})</span>
+                        <span className="font-mono-tabular">-{formatKes(promoDiscountKes)}</span>
+                      </div>
                     )}
                     <div className="flex justify-between text-[#5C5852]">
                       <span>Subtotal</span>
@@ -6777,7 +7080,9 @@ export default function App() {
                         form="kenya-checkout-form"
                         className="flex-1 py-3 px-4 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] hover:bg-[#133468] text-white rounded transition-colors cursor-pointer whitespace-nowrap"
                       >
-                        Confirm Order · {formatKes(orderTotal)}
+                        {paymentMethod === 'whatsapp'
+                          ? `Save & Order via WhatsApp · ${formatKes(orderTotal)}`
+                          : `Confirm Order · ${formatKes(orderTotal)}`}
                       </button>
                     </div>
                   )}
@@ -7063,7 +7368,7 @@ export default function App() {
                     className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold tracking-wider uppercase rounded bg-[#163A5F] hover:bg-[#102B47] text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add 50ml Bottle · KES 7,500</span>
+                    <span>Add 50ml Bottle · KES 6,000</span>
                   </button>
                 </div>
               )}

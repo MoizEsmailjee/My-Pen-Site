@@ -165,7 +165,7 @@ export function WritingSetBuilderIsland({
             Assemble a ready-to-write bottled ink kit in three steps: select your Pilot
             fountain pen and nib width, pair the <strong>Pilot CON-40 Twist Converter (KES 1,200)</strong>,
             and choose a 50ml bottle of <strong>Waterman Paris (KES 2,000)</strong> or{' '}
-            <strong>Pilot Iroshizuku (KES 7,500)</strong>.
+            <strong>Pilot Iroshizuku (KES 6,000)</strong>.
           </p>
         </div>
         <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
@@ -210,12 +210,12 @@ export function WritingSetBuilderIsland({
                     {
                       id: 'pilot-kakuno-madoromi',
                       label: 'Madoromi',
-                      price: 'KES 3,500',
+                      price: 'KES 3,200',
                     },
                     {
                       id: 'pilot-kakuno-family',
                       label: 'Family',
-                      price: 'KES 3,000',
+                      price: 'KES 2,500',
                     },
                   ] as const
                 ).map((s) => {
@@ -404,7 +404,7 @@ export function WritingSetBuilderIsland({
                     Pilot Iroshizuku (50ml)
                   </div>
                   <div className="font-mono-tabular text-[11px] text-[#163A5F]">
-                    KES 7,500 · All 24 Shades
+                    KES 6,000 · All 24 Shades
                   </div>
                 </button>
               </div>

@@ -156,12 +156,12 @@ export function InkMixingSetBuilderIsland({
     [selectedShades]
   );
 
-  // Pricing math: 3 × KES 7,500 = KES 22,500 standard retail.
-  // 10% Bundle Privilege rounds to the special bundle price of KES 20,000 (saving KES 2,500).
-  const singleBottlePriceKes = iroshizukuProduct.priceKes; // 7500
-  const standardTrioPriceKes = singleBottlePriceKes * 3; // 22500
-  const bundlePriceKes = 20000;
-  const savingsKes = standardTrioPriceKes - bundlePriceKes; // 2500
+  // Pricing math: 3 × KES 6,000 = KES 18,000 standard retail.
+  // 10% Bundle Privilege yields KES 16,200 (saving KES 1,800).
+  const singleBottlePriceKes = iroshizukuProduct.priceKes; // 6000
+  const standardTrioPriceKes = singleBottlePriceKes * 3; // 18000
+  const bundlePriceKes = Math.round(standardTrioPriceKes * 0.9); // 16200
+  const savingsKes = standardTrioPriceKes - bundlePriceKes; // 1800
 
   const handleSelectShadeForActiveSlot = (shadeId: string) => {
     const existingIdx = selectedShadeIds.indexOf(shadeId);
@@ -240,9 +240,9 @@ export function InkMixingSetBuilderIsland({
             Curate three distinct 50ml Pilot Iroshizuku fountain pen ink shades for custom
             color blending, seasonal journaling, or multi-pen rotation. Enjoy our{' '}
             <strong>10% Atelier Trio Privilege</strong> at a special bundle price of{' '}
-            <strong className="text-[#0A2246]">KES 20,000</strong> (standard value{' '}
-            <span className="line-through text-[#8C857B]">KES 22,500</span> · save{' '}
-            <strong className="text-[#1D5B43]">KES 2,500</strong>).
+            <strong className="text-[#0A2246]">{formatKes(bundlePriceKes)}</strong> (standard value{' '}
+            <span className="line-through text-[#8C857B]">{formatKes(standardTrioPriceKes)}</span> · save{' '}
+            <strong className="text-[#1D5B43]">{formatKes(savingsKes)}</strong>).
           </p>
         </div>
 
@@ -375,7 +375,7 @@ export function InkMixingSetBuilderIsland({
                     {/* Individual vs Bundle Price Line */}
                     <div className="pt-3 mt-3 border-t border-[#ECE8DF] flex items-center justify-between text-xs">
                       <span className="text-[#8C857B] line-through font-mono-tabular">
-                        KES 7,500
+                        {formatKes(singleBottlePriceKes)}
                       </span>
                       <span className="font-mono-tabular font-semibold text-[#1D5B43]">
                         Included in Set
@@ -525,12 +525,12 @@ export function InkMixingSetBuilderIsland({
                 {setAddedFeedback ? (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>3-Bottle Ink Mixing Set Added · KES 20,000</span>
+                    <span>3-Bottle Ink Mixing Set Added · {formatKes(bundlePriceKes)}</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 text-[#E5B25D]" />
-                    <span>Add Ink Mixing Set (3 × 50ml) · KES 20,000</span>
+                    <span>Add Ink Mixing Set (3 × 50ml) · {formatKes(bundlePriceKes)}</span>
                   </>
                 )}
               </button>
