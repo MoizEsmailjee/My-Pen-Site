@@ -1,8 +1,16 @@
 import {createRoot} from 'react-dom/client';
+import {BrowserRouter} from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
+import {StorefrontProvider} from './store/StorefrontContext';
 import {installGlobalAssetInterceptor} from './utils/assetResolver';
 
 installGlobalAssetInterceptor();
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <BrowserRouter>
+    <StorefrontProvider>
+      <App />
+    </StorefrontProvider>
+  </BrowserRouter>
+);
