@@ -149,47 +149,47 @@ export function WritingSetBuilderIsland({
   };
 
   return (
-    <div id="writing-set-builder" className="mt-20 pt-16 border-t border-[#DCD5C7]">
+    <div id="writing-set-builder" className="mt-14 pt-12 border-t border-line">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
         <div>
-          <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
+          <p className="text-xs font-medium tracking-[0.16em] uppercase text-ink-soft mb-2">
             Bespoke Desk Curation · Fountain Pen + Twist Converter + 50ml Bottled Ink
           </p>
           <h3
-            className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
+            className="font-serif-display text-2xl lg:text-4xl font-semibold text-ink tracking-tight"
             style={{ textWrap: 'balance' }}
           >
             Build Your Complete Fountain Pen Writing Set
           </h3>
-          <p className="text-sm text-[#4A4742] mt-2 max-w-2xl">
+          <p className="text-sm text-ink-soft mt-2 max-w-2xl">
             Assemble a ready-to-write bottled ink kit in three steps: select your Pilot
             fountain pen and nib width, pair the <strong>Pilot CON-40 Twist Converter (KES 1,200)</strong>,
             and choose a 50ml bottle of <strong>Waterman Paris (KES 2,000)</strong> or{' '}
             <strong>Pilot Iroshizuku (KES 6,000)</strong>.
           </p>
         </div>
-        <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+        <span className="font-mono-tabular text-xs text-ink font-medium">
           {bundleTotalKes >= 6000
             ? 'Qualifies for Complimentary Nationwide Kenya Courier'
             : 'Complimentary Same-Day Nairobi Courier'}
         </span>
       </div>
 
-      <div className="bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden">
+      <div className="bg-paper border border-line rounded-lg overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
           {/* Step 01: Fountain Pen & Nib */}
-          <div className="lg:col-span-4 p-6 border-b lg:border-b-0 lg:border-r border-[#E6E1D8] flex flex-col justify-between bg-white">
+          <div className="lg:col-span-4 p-6 border-b lg:border-b-0 lg:border-r border-line flex flex-col justify-between bg-white">
             <div>
-              <div className="flex items-center justify-between text-xs text-[#6E6A63] mb-3">
-                <span className="font-semibold uppercase tracking-wider text-[#171614]">
+              <div className="flex items-center justify-between text-xs text-ink-soft mb-3">
+                <span className="font-semibold uppercase tracking-wider text-ink">
                   01 · Fountain Pen &amp; Nib
                 </span>
-                <span className="font-mono-tabular font-semibold text-[#171614]">
+                <span className="font-mono-tabular font-semibold text-ink">
                   {formatKes(activePenProduct.priceKes)}
                 </span>
               </div>
 
-              <div className="aspect-[4/3] w-full bg-[#FAF8F5] rounded border border-[#ECE8DF] p-4 flex items-center justify-center mb-4">
+              <div className="aspect-[4/3] w-full bg-paper rounded border border-line p-4 flex items-center justify-center mb-4">
                 <img
                   loading="lazy"
                   decoding="async"
@@ -229,12 +229,12 @@ export function WritingSetBuilderIsland({
                       onClick={() => handleSelectSeries(s.id)}
                       className={`p-2 rounded border text-left transition-colors cursor-pointer ${
                         active
-                          ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614]'
-                          : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#5C5852] hover:border-[#BDB6AA]'
+                          ? 'border-ink bg-ink/8 text-ink'
+                          : 'border-line bg-paper text-ink-soft hover:border-faint'
                       }`}
                     >
                       <div className="text-xs font-semibold truncate">{s.label}</div>
-                      <div className="font-mono-tabular text-[10px] text-[#6E6A63]">
+                      <div className="font-mono-tabular text-xs text-ink-soft">
                         {s.price}
                       </div>
                     </button>
@@ -253,8 +253,8 @@ export function WritingSetBuilderIsland({
                       onClick={() => setSelectedPenVariantId(v.id)}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap ${
                         active
-                          ? 'border-[#163A5F] bg-[#163A5F] text-white font-medium'
-                          : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614]'
+                          ? 'border-ink bg-ink text-white font-medium'
+                          : 'border-line bg-paper text-ink-soft hover:border-ink'
                       }`}
                     >
                       {v.swatchHex && (
@@ -271,8 +271,8 @@ export function WritingSetBuilderIsland({
             </div>
 
             {/* Fine vs Medium Nib Selector */}
-            <div className="pt-3 border-t border-[#ECE8DF] flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-[#5C5852]">Nib Grade:</span>
+            <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-ink-soft">Nib Grade:</span>
               <div className="inline-flex items-center gap-1.5">
                 {(['Fine', 'Medium'] as const).map((nib) => {
                   const active = selectedNib === nib;
@@ -283,8 +283,8 @@ export function WritingSetBuilderIsland({
                       onClick={() => setSelectedNib(nib)}
                       className={`px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap ${
                         active
-                          ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
-                          : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614]'
+                          ? 'border-ink bg-ink text-white font-semibold'
+                          : 'border-line bg-paper text-ink-soft hover:border-ink'
                       }`}
                     >
                       {nib} ({nib === 'Fine' ? '0.35mm' : '0.50mm'})
@@ -296,13 +296,13 @@ export function WritingSetBuilderIsland({
           </div>
 
           {/* Step 02: Pilot CON-40 Twist Converter */}
-          <div className="lg:col-span-3 p-6 border-b lg:border-b-0 lg:border-r border-[#E6E1D8] flex flex-col justify-between bg-white">
+          <div className="lg:col-span-3 p-6 border-b lg:border-b-0 lg:border-r border-line flex flex-col justify-between bg-white">
             <div>
-              <div className="flex items-center justify-between text-xs text-[#6E6A63] mb-3">
-                <span className="font-semibold uppercase tracking-wider text-[#171614]">
+              <div className="flex items-center justify-between text-xs text-ink-soft mb-3">
+                <span className="font-semibold uppercase tracking-wider text-ink">
                   02 · Twist Converter
                 </span>
-                <span className="font-mono-tabular font-semibold text-[#171614]">
+                <span className="font-mono-tabular font-semibold text-ink">
                   {preraIncludesCon40
                     ? 'Included in Box'
                     : includeCon40
@@ -311,7 +311,7 @@ export function WritingSetBuilderIsland({
                 </span>
               </div>
 
-              <div className="aspect-[4/3] w-full bg-[#FAF8F5] rounded border border-[#ECE8DF] p-4 flex items-center justify-center mb-4">
+              <div className="aspect-[4/3] w-full bg-paper rounded border border-line p-4 flex items-center justify-center mb-4">
                 <img
                   loading="lazy"
                   decoding="async"
@@ -324,18 +324,18 @@ export function WritingSetBuilderIsland({
                 />
               </div>
 
-              <h4 className="text-sm font-semibold text-[#171614]">
+              <h4 className="text-sm font-semibold text-ink">
                 Pilot CON-40 Fountain Pen Twist Converter
               </h4>
-              <p className="text-xs text-[#5C5852] mt-1.5 leading-relaxed">
+              <p className="text-xs text-ink-soft mt-1.5 leading-relaxed">
                 Genuine Pilot screw-piston reservoir with 4 stainless-steel agitator beads.
                 Allows any Kakuno or Prera to draw bottled ink directly from the flacon.
               </p>
             </div>
 
-            <div className="pt-3 mt-4 border-t border-[#ECE8DF]">
+            <div className="pt-3 mt-4 border-t border-line">
               {preraIncludesCon40 ? (
-                <div className="w-full py-2 px-3 text-xs font-semibold rounded border border-[#1D5B43]/30 bg-[#1D5B43]/10 text-[#1D5B43] flex items-center justify-center gap-2">
+                <div className="w-full py-2 px-3 text-xs font-semibold rounded border border-ok/30 bg-ok/10 text-ok flex items-center justify-center gap-2">
                   <Check className="w-3.5 h-3.5" />
                   <span>Included Free with Prera</span>
                 </div>
@@ -345,8 +345,8 @@ export function WritingSetBuilderIsland({
                   onClick={() => setIncludeCon40((prev) => !prev)}
                   className={`w-full py-2 px-3 text-xs font-semibold rounded border flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
                     includeCon40
-                      ? 'border-[#163A5F] bg-[#163A5F]/10 text-[#163A5F]'
-                      : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614]'
+                      ? 'border-ink bg-ink/10 text-ink'
+                      : 'border-line bg-paper text-ink-soft hover:border-ink'
                   }`}
                 >
                   {includeCon40 ? (
@@ -368,11 +368,11 @@ export function WritingSetBuilderIsland({
           {/* Step 03: 50ml Bottled Ink (Waterman KES 2,000 or Iroshizuku KES 7,500) */}
           <div className="lg:col-span-5 p-6 flex flex-col justify-between bg-white">
             <div>
-              <div className="flex items-center justify-between text-xs text-[#6E6A63] mb-3">
-                <span className="font-semibold uppercase tracking-wider text-[#171614]">
+              <div className="flex items-center justify-between text-xs text-ink-soft mb-3">
+                <span className="font-semibold uppercase tracking-wider text-ink">
                   03 · 50ml Bottled Ink
                 </span>
-                <span className="font-mono-tabular font-semibold text-[#171614]">
+                <span className="font-mono-tabular font-semibold text-ink">
                   {formatKes(activeInkProduct.priceKes)}
                 </span>
               </div>
@@ -384,14 +384,14 @@ export function WritingSetBuilderIsland({
                   onClick={() => setInkLine('waterman')}
                   className={`p-2.5 rounded border text-left transition-colors cursor-pointer ${
                     inkLine === 'waterman'
-                      ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614]'
-                      : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#5C5852]'
+                      ? 'border-ink bg-ink/8 text-ink'
+                      : 'border-line bg-paper text-ink-soft'
                   }`}
                 >
-                  <div className="text-xs font-semibold text-[#171614]">
+                  <div className="text-xs font-semibold text-ink">
                     Waterman Paris (50ml)
                   </div>
-                  <div className="font-mono-tabular text-[11px] text-[#163A5F]">
+                  <div className="font-mono-tabular text-xs text-ink">
                     KES 2,000 · 3 Classic Shades
                   </div>
                 </button>
@@ -400,21 +400,21 @@ export function WritingSetBuilderIsland({
                   onClick={() => setInkLine('iroshizuku')}
                   className={`p-2.5 rounded border text-left transition-colors cursor-pointer ${
                     inkLine === 'iroshizuku'
-                      ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614]'
-                      : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#5C5852]'
+                      ? 'border-ink bg-ink/8 text-ink'
+                      : 'border-line bg-paper text-ink-soft'
                   }`}
                 >
-                  <div className="text-xs font-semibold text-[#171614]">
+                  <div className="text-xs font-semibold text-ink">
                     Pilot Iroshizuku (50ml)
                   </div>
-                  <div className="font-mono-tabular text-[11px] text-[#163A5F]">
+                  <div className="font-mono-tabular text-xs text-ink">
                     KES 6,000 · All 24 Shades
                   </div>
                 </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                <div className="sm:col-span-5 aspect-square bg-[#FAF8F5] rounded border border-[#ECE8DF] p-3 flex items-center justify-center">
+                <div className="sm:col-span-5 aspect-square bg-paper rounded border border-line p-3 flex items-center justify-center">
                   <img
                     loading="lazy"
                     decoding="async"
@@ -426,10 +426,10 @@ export function WritingSetBuilderIsland({
                 </div>
 
                 <div className="sm:col-span-7">
-                  <p className="text-xs font-semibold text-[#171614]">
+                  <p className="text-xs font-semibold text-ink">
                     {activeInkVariant.label}
                   </p>
-                  <p className="text-[11px] text-[#6E6A63] mt-0.5 leading-snug">
+                  <p className="text-xs text-ink-soft mt-0.5 leading-snug">
                     {activeInkVariant.sublabel}
                   </p>
 
@@ -444,8 +444,8 @@ export function WritingSetBuilderIsland({
                             onClick={() => setSelectedWatermanVariantId(v.id)}
                             className={`px-2.5 py-1.5 rounded border text-xs flex items-center gap-2 transition-colors cursor-pointer ${
                               active
-                                ? 'border-[#163A5F] bg-[#163A5F] text-white font-medium'
-                                : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614]'
+                                ? 'border-ink bg-ink text-white font-medium'
+                                : 'border-line bg-paper text-ink-soft hover:border-ink'
                             }`}
                           >
                             <span
@@ -458,7 +458,7 @@ export function WritingSetBuilderIsland({
                       })}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-6 gap-1.5 mt-3 max-h-[108px] overflow-y-auto p-1 bg-[#FAF8F5] rounded border border-[#ECE8DF]">
+                    <div className="grid grid-cols-6 gap-1.5 mt-3 max-h-[108px] overflow-y-auto p-1 bg-paper rounded border border-line">
                       {INK_STUDIO_SHADES.map((shade) => {
                         const active = shade.id === selectedIroshizukuVariantId;
                         return (
@@ -468,7 +468,7 @@ export function WritingSetBuilderIsland({
                             onClick={() => setSelectedIroshizukuVariantId(shade.id)}
                             title={`${shade.name} (${shade.meaning})`}
                             className={`p-1 rounded flex flex-col items-center cursor-pointer ${
-                              active ? 'bg-white ring-1 ring-[#163A5F]' : 'hover:bg-white'
+                              active ? 'bg-white ring-1 ring-ink' : 'hover:bg-white'
                             }`}
                           >
                             <span
@@ -485,14 +485,14 @@ export function WritingSetBuilderIsland({
             </div>
 
             {/* Bundle Summary & 1-Click Add Bar */}
-            <div className="pt-4 mt-4 border-t border-[#ECE8DF] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="pt-4 mt-4 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <span className="text-[11px] text-[#6E6A63] block">
+                <span className="text-xs text-ink-soft block">
                   {activePenVariant.label.split(' · ')[0]} ({selectedNib})
                   {includeCon40 ? ' + CON-40' : ''} +{' '}
                   {activeInkVariant.label.split(' · ')[0]}
                 </span>
-                <span className="font-mono-tabular text-lg font-semibold text-[#171614]">
+                <span className="font-mono-tabular text-lg font-semibold text-ink">
                   {formatKes(bundleTotalKes)}
                 </span>
               </div>
@@ -502,8 +502,8 @@ export function WritingSetBuilderIsland({
                 onClick={handleAddCompleteSet}
                 className={`inline-flex items-center justify-center gap-2 px-5 py-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   bundleAdded
-                    ? 'bg-[#1D5B43] text-white'
-                    : 'bg-[#163A5F] hover:bg-[#102B47] text-white'
+                    ? 'bg-ok text-white'
+                    : 'bg-ink hover:bg-ink text-white'
                 }`}
               >
                 {bundleAdded ? (

@@ -40,8 +40,8 @@ export function VariantStockIndicator({
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-[#6E6A63] font-normal">
-      <span className="w-1.5 h-1.5 rounded-full bg-[#9E988E] shrink-0" />
+    <span className="inline-flex items-center gap-1.5 text-ink-soft font-normal">
+      <span className="w-1.5 h-1.5 rounded-full bg-faint shrink-0" />
       <span>
         {availabilityLabel && !compact
           ? `${availabilityLabel} (${count} in stock)`
@@ -81,13 +81,13 @@ export function ResilientImage({
   if (failed || !resolvedSrc) {
     return (
       <div
-        className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#F2EFE9] to-[#E5DFD3] text-[#3F3D39] p-6 text-center ${className}`}
+        className={`flex flex-col items-center justify-center bg-gradient-to-br from-wash to-line text-ink-soft p-6 text-center ${className}`}
       >
-        <Feather className="w-8 h-8 mb-2 stroke-[1.25] text-[#163A5F]" />
+        <Feather className="w-8 h-8 mb-2 stroke-[1.25] text-ink" />
         <span className="font-serif-display text-lg font-medium tracking-wide">
           {fallbackTitle}
         </span>
-        <span className="text-xs text-[#6E6A63] mt-1">Pilot Corporation · Japan</span>
+        <span className="text-xs text-ink-soft mt-1">Pilot Corporation · Japan</span>
       </div>
     );
   }

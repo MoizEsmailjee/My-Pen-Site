@@ -1,12 +1,27 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --font-display: 'Cormorant Garamond', Georgia, serif;
-    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-  }
+/*
+ * Design tokens. A paper-neutral page with one ink navy for text and actions;
+ * the product photos and the ink shades supply the rest of the colour.
+ */
+@theme {
+  --color-paper: #fafaf7;
+  --color-sheet: #ffffff;
+  --color-wash: #f0f0ea;
+  --color-line: #dcddd5;
+  --color-ink: #12233d;
+  --color-ink-hover: #1f3557;
+  --color-ink-soft: #4e5a6b;
+  --color-faint: #8a929e;
+  --color-brand: #c26a12;
+  --color-ok: #1f6b4a;
+  --color-low: #a4550b;
 
+  --font-display: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+  --font-sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
   html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
@@ -15,21 +30,62 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #FAF8F5;
-    color: #171614;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
   }
 
   ::selection {
-    background-color: #163A5F;
-    color: #FAF8F5;
+    background-color: var(--color-ink);
+    color: var(--color-paper);
   }
 
-  h1, h2, h3, .font-serif-display {
+  h1,
+  h2,
+  .font-serif-display {
     font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
   }
 
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  /* Prices and codes: same face as body text, with digits that line up. */
   .font-mono-tabular {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .page {
+    @apply mx-auto w-full max-w-[1180px] px-4 sm:px-6;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-ink bg-ink px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-ink bg-transparent px-5 py-3 text-sm font-semibold text-ink transition-colors hover:bg-wash;
+  }
+
+  .link {
+    @apply font-semibold underline underline-offset-4 hover:no-underline;
   }
 }

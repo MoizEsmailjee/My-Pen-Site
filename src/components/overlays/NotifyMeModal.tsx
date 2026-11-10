@@ -28,9 +28,9 @@ export function NotifyMeModal() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md bg-[#FAF8F5] border border-[#DCD5C7] rounded-2xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-md bg-paper border border-line rounded-2xl shadow-2xl overflow-hidden"
           >
-            <div className="bg-[#0A2246] text-white px-6 py-4 flex items-center justify-between border-b border-white/15">
+            <div className="bg-ink text-white px-6 py-4 flex items-center justify-between border-b border-white/15">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300">
                   <Bell className="w-4 h-4" />
@@ -39,7 +39,7 @@ export function NotifyMeModal() {
                   <h3 className="font-serif-display text-lg font-semibold">
                     Notify Me When Back in Stock
                   </h3>
-                  <p className="text-[11px] text-white/75">
+                  <p className="text-xs text-white/75">
                     Nairobi Atelier Priority Restock Alert
                   </p>
                 </div>
@@ -54,7 +54,7 @@ export function NotifyMeModal() {
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-white border border-[#E6E1D8]">
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-white border border-line">
                 <img
                   loading="lazy"
                   decoding="async"
@@ -64,17 +64,17 @@ export function NotifyMeModal() {
                   )}
                   alt={notifyModalTarget.variant.label}
                   referrerPolicy="no-referrer"
-                  className="w-14 h-14 object-contain rounded-lg bg-[#FAF8F5] border border-[#E6E1D8] p-1 shrink-0"
+                  className="w-14 h-14 object-contain rounded-lg bg-paper border border-line p-1 shrink-0"
                 />
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-[#0A2246] truncate">
+                  <p className="text-xs font-bold text-ink truncate">
                     {notifyModalTarget.product.name}
                   </p>
-                  <p className="text-xs text-[#5C5852] font-medium mt-0.5">
+                  <p className="text-xs text-ink-soft font-medium mt-0.5">
                     {notifyModalTarget.variant.label.split(' · ')[0]}
                     {notifyModalTarget.nibSize ? ` · ${notifyModalTarget.nibSize} Nib` : ''}
                   </p>
-                  <span className="inline-block mt-1 text-[11px] font-mono-tabular font-semibold text-rose-700">
+                  <span className="inline-block mt-1 text-xs font-mono-tabular font-semibold text-rose-700">
                     Currently Out of Stock · {formatKes(notifyModalTarget.product.priceKes)}
                   </span>
                 </div>
@@ -92,7 +92,7 @@ export function NotifyMeModal() {
                   <button
                     type="button"
                     onClick={() => setNotifyModalTarget(null)}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                    className="w-full py-2.5 px-4 rounded-xl bg-ink hover:bg-ink-hover text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
                   >
                     Continue Exploring Collection
                   </button>
@@ -100,7 +100,7 @@ export function NotifyMeModal() {
               ) : (
                 <form onSubmit={handleSubmitRestockAlert} className="space-y-3.5">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
                       Your Name (Optional)
                     </label>
                     <input
@@ -108,12 +108,12 @@ export function NotifyMeModal() {
                       value={notifyNameInput}
                       onChange={(e) => setNotifyNameInput(e.target.value)}
                       placeholder="e.g. Wanjiku Mwangi"
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-line text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
                       Email or Kenyan WhatsApp / Phone Number *
                     </label>
                     <input
@@ -122,7 +122,7 @@ export function NotifyMeModal() {
                       value={notifyContactInput}
                       onChange={(e) => setNotifyContactInput(e.target.value)}
                       placeholder="e.g. +254 712 345 678 or collector@email.com"
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-line text-sm"
                     />
                   </div>
 
@@ -134,9 +134,9 @@ export function NotifyMeModal() {
                     <button
                       type="submit"
                       disabled={submittingNotify}
-                      className="flex-1 py-3 px-4 rounded-xl bg-[#0A2246] hover:bg-[#133468] disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 py-3 px-4 rounded-xl bg-ink hover:bg-ink-hover disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors flex items-center justify-center gap-2"
                     >
-                      <Bell className="w-4 h-4 text-[#E5B25D]" />
+                      <Bell className="w-4 h-4 text-brand" />
                       <span>
                         {submittingNotify ? 'Saving Alert...' : 'Notify Me on Restock'}
                       </span>
@@ -144,7 +144,7 @@ export function NotifyMeModal() {
                     <button
                       type="button"
                       onClick={() => setNotifyModalTarget(null)}
-                      className="py-3 px-4 rounded-xl border border-[#DCD5C7] bg-white hover:bg-[#F3EFE8] text-[#5C5852] text-xs font-semibold cursor-pointer transition-colors"
+                      className="py-3 px-4 rounded-xl border border-line bg-white hover:bg-wash text-ink-soft text-xs font-semibold cursor-pointer transition-colors"
                     >
                       Cancel
                     </button>

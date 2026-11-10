@@ -222,27 +222,27 @@ export function InkMixingSetBuilderIsland({
   return (
     <div
       id="ink-mixing-set-builder"
-      className="mt-16 pt-14 border-t border-[#DCD5C7]"
+      className="pt-10"
     >
       {/* Section Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
         <div>
-          <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#B58435] mb-2">
+          <p className="text-xs font-medium tracking-[0.16em] uppercase text-brand mb-2">
             Bespoke Chromatic Trio · 3 × 50ml Pilot Iroshizuku Glass Flacons (150ml Total)
           </p>
           <h3
-            className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#0A2246] tracking-tight"
+            className="font-serif-display text-2xl lg:text-4xl font-semibold text-ink tracking-tight"
             style={{ textWrap: 'balance' }}
           >
             Iroshizuku Ink Mixing Set Builder
           </h3>
-          <p className="text-sm text-[#4A4742] mt-2 max-w-2xl leading-relaxed">
+          <p className="text-sm text-ink-soft mt-2 max-w-2xl leading-relaxed">
             Curate three distinct 50ml Pilot Iroshizuku fountain pen ink shades for custom
             color blending, seasonal journaling, or multi-pen rotation. Enjoy our{' '}
             <strong>10% Atelier Trio Privilege</strong> at a special bundle price of{' '}
-            <strong className="text-[#0A2246]">{formatKes(bundlePriceKes)}</strong> (standard value{' '}
-            <span className="line-through text-[#8C857B]">{formatKes(standardTrioPriceKes)}</span> · save{' '}
-            <strong className="text-[#1D5B43]">{formatKes(savingsKes)}</strong>).
+            <strong className="text-ink">{formatKes(bundlePriceKes)}</strong> (standard value{' '}
+            <span className="line-through text-faint">{formatKes(standardTrioPriceKes)}</span> · save{' '}
+            <strong className="text-ok">{formatKes(savingsKes)}</strong>).
           </p>
         </div>
 
@@ -260,8 +260,8 @@ export function InkMixingSetBuilderIsland({
                 onClick={() => handleApplyPreset(preset.shades)}
                 className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors cursor-pointer whitespace-nowrap ${
                   isCurrentPreset
-                    ? 'bg-[#0A2246] text-white border-[#0A2246]'
-                    : 'bg-white text-[#3F3D39] border-[#DCD5C7] hover:border-[#0A2246]'
+                    ? 'bg-ink text-white border-ink'
+                    : 'bg-white text-ink-soft border-line hover:border-ink'
                 }`}
               >
                 {preset.label}
@@ -271,7 +271,7 @@ export function InkMixingSetBuilderIsland({
           <button
             type="button"
             onClick={handleRandomizeDistinctTrio}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A2246] bg-[#EDE8DF] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-ink bg-wash hover:bg-ink hover:text-white rounded border border-line transition-colors cursor-pointer whitespace-nowrap"
           >
             <Shuffle className="w-3.5 h-3.5" />
             <span>Surprise Trio</span>
@@ -280,14 +280,14 @@ export function InkMixingSetBuilderIsland({
       </div>
 
       {/* Main Builder Workbench */}
-      <div className="bg-white border border-[#DCD5C7] rounded-lg overflow-hidden shadow-2xs">
+      <div className="bg-white border border-line rounded-lg overflow-hidden shadow-2xs">
         {/* Top Row: 3 Selected 50ml Flacon Slots + Live Chromatic Blend Preview */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 border-b border-[#E6E1D8]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 border-b border-line">
           {/* 3 Distinct Ink Flacon Cards (Cols 1-8) */}
-          <div className="lg:col-span-8 p-6 border-b lg:border-b-0 lg:border-r border-[#E6E1D8] bg-[#FAF8F5]">
+          <div className="lg:col-span-8 p-6 border-b lg:border-b-0 lg:border-r border-line bg-paper">
             <div className="flex items-center justify-between gap-4 mb-4">
-              <div className="text-xs text-[#524E48]">
-                <span className="font-semibold text-[#0A2246]">
+              <div className="text-xs text-ink-soft">
+                <span className="font-semibold text-ink">
                   Step 1: Select Any Slot Below
                 </span>{' '}
                 · Click Flacon 01, 02, or 03 to customize its shade from all 24 Iroshizuku
@@ -296,9 +296,9 @@ export function InkMixingSetBuilderIsland({
               <button
                 type="button"
                 onClick={() => setShowSwatchPreview((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#0A2246] bg-white hover:bg-[#EDE8DF] rounded border border-[#DCD5C7] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-ink bg-white hover:bg-wash rounded border border-line transition-colors cursor-pointer whitespace-nowrap shrink-0"
               >
-                <Eye className="w-3.5 h-3.5 text-[#C88A2E]" />
+                <Eye className="w-3.5 h-3.5 text-brand" />
                 <span>{showSwatchPreview ? 'Show 50ml Bottles' : 'Show Ink Swatches'}</span>
               </button>
             </div>
@@ -321,8 +321,8 @@ export function InkMixingSetBuilderIsland({
                     }}
                     className={`rounded-lg border p-4 bg-white transition-all cursor-pointer flex flex-col justify-between ${
                       isSlotActive
-                        ? 'border-[#0A2246] ring-2 ring-[#0A2246]/15 shadow-sm'
-                        : 'border-[#E6E1D8] hover:border-[#BDB6AA]'
+                        ? 'border-ink ring-2 ring-ink/15 shadow-sm'
+                        : 'border-line hover:border-faint'
                     }`}
                   >
                     <div>
@@ -330,18 +330,18 @@ export function InkMixingSetBuilderIsland({
                       <div className="flex items-center justify-between text-xs mb-2.5">
                         <span
                           className={`font-mono-tabular font-semibold uppercase tracking-wider ${
-                            isSlotActive ? 'text-[#0A2246]' : 'text-[#6E6A63]'
+                            isSlotActive ? 'text-ink' : 'text-ink-soft'
                           }`}
                         >
                           Flacon 0{slotIndex + 1}
                         </span>
-                        <span className="text-[11px] font-medium text-[#6E6A63]">
+                        <span className="text-xs font-medium text-ink-soft">
                           {isSlotActive ? 'Editing Slot' : 'Click to Change'}
                         </span>
                       </div>
 
                       {/* Bottle / Swatch Image */}
-                      <div className="relative aspect-square w-full bg-white rounded border border-[#ECE8DF] p-3 flex items-center justify-center mb-3 overflow-hidden">
+                      <div className="relative aspect-square w-full bg-white rounded border border-line p-3 flex items-center justify-center mb-3 overflow-hidden">
                         <img
                           loading="lazy"
                           decoding="async"
@@ -361,25 +361,25 @@ export function InkMixingSetBuilderIsland({
 
                       {/* Shade Title & Meaning */}
                       <div className="flex items-baseline justify-between gap-2">
-                        <h4 className="font-serif-display text-lg font-semibold text-[#171614]">
+                        <h4 className="font-serif-display text-lg font-semibold text-ink">
                           {shade.name}
                         </h4>
-                        <span className="text-xs text-[#8C857B]">{shade.kanji}</span>
+                        <span className="text-xs text-faint">{shade.kanji}</span>
                       </div>
-                      <p className="text-xs font-medium text-[#0A2246] mt-0.5">
+                      <p className="text-xs font-medium text-ink mt-0.5">
                         {shade.meaning}
                       </p>
-                      <p className="text-[11px] text-[#6E6A63] mt-1 line-clamp-2 leading-snug">
+                      <p className="text-xs text-ink-soft mt-1 line-clamp-2 leading-snug">
                         {shade.sheenNote}
                       </p>
                     </div>
 
                     {/* Individual vs Bundle Price Line */}
-                    <div className="pt-3 mt-3 border-t border-[#ECE8DF] flex items-center justify-between text-xs">
-                      <span className="text-[#8C857B] line-through font-mono-tabular">
+                    <div className="pt-3 mt-3 border-t border-line flex items-center justify-between text-xs">
+                      <span className="text-faint line-through font-mono-tabular">
                         {formatKes(singleBottlePriceKes)}
                       </span>
-                      <span className="font-mono-tabular font-semibold text-[#1D5B43]">
+                      <span className="font-mono-tabular font-semibold text-ok">
                         Included in Set
                       </span>
                     </div>
@@ -393,78 +393,78 @@ export function InkMixingSetBuilderIsland({
           <div className="lg:col-span-4 p-6 flex flex-col justify-between bg-white">
             <div className="space-y-4">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#B58435] block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-brand block">
                   Chromatic Alchemy Preview
                 </span>
-                <h4 className="font-serif-display text-xl font-semibold text-[#0A2246] mt-0.5">
+                <h4 className="font-serif-display text-xl font-semibold text-ink mt-0.5">
                   Your 3-Shade Palette &amp; Blends
                 </h4>
-                <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
+                <p className="text-xs text-ink-soft mt-1 leading-relaxed">
                   All Pilot Iroshizuku water-based dye inks are pH-balanced and safe to mix in
                   sample vials or Pilot CON-40 converters to create bespoke signature hues.
                 </p>
               </div>
 
               {/* 3 Pure Shades + 4 Mixed Ratio Swatches */}
-              <div className="p-3.5 rounded-lg bg-[#FAF8F5] border border-[#E6E1D8] space-y-3">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-[#524E48]">
+              <div className="p-3.5 rounded-lg bg-paper border border-line space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
                   Pure Flacon Shades (3 × 50ml)
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {selectedShades.map((shade, i) => (
                     <div
                       key={`pure-${shade.id}`}
-                      className="p-2 rounded bg-white border border-[#E6E1D8] text-center"
+                      className="p-2 rounded bg-white border border-line text-center"
                     >
                       <div
                         className="w-full h-6 rounded-xs mb-1.5 border border-black/10"
                         style={{ backgroundColor: shade.hex }}
                       />
-                      <div className="text-[11px] font-semibold text-[#171614] truncate">
+                      <div className="text-xs font-semibold text-ink truncate">
                         0{i + 1}. {shade.name}
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="pt-2 border-t border-[#E6E1D8]">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-[#524E48] mb-2">
+                <div className="pt-2 border-t border-line">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-2">
                     1:1 Pairwise &amp; Trio Custom Blends
                   </div>
                   <div className="grid grid-cols-4 gap-1.5 text-center">
-                    <div className="p-1.5 rounded bg-white border border-[#E6E1D8]">
+                    <div className="p-1.5 rounded bg-white border border-line">
                       <div
                         className="w-full h-5 rounded-xs mb-1 border border-black/10"
                         style={{ backgroundColor: blend1And2Hex }}
                       />
-                      <span className="text-[10px] font-mono-tabular text-[#524E48] block truncate">
+                      <span className="text-xs font-mono-tabular text-ink-soft block truncate">
                         01 + 02
                       </span>
                     </div>
-                    <div className="p-1.5 rounded bg-white border border-[#E6E1D8]">
+                    <div className="p-1.5 rounded bg-white border border-line">
                       <div
                         className="w-full h-5 rounded-xs mb-1 border border-black/10"
                         style={{ backgroundColor: blend2And3Hex }}
                       />
-                      <span className="text-[10px] font-mono-tabular text-[#524E48] block truncate">
+                      <span className="text-xs font-mono-tabular text-ink-soft block truncate">
                         02 + 03
                       </span>
                     </div>
-                    <div className="p-1.5 rounded bg-white border border-[#E6E1D8]">
+                    <div className="p-1.5 rounded bg-white border border-line">
                       <div
                         className="w-full h-5 rounded-xs mb-1 border border-black/10"
                         style={{ backgroundColor: blend1And3Hex }}
                       />
-                      <span className="text-[10px] font-mono-tabular text-[#524E48] block truncate">
+                      <span className="text-xs font-mono-tabular text-ink-soft block truncate">
                         01 + 03
                       </span>
                     </div>
-                    <div className="p-1.5 rounded bg-white border border-[#0A2246]/30">
+                    <div className="p-1.5 rounded bg-white border border-ink/30">
                       <div
                         className="w-full h-5 rounded-xs mb-1 border border-black/10"
                         style={{ backgroundColor: trioMasterBlendHex }}
                       />
-                      <span className="text-[10px] font-mono-tabular font-semibold text-[#0A2246] block truncate">
+                      <span className="text-xs font-mono-tabular font-semibold text-ink block truncate">
                         1:1:1 Trio
                       </span>
                     </div>
@@ -472,8 +472,8 @@ export function InkMixingSetBuilderIsland({
                 </div>
 
                 {/* Live Washi Paper Blended Stroke Sample */}
-                <div className="p-3 rounded bg-[#FDFBF7] border border-[#E6E1D8]">
-                  <span className="text-[10px] uppercase tracking-wider text-[#8C857B] block mb-1">
+                <div className="p-3 rounded bg-paper border border-line">
+                  <span className="text-xs uppercase tracking-wider text-faint block mb-1">
                     Custom Trio Blend on Washi Paper ({trioMasterBlendHex.toUpperCase()})
                   </span>
                   <p
@@ -488,27 +488,27 @@ export function InkMixingSetBuilderIsland({
             </div>
 
             {/* Pricing Breakdown & Add Bundle Button */}
-            <div className="pt-4 mt-4 border-t border-[#E6E1D8] space-y-3">
+            <div className="pt-4 mt-4 border-t border-line space-y-3">
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-[#5C5852]">
+                <div className="flex justify-between text-ink-soft">
                   <span>3 × 50ml Iroshizuku Flacons</span>
-                  <span className="font-mono-tabular line-through text-[#8C857B]">
+                  <span className="font-mono-tabular line-through text-faint">
                     {formatKes(standardTrioPriceKes)}
                   </span>
                 </div>
-                <div className="flex justify-between text-[#1D5B43] font-medium">
+                <div className="flex justify-between text-ok font-medium">
                   <span>10% Ink Mixing Set Discount</span>
                   <span className="font-mono-tabular">-{formatKes(savingsKes)}</span>
                 </div>
-                <div className="flex justify-between items-baseline pt-2 border-t border-[#ECE8DF]">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#0A2246]">
+                <div className="flex justify-between items-baseline pt-2 border-t border-line">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-ink">
                     Bundle Price
                   </span>
                   <div className="text-right">
-                    <span className="font-mono-tabular text-xl font-bold text-[#0A2246]">
+                    <span className="font-mono-tabular text-xl font-bold text-ink">
                       {formatKes(bundlePriceKes)}
                     </span>
-                    <span className="block text-[10px] text-[#1D5B43]">
+                    <span className="block text-xs text-ok">
                       Free Same-Day Nairobi &amp; Nationwide Courier
                     </span>
                   </div>
@@ -520,8 +520,8 @@ export function InkMixingSetBuilderIsland({
                 onClick={handleAddTrioSetToBag}
                 className={`w-full py-3 px-4 text-xs font-semibold tracking-wider uppercase rounded flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
                   setAddedFeedback
-                    ? 'bg-[#1D5B43] text-white'
-                    : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                    ? 'bg-ok text-white'
+                    : 'bg-ink hover:bg-ink-hover text-white'
                 }`}
               >
                 {setAddedFeedback ? (
@@ -531,7 +531,7 @@ export function InkMixingSetBuilderIsland({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 text-[#E5B25D]" />
+                    <Sparkles className="w-4 h-4 text-brand" />
                     <span>Add Ink Mixing Set (3 × 50ml) · {formatKes(bundlePriceKes)}</span>
                   </>
                 )}
@@ -544,10 +544,10 @@ export function InkMixingSetBuilderIsland({
         <div className="p-6 bg-white">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[#0A2246]">
+              <span className="text-xs font-semibold uppercase tracking-wider text-ink">
                 Step 2: Choose Shade for Flacon 0{activeSlotIdx + 1}
               </span>
-              <span className="text-xs text-[#6E6A63]">
+              <span className="text-xs text-ink-soft">
                 (Currently: <strong>{selectedShades[activeSlotIdx].name}</strong> ·{' '}
                 {selectedShades[activeSlotIdx].meaning})
               </span>
@@ -564,8 +564,8 @@ export function InkMixingSetBuilderIsland({
                     onClick={() => setActiveFamily(family)}
                     className={`px-2.5 py-1 text-xs font-medium rounded border transition-colors cursor-pointer whitespace-nowrap ${
                       active
-                        ? 'bg-[#0A2246] text-white border-[#0A2246]'
-                        : 'bg-[#FAF8F5] text-[#524E48] border-[#DCD5C7] hover:border-[#0A2246]'
+                        ? 'bg-ink text-white border-ink'
+                        : 'bg-paper text-ink-soft border-line hover:border-ink'
                     }`}
                   >
                     {family}
@@ -589,10 +589,10 @@ export function InkMixingSetBuilderIsland({
                   onClick={() => handleSelectShadeForActiveSlot(shade.id)}
                   className={`p-2.5 rounded border text-left transition-all cursor-pointer flex flex-col justify-between ${
                     isCurrentSlot
-                      ? 'border-[#0A2246] bg-[#0A2246]/8 ring-1 ring-[#0A2246]'
+                      ? 'border-ink bg-ink/8 ring-1 ring-ink'
                       : isAssigned
-                      ? 'border-[#C88A2E] bg-[#C88A2E]/8'
-                      : 'border-[#E6E1D8] bg-[#FAF8F5] hover:border-[#0A2246] hover:bg-white'
+                      ? 'border-brand bg-brand/8'
+                      : 'border-line bg-paper hover:border-ink hover:bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1.5 mb-2">
@@ -601,18 +601,18 @@ export function InkMixingSetBuilderIsland({
                       style={{ backgroundColor: shade.hex }}
                     />
                     {isAssigned ? (
-                      <span className="font-mono-tabular text-[10px] font-bold text-[#0A2246]">
+                      <span className="font-mono-tabular text-xs font-bold text-ink">
                         Flacon 0{assignedSlotIdx + 1}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-[#8C857B]">{shade.kanji}</span>
+                      <span className="text-xs text-faint">{shade.kanji}</span>
                     )}
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-[#171614] truncate">
+                    <div className="text-xs font-semibold text-ink truncate">
                       {shade.name}
                     </div>
-                    <div className="text-[10px] text-[#6E6A63] truncate">
+                    <div className="text-xs text-ink-soft truncate">
                       {shade.meaning}
                     </div>
                   </div>

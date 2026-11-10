@@ -42,54 +42,54 @@ export function CheckoutPage() {
 
   return (
     <div className="max-w-xl mx-auto px-6 py-10 lg:py-14">
-      <h1 className="font-serif-display text-3xl font-semibold text-[#0A2246]">
-        {isConfirmed ? 'Order Confirmed' : 'Kenya Delivery & Settlement'}
+      <h1 className="font-serif-display text-3xl font-semibold text-ink">
+        {isConfirmed ? 'Order Confirmed' : 'Checkout'}
       </h1>
-      <p className="mt-1 mb-8 text-xs text-[#6E6A63]">
+      <p className="mt-1 mb-8 text-xs text-ink-soft">
         {isConfirmed
           ? 'Thank you for choosing PENS R US Kenya'
-          : 'Complimentary delivery in Nairobi & on orders from KES 6,000'}
+          : 'Free delivery in Nairobi and on orders from KES 6,000'}
       </p>
       {isConfirmed && confirmedOrder ? (
       <div className="space-y-6">
                       <div className="space-y-6">
-                        <div className="p-4 rounded border border-[#1D5B43]/30 bg-[#1D5B43]/8 space-y-2.5">
-                          <div className="flex items-center justify-between text-xs text-[#1D5B43] font-mono-tabular">
+                        <div className="p-4 rounded border border-ok/30 bg-ok/8 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs text-ok font-mono-tabular">
                             <span>ORDER #{confirmedOrder.orderNumber}</span>
                             <span>{confirmedOrder.timestamp}</span>
                           </div>
-                          <p className="text-sm font-semibold text-[#171614]">
+                          <p className="text-sm font-semibold text-ink">
                             Order Confirmed — Live Tracking Active ({confirmedOrder.orderStatus || 'Processing'})
                           </p>
-                          <p className="text-xs text-[#4A4742] leading-relaxed">
+                          <p className="text-xs text-ink-soft leading-relaxed">
                             We have reserved your Japanese writing instruments for{' '}
-                            <span className="font-medium text-[#171614]">
+                            <span className="font-medium text-ink">
                               {confirmedOrder.customerName}
                             </span>{' '}
                             ({confirmedOrder.phone}). Waybill:{' '}
-                            <span className="font-mono-tabular font-semibold text-[#0A2246]">
+                            <span className="font-mono-tabular font-semibold text-ink">
                               {confirmedOrder.trackingCode || 'NBO-COUR'}
                             </span>
                             .
                           </p>
                         </div>
 
-                        <div className="space-y-2 text-xs border-b border-[#E6E1D8] pb-4">
+                        <div className="space-y-2 text-xs border-b border-line pb-4">
                           <div className="flex justify-between">
-                            <span className="text-[#6E6A63]">Destination</span>
-                            <span className="font-medium text-[#171614] text-right">
+                            <span className="text-ink-soft">Destination</span>
+                            <span className="font-medium text-ink text-right">
                               {confirmedOrder.city}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-[#6E6A63]">Address</span>
-                            <span className="font-medium text-[#171614] text-right">
+                            <span className="text-ink-soft">Address</span>
+                            <span className="font-medium text-ink text-right">
                               {confirmedOrder.address}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-[#6E6A63]">Payment Method</span>
-                            <span className="font-medium text-[#171614]">
+                            <span className="text-ink-soft">Payment Method</span>
+                            <span className="font-medium text-ink">
                               {confirmedOrder.paymentMethod === 'mpesa'
                                 ? 'M-Pesa STK Push / Paybill'
                                 : confirmedOrder.paymentMethod === 'whatsapp'
@@ -100,21 +100,21 @@ export function CheckoutPage() {
                         </div>
 
                         {/* Instant WhatsApp Concierge Dispatch Box */}
-                        <div className="p-3.5 rounded-lg border border-[#1D5B43]/40 bg-white space-y-2.5">
+                        <div className="p-3.5 rounded-lg border border-ok/40 bg-white space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-[#1D5B43]">
+                            <span className="text-xs font-bold text-ok">
                               WhatsApp Order Concierge · Saved to History
                             </span>
-                            <span className="text-[11px] font-mono-tabular text-[#6E6A63]">
+                            <span className="text-xs font-mono-tabular text-ink-soft">
                               #{confirmedOrder.orderNumber}
                             </span>
                           </div>
-                          <p className="text-xs text-[#4A4742] leading-relaxed">
+                          <p className="text-xs text-ink-soft leading-relaxed">
                             Your order is saved in your{' '}
                             <button
                               type="button"
                               onClick={openOrderHistory}
-                              className="font-semibold text-[#0A2246] underline cursor-pointer"
+                              className="font-semibold text-ink underline cursor-pointer"
                             >
                               Order History
                             </button>
@@ -125,7 +125,7 @@ export function CheckoutPage() {
                               href={buildWhatsAppOrderUrl(confirmedOrder)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3.5 text-xs font-semibold uppercase tracking-wider bg-[#1D5B43] hover:bg-[#154633] text-white rounded transition-colors whitespace-nowrap"
+                              className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-3.5 text-xs font-semibold bg-ok hover:bg-ok text-white rounded transition-colors whitespace-nowrap"
                             >
                               <span>Send Order on WhatsApp</span>
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -133,7 +133,7 @@ export function CheckoutPage() {
                             <button
                               type="button"
                               onClick={() => handleCopyWhatsAppOrder(confirmedOrder)}
-                              className="py-2.5 px-3 text-xs font-semibold border border-[#DCD5C7] bg-[#FAF8F5] hover:bg-[#EDE8DF] text-[#171614] rounded transition-colors cursor-pointer whitespace-nowrap"
+                              className="py-2.5 px-3 text-xs font-semibold border border-line bg-paper hover:bg-wash text-ink rounded transition-colors cursor-pointer whitespace-nowrap"
                             >
                               {copiedWhatsAppOrderNo === confirmedOrder.orderNumber
                                 ? 'Copied Summary!'
@@ -143,7 +143,7 @@ export function CheckoutPage() {
                         </div>
 
                         <div className="space-y-3">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-[#5C5852]">
+                          <p className="text-xs font-semibold text-ink-soft">
                             Itemized Summary
                           </p>
                           {confirmedOrder.items.map((item) => (
@@ -152,10 +152,10 @@ export function CheckoutPage() {
                               className="flex justify-between gap-3 text-xs"
                             >
                               <div>
-                                <span className="font-medium text-[#171614]">
+                                <span className="font-medium text-ink">
                                   {item.quantity}× {item.product.name}
                                 </span>
-                                <p className="text-[#6E6A63]">
+                                <p className="text-ink-soft">
                                   {item.variant.label}
                                   {item.nibSize
                                     ? ` · ${item.nibSize} Nib (${
@@ -164,37 +164,37 @@ export function CheckoutPage() {
                                     : ''}
                                 </p>
                               </div>
-                              <span className="font-mono-tabular font-medium text-[#171614] whitespace-nowrap">
+                              <span className="font-mono-tabular font-medium text-ink whitespace-nowrap">
                                 {formatKes(item.product.priceKes * item.quantity)}
                               </span>
                             </div>
                           ))}
                         </div>
 
-                        <div className="pt-4 border-t border-[#E6E1D8] space-y-1.5 text-xs">
+                        <div className="pt-4 border-t border-line space-y-1.5 text-xs">
                           {confirmedOrder.promoCode && confirmedOrder.promoDiscountKes && (
-                            <div className="flex justify-between text-[#1D5B43] font-medium">
+                            <div className="flex justify-between text-ok font-medium">
                               <span>Promo Voucher ({confirmedOrder.promoCode})</span>
                               <span className="font-mono-tabular">
                                 -{formatKes(confirmedOrder.promoDiscountKes)}
                               </span>
                             </div>
                           )}
-                          <div className="flex justify-between text-[#5C5852]">
+                          <div className="flex justify-between text-ink-soft">
                             <span>Subtotal</span>
                             <span className="font-mono-tabular">
                               {formatKes(confirmedOrder.subtotal)}
                             </span>
                           </div>
-                          <div className="flex justify-between text-[#5C5852]">
+                          <div className="flex justify-between text-ink-soft">
                             <span>Courier Delivery</span>
                             <span className="font-mono-tabular">
                               {confirmedOrder.deliveryFee === 0
-                                ? 'Complimentary'
+                                ? 'Free'
                                 : formatKes(confirmedOrder.deliveryFee)}
                             </span>
                           </div>
-                          <div className="flex justify-between text-sm font-semibold text-[#171614] pt-2 border-t border-[#E6E1D8]">
+                          <div className="flex justify-between text-sm font-semibold text-ink pt-2 border-t border-line">
                             <span>Total Due</span>
                             <span className="font-mono-tabular">{formatKes(confirmedOrder.total)}</span>
                           </div>
@@ -204,7 +204,7 @@ export function CheckoutPage() {
                         <button
                           type="button"
                           onClick={openOrderHistory}
-                          className="flex-1 py-3 px-4 text-xs font-semibold tracking-wider uppercase border border-[#0A2246] text-[#0A2246] bg-white rounded hover:bg-[#EDE8DF] transition-colors cursor-pointer"
+                          className="flex-1 py-3 px-4 text-xs font-semibold border border-ink text-ink bg-white rounded hover:bg-wash transition-colors cursor-pointer"
                         >
                           View Order History
                         </button>
@@ -214,7 +214,7 @@ export function CheckoutPage() {
                             setCheckoutStep('bag');
                             navigate(ROUTES.home);
                           }}
-                          className="flex-1 py-3 px-4 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] text-white rounded hover:bg-[#133468] transition-colors cursor-pointer"
+                          className="flex-1 py-3 px-4 text-xs font-semibold bg-ink text-white rounded hover:bg-ink-hover transition-colors cursor-pointer"
                         >
                           Continue Exploring
                         </button>
@@ -222,12 +222,12 @@ export function CheckoutPage() {
       </div>
       ) : cart.length === 0 ? (
         <div className="py-12 text-center">
-          <ShoppingBag className="w-10 h-10 mx-auto text-[#9E988E] stroke-[1.25] mb-3" />
-          <p className="font-serif-display text-xl text-[#171614]">Your Writing Bag is Empty</p>
-          <p className="text-xs text-[#6E6A63] mt-1">Add a pen or a bottle of ink before checking out.</p>
+          <ShoppingBag className="w-10 h-10 mx-auto text-faint stroke-[1.25] mb-3" />
+          <p className="font-serif-display text-xl text-ink">Your bag is empty</p>
+          <p className="text-xs text-ink-soft mt-1">Add a pen or a bottle of ink before checking out.</p>
           <Link
-            to={ROUTES.collection}
-            className="mt-6 inline-flex items-center px-5 py-3 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] text-white rounded hover:bg-[#133468] transition-colors"
+            to={ROUTES.range}
+            className="mt-6 inline-flex items-center px-5 py-3 text-xs font-semibold bg-ink text-white rounded hover:bg-ink-hover transition-colors"
           >
             Browse Collection
           </Link>
@@ -242,7 +242,7 @@ export function CheckoutPage() {
                         )}
 
                         <div>
-                          <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                          <label className="block text-xs font-medium text-ink-soft mb-1">
                             Full Name
                           </label>
                           <input
@@ -251,12 +251,12 @@ export function CheckoutPage() {
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
                             placeholder="e.g. Wanjiku Mwangi"
-                            className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                            className="w-full px-3 py-2 text-xs bg-white border border-line rounded focus:outline-none focus:border-ink"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                          <label className="block text-xs font-medium text-ink-soft mb-1">
                             Kenyan Mobile Number (For Courier &amp; M-Pesa)
                           </label>
                           <input
@@ -265,18 +265,18 @@ export function CheckoutPage() {
                             value={customerPhone}
                             onChange={(e) => setCustomerPhone(e.target.value)}
                             placeholder="e.g. +254 712 345 678"
-                            className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                            className="w-full px-3 py-2 text-xs bg-white border border-line rounded focus:outline-none focus:border-ink"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                          <label className="block text-xs font-medium text-ink-soft mb-1">
                             County / Region
                           </label>
                           <select
                             value={selectedLocationIdx}
                             onChange={(e) => setSelectedLocationIdx(Number(e.target.value))}
-                            className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                            className="w-full px-3 py-2 text-xs bg-white border border-line rounded focus:outline-none focus:border-ink"
                           >
                             {KENYA_LOCATIONS.map((loc, idx) => (
                               <option key={loc.city} value={idx}>
@@ -287,7 +287,7 @@ export function CheckoutPage() {
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                          <label className="block text-xs font-medium text-ink-soft mb-1">
                             Building, Road, or Landmark
                           </label>
                           <input
@@ -296,13 +296,13 @@ export function CheckoutPage() {
                             value={deliveryAddress}
                             onChange={(e) => setDeliveryAddress(e.target.value)}
                             placeholder="e.g. Delta Corner Tower, Westlands, 4th Floor"
-                            className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                            className="w-full px-3 py-2 text-xs bg-white border border-line rounded focus:outline-none focus:border-ink"
                           />
                         </div>
 
                         <div className="pt-2">
-                          <span className="block text-xs font-medium text-[#3F3D39] mb-2">
-                            Settlement &amp; Order Method
+                          <span className="block text-xs font-medium text-ink-soft mb-2">
+                            Payment method
                           </span>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <button
@@ -310,12 +310,12 @@ export function CheckoutPage() {
                               onClick={() => setPaymentMethod('mpesa')}
                               className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
                                 paymentMethod === 'mpesa'
-                                  ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614]'
-                                  : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                                  ? 'border-ink bg-ink/8 font-semibold text-ink'
+                                  : 'border-line bg-white text-ink-soft'
                               }`}
                             >
                               <div>M-Pesa Express</div>
-                              <div className="text-[10px] font-normal text-[#6E6A63] mt-0.5">
+                              <div className="text-xs font-normal text-ink-soft mt-0.5">
                                 Instant STK / Paybill
                               </div>
                             </button>
@@ -324,12 +324,12 @@ export function CheckoutPage() {
                               onClick={() => setPaymentMethod('whatsapp')}
                               className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
                                 paymentMethod === 'whatsapp'
-                                  ? 'border-[#1D5B43] bg-[#1D5B43]/10 font-semibold text-[#171614]'
-                                  : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                                  ? 'border-ok bg-ok/10 font-semibold text-ink'
+                                  : 'border-line bg-white text-ink-soft'
                               }`}
                             >
                               <div>WhatsApp Concierge</div>
-                              <div className="text-[10px] font-normal text-[#6E6A63] mt-0.5">
+                              <div className="text-xs font-normal text-ink-soft mt-0.5">
                                 Itemized KES Chat + Saved History
                               </div>
                             </button>
@@ -338,12 +338,12 @@ export function CheckoutPage() {
                               onClick={() => setPaymentMethod('cod')}
                               className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
                                 paymentMethod === 'cod'
-                                  ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614]'
-                                  : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                                  ? 'border-ink bg-ink/8 font-semibold text-ink'
+                                  : 'border-line bg-white text-ink-soft'
                               }`}
                             >
                               <div>Cash on Delivery</div>
-                              <div className="text-[10px] font-normal text-[#6E6A63] mt-0.5">
+                              <div className="text-xs font-normal text-ink-soft mt-0.5">
                                 Pay upon inspection
                               </div>
                             </button>
@@ -358,14 +358,14 @@ export function CheckoutPage() {
                                 setActiveCartTab('bag');
                                 setIsCartOpen(true);
                               }}
-                              className="px-3.5 py-3 text-xs font-medium text-[#5C5852] hover:text-[#171614] border border-[#DCD5C7] rounded bg-white cursor-pointer whitespace-nowrap"
+                              className="px-3.5 py-3 text-xs font-medium text-ink-soft hover:text-ink border border-line rounded bg-white cursor-pointer whitespace-nowrap"
                             >
                               Edit Bag
                             </button>
                             <button
                               type="submit"
                               form="kenya-checkout-form"
-                              className="flex-1 py-3 px-4 text-xs font-semibold tracking-wider uppercase bg-[#0A2246] hover:bg-[#133468] text-white rounded transition-colors cursor-pointer whitespace-nowrap"
+                              className="flex-1 py-3 px-4 text-xs font-semibold bg-ink hover:bg-ink-hover text-white rounded transition-colors cursor-pointer whitespace-nowrap"
                             >
                               {paymentMethod === 'whatsapp'
                                 ? `Save & Order via WhatsApp · ${formatKes(orderTotal)}`

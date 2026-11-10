@@ -300,17 +300,17 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
           className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
-        <div className="relative w-full max-w-md bg-[#FAF8F5] rounded-2xl shadow-2xl border border-[#DCD5C7] overflow-hidden z-10">
-          <div className="bg-[#0A2246] text-white px-6 py-5 flex items-center justify-between border-b border-white/15">
+        <div className="relative w-full max-w-md bg-paper rounded-2xl shadow-2xl border border-line overflow-hidden z-10">
+          <div className="bg-ink text-white px-6 py-5 flex items-center justify-between border-b border-white/15">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#C88A2E]/20 border border-[#C88A2E]/50 flex items-center justify-center text-[#E5B25D]">
+              <div className="w-10 h-10 rounded-xl bg-brand/20 border border-brand/50 flex items-center justify-center text-brand">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
                 <h2 className="font-serif-display text-lg font-semibold tracking-tight">
                   Merchant Staff Portal
                 </h2>
-                <p className="text-[11px] text-white/75">
+                <p className="text-xs text-white/75">
                   PENS R US Kenya · Restricted Back-Office Access
                 </p>
               </div>
@@ -327,12 +327,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
           <div className="p-6 space-y-5">
             {!firebaseAdminEmail ? (
               <>
-                <div className="p-4 rounded-xl bg-white border border-[#E6E1D8] space-y-2">
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#0A2246]">
-                    <ShieldCheck className="w-4 h-4 text-[#C88A2E]" />
+                <div className="p-4 rounded-xl bg-white border border-line space-y-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-ink">
+                    <ShieldCheck className="w-4 h-4 text-brand" />
                     Administrator Verification Required
                   </span>
-                  <p className="text-xs text-[#5C5852] leading-relaxed">
+                  <p className="text-xs text-ink-soft leading-relaxed">
                     Access to the Merchant Inventory Studio, KES Pricing Controls, Promo Vouchers, and Customer Order Dispatch is strictly restricted to verified PENS R US administrators.
                   </p>
                 </div>
@@ -342,9 +342,9 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     type="button"
                     disabled={isSigningIn}
                     onClick={onGoogleSignIn}
-                    className="w-full py-3 px-4 rounded-xl bg-[#0A2246] hover:bg-[#133468] disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 px-4 rounded-xl bg-ink hover:bg-ink-hover disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <ShieldCheck className="w-4 h-4 text-[#E5B25D]" />
+                    <ShieldCheck className="w-4 h-4 text-brand" />
                     <span>
                       {isSigningIn
                         ? 'Verifying Google Credentials...'
@@ -354,7 +354,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="w-full py-2.5 px-4 rounded-xl border border-[#DCD5C7] bg-white hover:bg-[#F3EFE6] text-[#3F3D39] text-xs font-semibold transition-colors cursor-pointer"
+                    className="w-full py-2.5 px-4 rounded-xl border border-line bg-white hover:bg-wash text-ink-soft text-xs font-semibold transition-colors cursor-pointer"
                   >
                     Return to Storefront
                   </button>
@@ -378,9 +378,9 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     type="button"
                     disabled={isSigningIn}
                     onClick={onGoogleSignIn}
-                    className="w-full py-3 px-4 rounded-xl bg-[#0A2246] hover:bg-[#133468] disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3 px-4 rounded-xl bg-ink hover:bg-ink-hover disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <ShieldCheck className="w-4 h-4 text-[#E5B25D]" />
+                    <ShieldCheck className="w-4 h-4 text-brand" />
                     <span>
                       {isSigningIn ? 'Switching Account...' : 'Switch to Authorized Admin Account'}
                     </span>
@@ -397,7 +397,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="w-full py-2.5 px-4 rounded-xl border border-[#DCD5C7] bg-white hover:bg-[#F3EFE6] text-[#3F3D39] text-xs font-semibold transition-colors cursor-pointer"
+                    className="w-full py-2.5 px-4 rounded-xl border border-line bg-white hover:bg-wash text-ink-soft text-xs font-semibold transition-colors cursor-pointer"
                   >
                     Return to Storefront
                   </button>
@@ -546,11 +546,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-6xl max-h-[92vh] bg-[#FAF8F5] rounded-2xl shadow-2xl border border-[#DCD5C7] flex flex-col overflow-hidden z-10">
+      <div className="relative w-full max-w-6xl max-h-[92vh] bg-paper rounded-2xl shadow-2xl border border-line flex flex-col overflow-hidden z-10">
         {/* Top Header */}
-        <div className="bg-[#0A2246] text-white px-6 py-5 flex flex-wrap items-center justify-between gap-4 border-b border-white/15">
+        <div className="bg-ink text-white px-6 py-5 flex flex-wrap items-center justify-between gap-4 border-b border-white/15">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-[#C88A2E]/20 border border-[#C88A2E]/50 flex items-center justify-center text-[#E5B25D]">
+            <div className="w-10 h-10 rounded-xl bg-brand/20 border border-brand/50 flex items-center justify-center text-brand">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
@@ -559,7 +559,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   Merchant Back-Office &amp; Inventory Studio
                 </h2>
                 <span
-                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded ${
+                  className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded ${
                     firebaseAdminEmail
                       ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-700/60'
                       : 'bg-amber-950/90 text-amber-200 border border-amber-700/60'
@@ -583,7 +583,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                 type="button"
                 disabled={isSigningIn}
                 onClick={onGoogleSignIn}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-[#C88A2E] hover:bg-[#B57B24] text-white transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-brand hover:bg-brand text-white transition-colors cursor-pointer"
               >
                 <CloudUpload className="w-3.5 h-3.5" />
                 <span>{isSigningIn ? 'Signing in...' : 'Sign In for Cloud Sync'}</span>
@@ -609,7 +609,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
             {confirmResetCatalog ? (
               <div className="flex items-center gap-1.5 bg-black/40 border border-amber-400/50 rounded-lg px-2.5 py-1">
-                <span className="text-[11px] text-amber-200 font-semibold">Reset catalog &amp; prices?</span>
+                <span className="text-xs text-amber-200 font-semibold">Reset catalog &amp; prices?</span>
                 <button
                   type="button"
                   onClick={async () => {
@@ -622,14 +622,14 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       setSavingId(null);
                     }
                   }}
-                  className="text-[11px] font-bold px-2 py-1 rounded bg-amber-600 text-white hover:bg-amber-500 cursor-pointer"
+                  className="text-xs font-bold px-2 py-1 rounded bg-amber-600 text-white hover:bg-amber-500 cursor-pointer"
                 >
                   Confirm
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmResetCatalog(false)}
-                  className="text-[11px] font-semibold px-2 py-1 rounded text-white/70 hover:text-white cursor-pointer"
+                  className="text-xs font-semibold px-2 py-1 rounded text-white/70 hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -656,18 +656,18 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
         </div>
 
         {/* Sub-navigation Tabs */}
-        <div className="bg-white border-b border-[#E6E1D8] px-6 flex items-center justify-between flex-wrap gap-3">
+        <div className="bg-white border-b border-line px-6 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-1 overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab('products')}
               className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'products'
-                  ? 'border-[#0A2246] text-[#0A2246]'
-                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink'
               }`}
             >
-              <Package className="w-4 h-4 text-[#C88A2E]" />
+              <Package className="w-4 h-4 text-brand" />
               <span>Products &amp; Stock ({products.length})</span>
             </button>
 
@@ -676,14 +676,14 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               onClick={() => setActiveTab('analytics')}
               className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'analytics'
-                  ? 'border-[#0A2246] text-[#0A2246]'
-                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink'
               }`}
             >
-              <BarChart3 className="w-4 h-4 text-[#C88A2E]" />
+              <BarChart3 className="w-4 h-4 text-brand" />
               <span>Analytics &amp; Low Stock</span>
               {analyticsData.lowStockVariants.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-900 font-bold">
+                <span className="ml-1 px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-900 font-bold">
                   {analyticsData.lowStockVariants.length}
                 </span>
               )}
@@ -694,14 +694,14 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               onClick={() => setActiveTab('waitlist')}
               className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'waitlist'
-                  ? 'border-[#0A2246] text-[#0A2246]'
-                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink'
               }`}
             >
-              <Bell className="w-4 h-4 text-[#C88A2E]" />
+              <Bell className="w-4 h-4 text-brand" />
               <span>Notify Me Waitlist</span>
               {restockAlerts.filter((a) => a.status === 'waiting').length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-rose-100 text-rose-900 font-bold">
+                <span className="ml-1 px-1.5 py-0.5 text-xs rounded bg-rose-100 text-rose-900 font-bold">
                   {restockAlerts.filter((a) => a.status === 'waiting').length}
                 </span>
               )}
@@ -712,11 +712,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               onClick={() => setActiveTab('promos')}
               className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'promos'
-                  ? 'border-[#0A2246] text-[#0A2246]'
-                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink'
               }`}
             >
-              <TicketPercent className="w-4 h-4 text-[#C88A2E]" />
+              <TicketPercent className="w-4 h-4 text-brand" />
               <span>Promo Vouchers ({promoCodes.length})</span>
             </button>
 
@@ -725,11 +725,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               onClick={() => setActiveTab('bundles')}
               className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'bundles'
-                  ? 'border-[#0A2246] text-[#0A2246]'
-                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink'
               }`}
             >
-              <Sparkles className="w-4 h-4 text-[#C88A2E]" />
+              <Sparkles className="w-4 h-4 text-brand" />
               <span>Bundles &amp; WhatsApp</span>
             </button>
 
@@ -738,11 +738,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               onClick={() => setActiveTab('orders')}
               className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'orders'
-                  ? 'border-[#0A2246] text-[#0A2246]'
-                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink'
               }`}
             >
-              <ShoppingBag className="w-4 h-4 text-[#C88A2E]" />
+              <ShoppingBag className="w-4 h-4 text-brand" />
               <span>Orders ({orders.length})</span>
             </button>
 
@@ -751,17 +751,17 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               onClick={() => setActiveTab('add-product')}
               className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'add-product'
-                  ? 'border-[#0A2246] text-[#0A2246]'
-                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink'
               }`}
             >
-              <Plus className="w-4 h-4 text-[#C88A2E]" />
+              <Plus className="w-4 h-4 text-brand" />
               <span>Add New Product</span>
             </button>
           </div>
 
           {(toastMessage || cloudSyncStatus) && (
-            <div className="my-2 inline-flex items-center gap-2 bg-[#1D5B43] text-white text-xs font-medium px-3.5 py-1.5 rounded-lg">
+            <div className="my-2 inline-flex items-center gap-2 bg-ok text-white text-xs font-medium px-3.5 py-1.5 rounded-lg">
               <Check className="w-3.5 h-3.5" />
               <span>{toastMessage || cloudSyncStatus}</span>
             </div>
@@ -783,7 +783,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                 return (
                   <div
                     key={product.id}
-                    className="bg-white rounded-xl border border-[#E6E1D8] shadow-2xs overflow-hidden transition-all"
+                    className="bg-white rounded-xl border border-line shadow-2xs overflow-hidden transition-all"
                   >
                     {/* Summary Row */}
                     <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
@@ -794,25 +794,25 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                           src={resolveAssetUrl(product.variants[0]?.image || product.image, 'small')}
                           alt={product.name}
                           referrerPolicy="no-referrer"
-                          className="w-16 h-16 rounded-lg object-contain bg-white border border-[#E6E1D8] p-1 shrink-0"
+                          className="w-16 h-16 rounded-lg object-contain bg-white border border-line p-1 shrink-0"
                         />
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-bold uppercase tracking-widest text-[#B58435]">
+                            <span className="text-xs font-bold uppercase tracking-widest text-brand">
                               {product.category}
                             </span>
                             <span className="text-zinc-300">•</span>
-                            <span className="text-[11px] font-medium text-[#6E6A63]">
+                            <span className="text-xs font-medium text-ink-soft">
                               {product.Origin}
                             </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
                               {totalProductUnits} total units in stock
                             </span>
                           </div>
-                          <h3 className="font-serif-display text-xl font-semibold text-[#0A2246] mt-0.5">
+                          <h3 className="font-serif-display text-xl font-semibold text-ink mt-0.5">
                             {product.name}
                           </h3>
-                          <p className="text-xs text-[#5C5852] line-clamp-1 mt-0.5 max-w-xl">
+                          <p className="text-xs text-ink-soft line-clamp-1 mt-0.5 max-w-xl">
                             {product.shortSummary}
                           </p>
                         </div>
@@ -820,9 +820,9 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
                       {/* Quick Price Editor & Actions */}
                       <div className="flex flex-wrap items-center gap-3 self-end lg:self-center">
-                        <div className="flex items-center bg-[#FAF8F5] border border-[#DCD5C7] rounded-lg px-3 py-1.5">
-                          <Tag className="w-3.5 h-3.5 text-[#B58435] mr-2" />
-                          <span className="text-xs font-bold text-[#6E6A63] mr-1.5">KES</span>
+                        <div className="flex items-center bg-paper border border-line rounded-lg px-3 py-1.5">
+                          <Tag className="w-3.5 h-3.5 text-brand mr-2" />
+                          <span className="text-xs font-bold text-ink-soft mr-1.5">KES</span>
                           <input
                             type="number"
                             defaultValue={product.priceKes}
@@ -838,7 +838,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                 (e.target as HTMLInputElement).blur();
                               }
                             }}
-                            className="w-24 font-mono-tabular text-sm font-bold text-[#0A2246] bg-transparent focus:outline-none"
+                            className="w-24 font-mono-tabular text-sm font-bold text-ink bg-transparent focus:outline-none"
                           />
                         </div>
 
@@ -849,8 +849,8 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                           }
                           className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg border transition-colors cursor-pointer ${
                             isEditing
-                              ? 'bg-[#0A2246] text-white border-[#0A2246]'
-                              : 'bg-white text-[#171614] border-[#DCD5C7] hover:bg-[#FAF8F5]'
+                              ? 'bg-ink text-white border-ink'
+                              : 'bg-white text-ink border-line hover:bg-paper'
                           }`}
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -859,21 +859,21 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
                         {confirmDeleteId === product.id ? (
                           <div className="inline-flex items-center gap-1 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1">
-                            <span className="text-[11px] text-rose-800 font-semibold px-1">Delete?</span>
+                            <span className="text-xs text-rose-800 font-semibold px-1">Delete?</span>
                             <button
                               type="button"
                               onClick={() => {
                                 setConfirmDeleteId(null);
                                 onDeleteProduct(product.id);
                               }}
-                              className="text-[11px] font-bold px-2 py-1 rounded bg-rose-600 text-white hover:bg-rose-700 cursor-pointer"
+                              className="text-xs font-bold px-2 py-1 rounded bg-rose-600 text-white hover:bg-rose-700 cursor-pointer"
                             >
                               Yes
                             </button>
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteId(null)}
-                              className="text-[11px] font-semibold px-1.5 py-1 text-zinc-600 hover:text-zinc-900 cursor-pointer"
+                              className="text-xs font-semibold px-1.5 py-1 text-zinc-600 hover:text-zinc-900 cursor-pointer"
                             >
                               No
                             </button>
@@ -892,12 +892,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     </div>
 
                     {/* Per-Variant Stock Count Controls */}
-                    <div className="px-5 py-3.5 bg-[#FAF8F5] border-t border-[#E6E1D8]">
+                    <div className="px-5 py-3.5 bg-paper border-t border-line">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#6E6A63]">
+                        <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">
                           Per-Variant Stock Count ({product.variants.length} Variants · Auto-Deducted on Order):
                         </span>
-                        <span className="text-[11px] text-[#6E6A63]">
+                        <span className="text-xs text-ink-soft">
                           Low-stock badge triggers at ≤ 3 units
                         </span>
                       </div>
@@ -915,7 +915,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   ? 'bg-rose-50/70 border-rose-200 text-rose-900'
                                   : isLowStock
                                   ? 'bg-amber-50/80 border-amber-300 text-amber-950'
-                                  : 'bg-white border-[#E6E1D8] text-[#171614]'
+                                  : 'bg-white border-line text-ink'
                               }`}
                             >
                               <div className="flex items-center gap-2 min-w-0">
@@ -925,7 +925,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                 />
                                 <div className="truncate">
                                   <p className="font-semibold truncate">{v.label.split(' · ')[0]}</p>
-                                  <p className="text-[10px] text-[#6E6A63]">
+                                  <p className="text-xs text-ink-soft">
                                     {isOut
                                       ? 'Sold Out (0 left)'
                                       : isLowStock
@@ -941,7 +941,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   onClick={() =>
                                     handleVariantStockCountChange(product, v.id, Math.max(0, count - 1))
                                   }
-                                  className="w-6 h-6 rounded bg-[#F3EFE8] hover:bg-[#E6E1D8] text-[#171614] font-bold flex items-center justify-center cursor-pointer"
+                                  className="w-6 h-6 rounded bg-wash hover:bg-line text-ink font-bold flex items-center justify-center cursor-pointer"
                                   title="Decrease stock by 1"
                                 >
                                   -
@@ -957,12 +957,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                       handleVariantStockCountChange(product, v.id, nextVal);
                                     }
                                   }}
-                                  className="w-11 text-center font-mono-tabular font-bold text-xs bg-white border border-[#DCD5C7] rounded py-0.5 focus:outline-none focus:border-[#0A2246]"
+                                  className="w-11 text-center font-mono-tabular font-bold text-xs bg-white border border-line rounded py-0.5 focus:outline-none focus:border-ink"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => handleVariantStockCountChange(product, v.id, count + 1)}
-                                  className="w-6 h-6 rounded bg-[#F3EFE8] hover:bg-[#E6E1D8] text-[#171614] font-bold flex items-center justify-center cursor-pointer"
+                                  className="w-6 h-6 rounded bg-wash hover:bg-line text-ink font-bold flex items-center justify-center cursor-pointer"
                                   title="Increase stock by 1"
                                 >
                                   +
@@ -972,7 +972,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   onClick={() =>
                                     handleVariantStockCountChange(product, v.id, isOut ? 10 : 0)
                                   }
-                                  className={`ml-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase cursor-pointer ${
+                                  className={`ml-1 px-2 py-0.5 rounded text-xs font-bold uppercase cursor-pointer ${
                                     isOut
                                       ? 'bg-emerald-700 text-white hover:bg-emerald-600'
                                       : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
@@ -990,10 +990,10 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
                     {/* Expanded Product & Variant Editor */}
                     {isEditing && draftProduct && (
-                      <div className="p-6 bg-[#F3EFE8] border-t border-[#DCD5C7] space-y-6">
+                      <div className="p-6 bg-wash border-t border-line space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                               Product Name
                             </label>
                             <input
@@ -1002,12 +1002,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                               onChange={(e) =>
                                 setDraftProduct({ ...draftProduct, name: e.target.value })
                               }
-                              className="w-full px-3.5 py-2 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                              className="w-full px-3.5 py-2 rounded-lg bg-white border border-line text-sm"
                             />
                           </div>
 
                           <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                               Japanese Subtitle / Edition
                             </label>
                             <input
@@ -1016,13 +1016,13 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                               onChange={(e) =>
                                 setDraftProduct({ ...draftProduct, japaneseTitle: e.target.value })
                               }
-                              className="w-full px-3.5 py-2 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                              className="w-full px-3.5 py-2 rounded-lg bg-white border border-line text-sm"
                             />
                           </div>
 
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                              <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                                 Price (KES)
                               </label>
                               <input
@@ -1034,11 +1034,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                     priceKes: Number(e.target.value),
                                   })
                                 }
-                                className="w-full px-3.5 py-2 rounded-lg bg-white border border-[#DCD5C7] text-sm font-bold"
+                                className="w-full px-3.5 py-2 rounded-lg bg-white border border-line text-sm font-bold"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                              <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                                 Availability
                               </label>
                               <input
@@ -1047,7 +1047,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                 onChange={(e) =>
                                   setDraftProduct({ ...draftProduct, availability: e.target.value })
                                 }
-                                className="w-full px-3.5 py-2 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                                className="w-full px-3.5 py-2 rounded-lg bg-white border border-line text-sm"
                               />
                             </div>
                           </div>
@@ -1055,7 +1055,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                               Short Card Summary
                             </label>
                             <textarea
@@ -1067,11 +1067,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   shortSummary: e.target.value,
                                 })
                               }
-                              className="w-full px-3.5 py-2 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                              className="w-full px-3.5 py-2 rounded-lg bg-white border border-line text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                               Full Editorial Description
                             </label>
                             <textarea
@@ -1083,7 +1083,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   description: e.target.value,
                                 })
                               }
-                              className="w-full px-3.5 py-2 rounded-lg bg-white border border-[#DCD5C7] text-sm"
+                              className="w-full px-3.5 py-2 rounded-lg bg-white border border-line text-sm"
                             />
                           </div>
                         </div>
@@ -1091,8 +1091,8 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         {/* Variants Manager */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-[#0A2246] flex items-center gap-1.5">
-                              <Layers className="w-4 h-4 text-[#C88A2E]" />
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-1.5">
+                              <Layers className="w-4 h-4 text-brand" />
                               <span>Finishes / Shades &amp; Stock Units ({draftProduct.variants.length})</span>
                             </h4>
                             <button
@@ -1111,7 +1111,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   variants: [...draftProduct.variants, newVar],
                                 });
                               }}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-[#0A2246] hover:text-[#C88A2E] cursor-pointer"
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-ink hover:text-brand cursor-pointer"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               <span>Add Variant</span>
@@ -1122,10 +1122,10 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                             {draftProduct.variants.map((variant, idx) => (
                               <div
                                 key={variant.id || idx}
-                                className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-white p-3 rounded-lg border border-[#E6E1D8]"
+                                className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-white p-3 rounded-lg border border-line"
                               >
                                 <div className="md:col-span-3">
-                                  <label className="block text-[10px] font-bold uppercase text-[#6E6A63]">
+                                  <label className="block text-xs font-bold uppercase text-ink-soft">
                                     Variant Label
                                   </label>
                                   <input
@@ -1136,12 +1136,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                       updated[idx] = { ...variant, label: e.target.value };
                                       setDraftProduct({ ...draftProduct, variants: updated });
                                     }}
-                                    className="w-full text-xs font-semibold text-[#171614] border-b border-[#E6E1D8] py-1 focus:outline-none"
+                                    className="w-full text-xs font-semibold text-ink border-b border-line py-1 focus:outline-none"
                                   />
                                 </div>
 
                                 <div className="md:col-span-3">
-                                  <label className="block text-[10px] font-bold uppercase text-[#6E6A63]">
+                                  <label className="block text-xs font-bold uppercase text-ink-soft">
                                     Sublabel / Notes
                                   </label>
                                   <input
@@ -1152,12 +1152,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                       updated[idx] = { ...variant, sublabel: e.target.value };
                                       setDraftProduct({ ...draftProduct, variants: updated });
                                     }}
-                                    className="w-full text-xs text-[#5C5852] border-b border-[#E6E1D8] py-1 focus:outline-none"
+                                    className="w-full text-xs text-ink-soft border-b border-line py-1 focus:outline-none"
                                   />
                                 </div>
 
                                 <div className="md:col-span-3">
-                                  <label className="block text-[10px] font-bold uppercase text-[#6E6A63]">
+                                  <label className="block text-xs font-bold uppercase text-ink-soft">
                                     Image Path / URL
                                   </label>
                                   <input
@@ -1168,12 +1168,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                       updated[idx] = { ...variant, image: e.target.value };
                                       setDraftProduct({ ...draftProduct, variants: updated });
                                     }}
-                                    className="w-full text-xs text-[#5C5852] border-b border-[#E6E1D8] py-1 focus:outline-none"
+                                    className="w-full text-xs text-ink-soft border-b border-line py-1 focus:outline-none"
                                   />
                                 </div>
 
                                 <div className="md:col-span-2">
-                                  <label className="block text-[10px] font-bold uppercase text-[#6E6A63]">
+                                  <label className="block text-xs font-bold uppercase text-ink-soft">
                                     Stock Count
                                   </label>
                                   <input
@@ -1186,7 +1186,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                       updated[idx] = { ...variant, stockCount: count };
                                       setDraftProduct({ ...draftProduct, variants: updated });
                                     }}
-                                    className="w-20 text-xs font-mono-tabular font-bold text-[#0A2246] border-b border-[#E6E1D8] py-1 focus:outline-none"
+                                    className="w-20 text-xs font-mono-tabular font-bold text-ink border-b border-line py-1 focus:outline-none"
                                   />
                                 </div>
 
@@ -1218,7 +1218,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                               setEditingProductId(null);
                               setDraftProduct(null);
                             }}
-                            className="px-4 py-2 rounded-lg text-xs font-semibold text-[#5C5852] hover:bg-[#E6E1D8] cursor-pointer"
+                            className="px-4 py-2 rounded-lg text-xs font-semibold text-ink-soft hover:bg-line cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -1226,7 +1226,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                             type="button"
                             onClick={handleSaveDraftProduct}
                             disabled={savingId === draftProduct.id}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-ink hover:bg-ink-hover text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                           >
                             <Save className="w-3.5 h-3.5" />
                             <span>{savingId === draftProduct.id ? 'Saving...' : 'Save Product Changes'}</span>
@@ -1245,42 +1245,42 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
             <div className="space-y-6">
               {/* Top KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-xl border border-[#E6E1D8]">
-                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#6E6A63]">
+                <div className="bg-white p-5 rounded-xl border border-line">
+                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-ink-soft">
                     <span>Total Store Revenue</span>
                     <TrendingUp className="w-4 h-4 text-emerald-700" />
                   </div>
-                  <p className="font-serif-display text-2xl font-bold text-[#0A2246] mt-2">
+                  <p className="font-serif-display text-2xl font-bold text-ink mt-2">
                     KES {analyticsData.totalRevenueKes.toLocaleString()}
                   </p>
-                  <p className="text-xs text-[#6E6A63] mt-1">
+                  <p className="text-xs text-ink-soft mt-1">
                     Across {orders.length} recorded {orders.length === 1 ? 'order' : 'orders'}
                   </p>
                 </div>
 
-                <div className="bg-white p-5 rounded-xl border border-[#E6E1D8]">
-                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#6E6A63]">
+                <div className="bg-white p-5 rounded-xl border border-line">
+                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-ink-soft">
                     <span>Average Order Value</span>
-                    <ArrowUpRight className="w-4 h-4 text-[#C88A2E]" />
+                    <ArrowUpRight className="w-4 h-4 text-brand" />
                   </div>
-                  <p className="font-serif-display text-2xl font-bold text-[#0A2246] mt-2">
+                  <p className="font-serif-display text-2xl font-bold text-ink mt-2">
                     KES {analyticsData.avgOrderValueKes.toLocaleString()}
                   </p>
-                  <p className="text-xs text-[#6E6A63] mt-1">
+                  <p className="text-xs text-ink-soft mt-1">
                     M-Pesa ({analyticsData.paymentCounts.mpesa}) • WhatsApp (
                     {analyticsData.paymentCounts.whatsapp}) • COD ({analyticsData.paymentCounts.cod})
                   </p>
                 </div>
 
-                <div className="bg-white p-5 rounded-xl border border-[#E6E1D8]">
-                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#6E6A63]">
+                <div className="bg-white p-5 rounded-xl border border-line">
+                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-ink-soft">
                     <span>Total Catalog Units</span>
-                    <Boxes className="w-4 h-4 text-[#0A2246]" />
+                    <Boxes className="w-4 h-4 text-ink" />
                   </div>
-                  <p className="font-serif-display text-2xl font-bold text-[#0A2246] mt-2">
+                  <p className="font-serif-display text-2xl font-bold text-ink mt-2">
                     {analyticsData.totalUnitsInStock} units
                   </p>
-                  <p className="text-xs text-[#6E6A63] mt-1">
+                  <p className="text-xs text-ink-soft mt-1">
                     Fine (F): {analyticsData.fineNibCount} sold • Medium (M):{' '}
                     {analyticsData.mediumNibCount} sold
                   </p>
@@ -1301,13 +1301,13 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               </div>
 
               {/* Low-Stock Action Table */}
-              <div className="bg-white rounded-xl border border-[#E6E1D8] p-6">
+              <div className="bg-white rounded-xl border border-line p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="font-serif-display text-xl font-semibold text-[#0A2246]">
+                    <h3 className="font-serif-display text-xl font-semibold text-ink">
                       Low-Stock &amp; Restock Watchlist
                     </h3>
-                    <p className="text-xs text-[#6E6A63]">
+                    <p className="text-xs text-ink-soft">
                       Variants with 3 or fewer bottles/pens remaining in Nairobi inventory. Click +5 or +10 to restock immediately.
                     </p>
                   </div>
@@ -1332,8 +1332,8 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                               style={{ backgroundColor: variant.swatchHex || '#0A2246' }}
                             />
                             <div className="min-w-0">
-                              <p className="text-xs font-bold text-[#0A2246] truncate">{productName}</p>
-                              <p className="text-xs text-[#5C5852] truncate">
+                              <p className="text-xs font-bold text-ink truncate">{productName}</p>
+                              <p className="text-xs text-ink-soft truncate">
                                 {variant.label.split(' · ')[0]} —{' '}
                                 <span
                                   className={
@@ -1359,7 +1359,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                     stockCount + 5
                                   )
                                 }
-                                className="px-2.5 py-1 rounded bg-[#0A2246] hover:bg-[#133468] text-white text-[11px] font-bold cursor-pointer"
+                                className="px-2.5 py-1 rounded bg-ink hover:bg-ink-hover text-white text-xs font-bold cursor-pointer"
                               >
                                 +5 Units
                               </button>
@@ -1372,7 +1372,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                     stockCount + 10
                                   )
                                 }
-                                className="px-2.5 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold cursor-pointer"
+                                className="px-2.5 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold cursor-pointer"
                               >
                                 +10 Units
                               </button>
@@ -1387,15 +1387,15 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
               {/* Top-Selling Products & County Revenue Breakdown */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl border border-[#E6E1D8] p-6">
-                  <h3 className="font-serif-display text-xl font-semibold text-[#0A2246] mb-1">
+                <div className="bg-white rounded-xl border border-line p-6">
+                  <h3 className="font-serif-display text-xl font-semibold text-ink mb-1">
                     Best-Selling Editions &amp; Ink Shades
                   </h3>
-                  <p className="text-xs text-[#6E6A63] mb-4">
+                  <p className="text-xs text-ink-soft mb-4">
                     Ranked by cumulative revenue across customer orders.
                   </p>
                   {analyticsData.topSellingItems.length === 0 ? (
-                    <p className="text-xs text-[#6E6A63] py-6 text-center">
+                    <p className="text-xs text-ink-soft py-6 text-center">
                       No item velocity data yet.
                     </p>
                   ) : (
@@ -1403,19 +1403,19 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       {analyticsData.topSellingItems.map((item, idx) => (
                         <div
                           key={item.name}
-                          className="flex items-center justify-between text-xs border-b border-[#ECE8DF] pb-2.5"
+                          className="flex items-center justify-between text-xs border-b border-line pb-2.5"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="w-5 h-5 rounded-full bg-[#F3EFE8] text-[#0A2246] font-bold flex items-center justify-center text-[10px] shrink-0">
+                            <span className="w-5 h-5 rounded-full bg-wash text-ink font-bold flex items-center justify-center text-xs shrink-0">
                               {idx + 1}
                             </span>
-                            <span className="font-semibold text-[#171614] truncate">{item.name}</span>
+                            <span className="font-semibold text-ink truncate">{item.name}</span>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="font-mono-tabular font-bold text-[#0A2246]">
+                            <span className="font-mono-tabular font-bold text-ink">
                               KES {item.revenueKes.toLocaleString()}
                             </span>
-                            <span className="text-[#6E6A63] ml-2">({item.units} sold)</span>
+                            <span className="text-ink-soft ml-2">({item.units} sold)</span>
                           </div>
                         </div>
                       ))}
@@ -1423,15 +1423,15 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   )}
                 </div>
 
-                <div className="bg-white rounded-xl border border-[#E6E1D8] p-6">
-                  <h3 className="font-serif-display text-xl font-semibold text-[#0A2246] mb-1">
+                <div className="bg-white rounded-xl border border-line p-6">
+                  <h3 className="font-serif-display text-xl font-semibold text-ink mb-1">
                     Regional Dispatch Breakdown (Kenya)
                   </h3>
-                  <p className="text-xs text-[#6E6A63] mb-4">
+                  <p className="text-xs text-ink-soft mb-4">
                     Order volume and revenue by Kenyan delivery region.
                   </p>
                   {analyticsData.countyBreakdown.length === 0 ? (
-                    <p className="text-xs text-[#6E6A63] py-6 text-center">
+                    <p className="text-xs text-ink-soft py-6 text-center">
                       No regional dispatch data recorded yet.
                     </p>
                   ) : (
@@ -1439,17 +1439,17 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       {analyticsData.countyBreakdown.map((c) => (
                         <div
                           key={c.county}
-                          className="flex items-center justify-between text-xs border-b border-[#ECE8DF] pb-2.5"
+                          className="flex items-center justify-between text-xs border-b border-line pb-2.5"
                         >
                           <div className="flex items-center gap-2">
-                            <MapPin className="w-3.5 h-3.5 text-[#C88A2E]" />
-                            <span className="font-semibold text-[#171614]">{c.county}</span>
+                            <MapPin className="w-3.5 h-3.5 text-brand" />
+                            <span className="font-semibold text-ink">{c.county}</span>
                           </div>
                           <div>
-                            <span className="font-mono-tabular font-bold text-[#0A2246]">
+                            <span className="font-mono-tabular font-bold text-ink">
                               KES {c.revenueKes.toLocaleString()}
                             </span>
-                            <span className="text-[#6E6A63] ml-2">
+                            <span className="text-ink-soft ml-2">
                               ({c.orders} {c.orders === 1 ? 'order' : 'orders'})
                             </span>
                           </div>
@@ -1465,14 +1465,14 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
           {/* TAB 2B: OUT-OF-STOCK CUSTOMER WAITLIST & "NOTIFY ME" REQUESTS */}
           {activeTab === 'waitlist' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-xl border border-[#E6E1D8] p-6">
+              <div className="bg-white rounded-xl border border-line p-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
                   <div>
-                    <h3 className="font-serif-display text-xl font-semibold text-[#0A2246] flex items-center gap-2">
-                      <Bell className="w-5 h-5 text-[#C88A2E]" />
+                    <h3 className="font-serif-display text-xl font-semibold text-ink flex items-center gap-2">
+                      <Bell className="w-5 h-5 text-brand" />
                       <span>Out-of-Stock Waitlist &amp; Interested Customers</span>
                     </h3>
-                    <p className="text-xs text-[#6E6A63] mt-0.5">
+                    <p className="text-xs text-ink-soft mt-0.5">
                       Customers who clicked &ldquo;Notify Me&rdquo; on out-of-stock fountain pen or ink variants (synced with Firestore `/restock_alerts`).
                     </p>
                   </div>
@@ -1558,12 +1558,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
                   if (groups.length === 0) {
                     return (
-                      <div className="p-8 rounded-xl bg-[#FAF8F5] border border-[#E6E1D8] text-center">
+                      <div className="p-8 rounded-xl bg-paper border border-line text-center">
                         <Check className="w-6 h-6 text-emerald-700 mx-auto mb-2" />
-                        <p className="text-sm font-semibold text-[#171614]">
+                        <p className="text-sm font-semibold text-ink">
                           No Out-of-Stock Variants or Pending Waitlist Requests
                         </p>
-                        <p className="text-xs text-[#6E6A63] mt-1">
+                        <p className="text-xs text-ink-soft mt-1">
                           When a variant reaches 0 stock and a shopper clicks &ldquo;Notify Me&rdquo;, their contact details appear here grouped by item.
                         </p>
                       </div>
@@ -1579,10 +1579,10 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         return (
                           <div
                             key={`${group.productId}::${group.variantId}`}
-                            className="rounded-xl border border-[#DCD5C7] bg-[#FAF8F5] overflow-hidden"
+                            className="rounded-xl border border-line bg-paper overflow-hidden"
                           >
                             {/* Variant Header Bar */}
-                            <div className="bg-white px-5 py-4 border-b border-[#E6E1D8] flex flex-wrap items-center justify-between gap-4">
+                            <div className="bg-white px-5 py-4 border-b border-line flex flex-wrap items-center justify-between gap-4">
                               <div className="flex items-center gap-3.5 min-w-0">
                                 <img
                                   loading="lazy"
@@ -1590,15 +1590,15 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   src={resolveAssetUrl(group.image, 'small')}
                                   alt={group.variantLabel}
                                   referrerPolicy="no-referrer"
-                                  className="w-12 h-12 rounded-lg object-contain bg-[#FAF8F5] border border-[#E6E1D8] p-1 shrink-0"
+                                  className="w-12 h-12 rounded-lg object-contain bg-paper border border-line p-1 shrink-0"
                                 />
                                 <div className="min-w-0">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <h4 className="text-sm font-bold text-[#0A2246]">
+                                    <h4 className="text-sm font-bold text-ink">
                                       {group.productName} — {group.variantLabel.split(' · ')[0]}
                                     </h4>
                                     <span
-                                      className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                                      className={`text-xs font-bold px-2 py-0.5 rounded ${
                                         group.stockCount === 0
                                           ? 'bg-rose-100 text-rose-800 border border-rose-200'
                                           : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
@@ -1608,7 +1608,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                         ? 'SOLD OUT (0 in stock)'
                                         : `Restocked (${group.stockCount} in stock)`}
                                     </span>
-                                    <span className="text-[11px] font-semibold text-[#5C5852]">
+                                    <span className="text-xs font-semibold text-ink-soft">
                                       · {group.alerts.length}{' '}
                                       {group.alerts.length === 1
                                         ? 'interested customer'
@@ -1616,7 +1616,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                       ({waitingCount} waiting)
                                     </span>
                                   </div>
-                                  <p className="text-xs text-[#6E6A63] truncate mt-0.5">
+                                  <p className="text-xs text-ink-soft truncate mt-0.5">
                                     Variant ID: <span className="font-mono">{group.variantId}</span>
                                   </p>
                                 </div>
@@ -1633,7 +1633,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                         group.stockCount + 5
                                       )
                                     }
-                                    className="px-3 py-1.5 rounded-lg bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold cursor-pointer transition-colors"
+                                    className="px-3 py-1.5 rounded-lg bg-ink hover:bg-ink-hover text-white text-xs font-bold cursor-pointer transition-colors"
                                   >
                                     +5 Units Restock
                                   </button>
@@ -1656,11 +1656,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
                             {/* Interested Customers Table */}
                             {group.alerts.length === 0 ? (
-                              <div className="px-5 py-4 text-xs text-[#6E6A63]">
+                              <div className="px-5 py-4 text-xs text-ink-soft">
                                 Currently out of stock (`stockCount: 0`). No customer &ldquo;Notify Me&rdquo; requests submitted for this variant yet.
                               </div>
                             ) : (
-                              <div className="divide-y divide-[#ECE8DF]">
+                              <div className="divide-y divide-line">
                                 {group.alerts.map((alert) => {
                                   const isEmail = alert.contact.includes('@');
                                   const cleanPhone = alert.contact.replace(/[^0-9]/g, '');
@@ -1691,19 +1691,19 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                     >
                                       <div className="space-y-0.5 min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
-                                          <span className="font-bold text-[#171614]">
+                                          <span className="font-bold text-ink">
                                             {alert.customerName || 'Atelier Shopper'}
                                           </span>
-                                          <span className="font-mono font-semibold text-[#0A2246] bg-white px-2 py-0.5 rounded border border-[#E6E1D8]">
+                                          <span className="font-mono font-semibold text-ink bg-white px-2 py-0.5 rounded border border-line">
                                             {alert.contact}
                                           </span>
                                           {alert.nibSize && (
-                                            <span className="text-[11px] font-semibold text-[#8A6421]">
+                                            <span className="text-xs font-semibold text-brand">
                                               · {alert.nibSize} Nib
                                             </span>
                                           )}
                                           <span
-                                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                                            className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                                               alert.status === 'notified'
                                                 ? 'bg-emerald-100 text-emerald-800'
                                                 : 'bg-amber-100 text-amber-900'
@@ -1714,7 +1714,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                               : 'Waiting'}
                                           </span>
                                         </div>
-                                        <p className="text-[11px] text-[#6E6A63]">
+                                        <p className="text-xs text-ink-soft">
                                           Requested: {alert.timestamp}
                                         </p>
                                       </div>
@@ -1724,7 +1724,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                           href={contactHref}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-[11px] font-semibold transition-colors"
+                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
                                         >
                                           <MessageCircle className="w-3.5 h-3.5" />
                                           <span>
@@ -1742,7 +1742,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                                 : `Reopened waitlist request for ${alert.contact}`
                                             );
                                           }}
-                                          className="px-2.5 py-1.5 rounded-lg border border-[#DCD5C7] bg-white hover:border-[#0A2246] text-[#0A2246] text-[11px] font-semibold cursor-pointer transition-colors"
+                                          className="px-2.5 py-1.5 rounded-lg border border-line bg-white hover:border-ink text-ink text-xs font-semibold cursor-pointer transition-colors"
                                         >
                                           {alert.status === 'waiting'
                                             ? 'Mark Notified'
@@ -1782,20 +1782,20 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
               {/* Create Promo Form */}
               <form
                 onSubmit={handleCreatePromoSubmit}
-                className="lg:col-span-5 bg-white p-6 rounded-xl border border-[#E6E1D8] space-y-4 h-fit"
+                className="lg:col-span-5 bg-white p-6 rounded-xl border border-line space-y-4 h-fit"
               >
-                <div className="border-b border-[#ECE8DF] pb-3">
-                  <h3 className="font-serif-display text-xl font-semibold text-[#0A2246] flex items-center gap-2">
-                    <TicketPercent className="w-5 h-5 text-[#C88A2E]" />
+                <div className="border-b border-line pb-3">
+                  <h3 className="font-serif-display text-xl font-semibold text-ink flex items-center gap-2">
+                    <TicketPercent className="w-5 h-5 text-brand" />
                     <span>Create Promo Voucher</span>
                   </h3>
-                  <p className="text-xs text-[#6E6A63] mt-0.5">
+                  <p className="text-xs text-ink-soft mt-0.5">
                     Create percentage (%) or fixed KES discount codes synced with Firestore `/promo_codes`.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
                     Voucher Code *
                   </label>
                   <input
@@ -1804,13 +1804,13 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     value={newPromoCode}
                     onChange={(e) => setNewPromoCode(e.target.value.toUpperCase())}
                     placeholder="e.g. NAIROBI10 or KAKUNO500"
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm font-mono-tabular font-bold uppercase"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm font-mono-tabular font-bold uppercase"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
                       Discount Type
                     </label>
                     <select
@@ -1818,7 +1818,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       onChange={(e) =>
                         setNewPromoType(e.target.value as 'percentage' | 'fixed')
                       }
-                      className="w-full px-3 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-xs font-bold"
+                      className="w-full px-3 py-2.5 rounded-lg bg-paper border border-line text-xs font-bold"
                     >
                       <option value="percentage">Percentage (%)</option>
                       <option value="fixed">Fixed Amount (KES)</option>
@@ -1826,7 +1826,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
                       {newPromoType === 'percentage' ? 'Discount (%)' : 'Discount (KES)'}
                     </label>
                     <input
@@ -1836,13 +1836,13 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       max={newPromoType === 'percentage' ? 90 : 50000}
                       value={newPromoValue}
                       onChange={(e) => setNewPromoValue(Number(e.target.value))}
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm font-bold"
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm font-bold"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
                     Minimum Cart Spend (KES)
                   </label>
                   <input
@@ -1850,12 +1850,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     min={0}
                     value={newPromoMinSpend}
                     onChange={(e) => setNewPromoMinSpend(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm font-bold"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
                     Customer Note / Description
                   </label>
                   <input
@@ -1863,14 +1863,14 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     value={newPromoDescription}
                     onChange={(e) => setNewPromoDescription(e.target.value)}
                     placeholder="e.g. 10% off Collector orders above KES 5,000"
-                    className="w-full px-3.5 py-2 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-xs"
+                    className="w-full px-3.5 py-2 rounded-lg bg-paper border border-line text-xs"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={savingId?.startsWith('promo-')}
-                  className="w-full py-3 rounded-xl bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className="w-full py-3 rounded-xl bg-ink hover:bg-ink-hover text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Save &amp; Activate Voucher
                 </button>
@@ -1882,7 +1882,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   <div
                     key={promo.id}
                     className={`bg-white p-5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                      promo.active ? 'border-[#E6E1D8]' : 'border-[#E6E1D8] opacity-65 bg-zinc-50'
+                      promo.active ? 'border-line' : 'border-line opacity-65 bg-zinc-50'
                     }`}
                   >
                     <div>
@@ -1896,17 +1896,17 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                             : `KES ${promo.discountValue.toLocaleString()} OFF`}
                         </span>
                         <span
-                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                          className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
                             promo.active
-                              ? 'bg-[#1D5B43] text-white'
+                              ? 'bg-ok text-white'
                               : 'bg-zinc-200 text-zinc-600'
                           }`}
                         >
                           {promo.active ? 'Active' : 'Expired / Paused'}
                         </span>
                       </div>
-                      <p className="text-xs text-[#3F3D39] mt-1.5">{promo.description}</p>
-                      <p className="text-[11px] text-[#6E6A63] mt-0.5">
+                      <p className="text-xs text-ink-soft mt-1.5">{promo.description}</p>
+                      <p className="text-xs text-ink-soft mt-0.5">
                         Minimum Spend: KES {promo.minSpendKes.toLocaleString()}
                       </p>
                     </div>
@@ -1942,23 +1942,23 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
           {activeTab === 'bundles' && (
             <form
               onSubmit={handleSaveBundleSettings}
-              className="max-w-3xl mx-auto bg-white p-6 sm:p-8 rounded-2xl border border-[#E6E1D8] space-y-6"
+              className="max-w-3xl mx-auto bg-white p-6 sm:p-8 rounded-2xl border border-line space-y-6"
             >
-              <div className="border-b border-[#ECE8DF] pb-4">
-                <h3 className="font-serif-display text-2xl font-semibold text-[#0A2246]">
+              <div className="border-b border-line pb-4">
+                <h3 className="font-serif-display text-2xl font-semibold text-ink">
                   Bundle Offers, WhatsApp Concierge &amp; Free Delivery Threshold
                 </h3>
-                <p className="text-xs text-[#6E6A63] mt-1">
+                <p className="text-xs text-ink-soft mt-1">
                   Configure your 3-Bottle Iroshizuku Ink Mixing Set price, Free Delivery threshold, and WhatsApp Concierge phone number.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6E1D8]">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#0A2246] mb-1">
+                <div className="p-4 rounded-xl bg-paper border border-line">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink mb-1">
                     3-Bottle Iroshizuku Ink Bundle Price (KES)
                   </label>
-                  <p className="text-[11px] text-[#6E6A63] mb-3">
+                  <p className="text-xs text-ink-soft mb-3">
                     Standard price for 3 bottles is KES 18,000 (3 × KES 6,000). Default 10% privilege bundle is KES 16,200.
                   </p>
                   <input
@@ -1970,16 +1970,16 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         inkMixingSetBundleKes: Number(e.target.value),
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#DCD5C7] text-base font-mono-tabular font-bold text-[#0A2246]"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-line text-base font-mono-tabular font-bold text-ink"
                   />
                 </div>
 
-                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6E1D8]">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#0A2246] mb-1 flex items-center gap-1.5">
-                    <Truck className="w-3.5 h-3.5 text-[#C88A2E]" />
+                <div className="p-4 rounded-xl bg-paper border border-line">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink mb-1 flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-brand" />
                     <span>Complimentary Kenya Delivery Threshold (KES)</span>
                   </label>
-                  <p className="text-[11px] text-[#6E6A63] mb-3">
+                  <p className="text-xs text-ink-soft mb-3">
                     Orders meeting or exceeding this amount receive free courier delivery nationwide.
                   </p>
                   <input
@@ -1991,17 +1991,17 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         freeDeliveryThresholdKes: Number(e.target.value),
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#DCD5C7] text-base font-mono-tabular font-bold text-[#0A2246]"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-line text-base font-mono-tabular font-bold text-ink"
                   />
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6E1D8]">
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#0A2246] mb-1.5 flex items-center gap-1.5">
+              <div className="p-4 rounded-xl bg-paper border border-line">
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink mb-1.5 flex items-center gap-1.5">
                   <MessageCircle className="w-3.5 h-3.5 text-emerald-700" />
                   <span>WhatsApp Concierge Phone Number (International Format without +)</span>
                 </label>
-                <p className="text-[11px] text-[#6E6A63] mb-2.5">
+                <p className="text-xs text-ink-soft mb-2.5">
                   Used for the Checkout WhatsApp Order Concierge link (`https://wa.me/...`).
                 </p>
                 <input
@@ -2014,7 +2014,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     })
                   }
                   placeholder="254700000000"
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#DCD5C7] text-sm font-mono-tabular font-bold text-[#0A2246]"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-line text-sm font-mono-tabular font-bold text-ink"
                 />
               </div>
 
@@ -2022,7 +2022,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                 <button
                   type="submit"
                   disabled={savingId === 'settings'}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-ink hover:bg-ink-hover text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>{savingId === 'settings' ? 'Saving...' : 'Save Storefront Settings'}</span>
@@ -2034,41 +2034,41 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
           {/* TAB 5: ORDERS MANAGEMENT */}
           {activeTab === 'orders' && (
             <div className="space-y-4">
-              <div className="bg-white p-5 rounded-xl border border-[#E6E1D8] flex items-center justify-between">
+              <div className="bg-white p-5 rounded-xl border border-line flex items-center justify-between">
                 <div>
-                  <h3 className="font-serif-display text-xl font-semibold text-[#0A2246]">
+                  <h3 className="font-serif-display text-xl font-semibold text-ink">
                     Customer Orders &amp; Dispatch Queue
                   </h3>
-                  <p className="text-xs text-[#6E6A63]">
+                  <p className="text-xs text-ink-soft">
                     View M-Pesa Express, WhatsApp Concierge, and Cash-on-Delivery orders across Kenya.
                   </p>
                 </div>
-                <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#F3EFE8] text-[#0A2246]">
+                <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-wash text-ink">
                   {orders.length} Total Orders
                 </span>
               </div>
 
               {orders.length === 0 ? (
-                <div className="bg-white p-12 rounded-xl border border-[#E6E1D8] text-center">
-                  <ShoppingBag className="w-8 h-8 text-[#9E988E] mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-[#171614]">No orders placed yet</p>
+                <div className="bg-white p-12 rounded-xl border border-line text-center">
+                  <ShoppingBag className="w-8 h-8 text-faint mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-ink">No orders placed yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {orders.map((order) => (
                     <div
                       key={order.id || order.orderNumber}
-                      className="bg-white p-5 rounded-xl border border-[#E6E1D8] flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                      className="bg-white p-5 rounded-xl border border-line flex flex-col lg:flex-row lg:items-center justify-between gap-4"
                     >
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2.5">
-                          <span className="font-mono-tabular text-sm font-bold text-[#0A2246]">
+                          <span className="font-mono-tabular text-sm font-bold text-ink">
                             {order.orderNumber}
                           </span>
-                          <span className="text-xs text-[#8C857B]">•</span>
-                          <span className="text-xs text-[#6E6A63]">{order.timestamp}</span>
+                          <span className="text-xs text-faint">•</span>
+                          <span className="text-xs text-ink-soft">{order.timestamp}</span>
                           <span
-                            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md ${
+                            className={`text-xs font-bold px-2.5 py-0.5 rounded-md ${
                               order.paymentMethod === 'mpesa'
                                 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                 : order.paymentMethod === 'whatsapp'
@@ -2083,18 +2083,18 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                               : 'Cash on Delivery'}
                           </span>
                           {order.promoCode && (
-                            <span className="text-[11px] font-mono-tabular font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                            <span className="text-xs font-mono-tabular font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
                               Promo: {order.promoCode} (-KES{' '}
                               {(order.promoDiscountKes || 0).toLocaleString()})
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-[#3F3D39] font-medium flex flex-wrap items-center gap-3 mt-1">
+                        <p className="text-xs text-ink-soft font-medium flex flex-wrap items-center gap-3 mt-1">
                           <span>
                             {order.customerName} ({order.phone})
                           </span>
-                          <span className="inline-flex items-center gap-1 text-[#6E6A63]">
-                            <MapPin className="w-3 h-3 text-[#C88A2E]" />
+                          <span className="inline-flex items-center gap-1 text-ink-soft">
+                            <MapPin className="w-3 h-3 text-brand" />
                             {order.city} — {order.address}
                           </span>
                         </p>
@@ -2102,8 +2102,8 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
                       <div className="flex flex-wrap items-center gap-4 self-end lg:self-center">
                         <div className="text-right">
-                          <div className="text-xs text-[#6E6A63]">{order.itemsCount} items</div>
-                          <div className="font-mono-tabular text-base font-bold text-[#0A2246]">
+                          <div className="text-xs text-ink-soft">{order.itemsCount} items</div>
+                          <div className="font-mono-tabular text-base font-bold text-ink">
                             KES {order.total.toLocaleString()}
                           </div>
                         </div>
@@ -2142,20 +2142,20 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
           {activeTab === 'add-product' && (
             <form
               onSubmit={handleCreateNewProduct}
-              className="max-w-3xl mx-auto bg-white p-6 sm:p-8 rounded-2xl border border-[#E6E1D8] space-y-6"
+              className="max-w-3xl mx-auto bg-white p-6 sm:p-8 rounded-2xl border border-line space-y-6"
             >
-              <div className="border-b border-[#ECE8DF] pb-4">
-                <h3 className="font-serif-display text-2xl font-semibold text-[#0A2246]">
+              <div className="border-b border-line pb-4">
+                <h3 className="font-serif-display text-2xl font-semibold text-ink">
                   Add New Pen, Ink, or Accessory to Storefront
                 </h3>
-                <p className="text-xs text-[#6E6A63] mt-1">
+                <p className="text-xs text-ink-soft mt-1">
                   New products appear immediately in the storefront catalog and sync to Cloud Firestore.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                     Product Title *
                   </label>
                   <input
@@ -2166,12 +2166,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       setNewProductDraft({ ...newProductDraft, name: e.target.value })
                     }
                     placeholder="e.g. Pilot Metropolitan Classic"
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                     Price (KES) *
                   </label>
                   <input
@@ -2184,14 +2184,14 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         priceKes: Number(e.target.value),
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm font-bold"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm font-bold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                     Category
                   </label>
                   <select
@@ -2202,7 +2202,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         category: e.target.value as Product['category'],
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm"
                   >
                     <option value="Fountain Pens">Fountain Pens</option>
                     <option value="Bottled Inks">Bottled Inks</option>
@@ -2211,7 +2211,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                     Japanese Subtitle
                   </label>
                   <input
@@ -2220,12 +2220,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     onChange={(e) =>
                       setNewProductDraft({ ...newProductDraft, japaneseTitle: e.target.value })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                     Availability
                   </label>
                   <input
@@ -2234,13 +2234,13 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     onChange={(e) =>
                       setNewProductDraft({ ...newProductDraft, availability: e.target.value })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm"
+                    className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                   Short Card Summary *
                 </label>
                 <input
@@ -2254,12 +2254,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     })
                   }
                   placeholder="Brief summary shown on product cards..."
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">
                   Full Editorial Description
                 </label>
                 <textarea
@@ -2272,19 +2272,19 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     })
                   }
                   placeholder="Detailed craftsmanship notes and story..."
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-paper border border-line text-sm"
                 />
               </div>
 
               {/* Initial Variant */}
-              <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6E1D8] space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#0A2246] flex items-center gap-1.5">
-                  <ImageIcon className="w-4 h-4 text-[#C88A2E]" />
+              <div className="p-4 rounded-xl bg-paper border border-line space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-brand" />
                   <span>Primary Variant &amp; Photo</span>
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-[#6E6A63] mb-1">
+                    <label className="block text-xs font-bold text-ink-soft mb-1">
                       Finish / Color Name
                     </label>
                     <input
@@ -2295,11 +2295,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         v[0] = { ...v[0], label: e.target.value };
                         setNewProductDraft({ ...newProductDraft, variants: v });
                       }}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-[#DCD5C7] text-xs"
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-line text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-[#6E6A63] mb-1">
+                    <label className="block text-xs font-bold text-ink-soft mb-1">
                       Swatch Hex Color
                     </label>
                     <input
@@ -2310,11 +2310,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         v[0] = { ...v[0], swatchHex: e.target.value };
                         setNewProductDraft({ ...newProductDraft, variants: v });
                       }}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-[#DCD5C7] text-xs font-mono-tabular"
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-line text-xs font-mono-tabular"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-[#6E6A63] mb-1">
+                    <label className="block text-xs font-bold text-ink-soft mb-1">
                       Initial Stock Count
                     </label>
                     <input
@@ -2327,11 +2327,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         v[0] = { ...v[0], stockCount: count };
                         setNewProductDraft({ ...newProductDraft, variants: v });
                       }}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-[#DCD5C7] text-xs font-bold"
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-line text-xs font-bold"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-[#6E6A63] mb-1">
+                    <label className="block text-xs font-bold text-ink-soft mb-1">
                       Image Path or URL
                     </label>
                     <input
@@ -2346,7 +2346,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                           variants: v,
                         });
                       }}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-[#DCD5C7] text-xs"
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-line text-xs"
                     />
                   </div>
                 </div>
@@ -2356,7 +2356,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                 <button
                   type="submit"
                   disabled={savingId === 'new-product'}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-ink hover:bg-ink-hover text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>{savingId === 'new-product' ? 'Creating...' : 'Create Product in Catalog'}</span>

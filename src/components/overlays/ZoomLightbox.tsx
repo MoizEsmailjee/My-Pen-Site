@@ -19,9 +19,9 @@ export function ZoomLightbox() {
           aria-modal="true"
           aria-label={`Zoom Inspector: ${zoomModal.title}`}
         >
-          <div className="relative w-full max-w-5xl bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+          <div className="relative w-full max-w-5xl bg-paper border border-line rounded-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
             {/* Top Inspector Bar */}
-            <div className="px-4 sm:px-6 py-3.5 border-b border-[#E6E1D8] bg-[#FAF8F5] flex flex-wrap items-center justify-between gap-3">
+            <div className="px-4 sm:px-6 py-3.5 border-b border-line bg-paper flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 {zoomModal.swatchHex && (
                   <span
@@ -30,11 +30,11 @@ export function ZoomLightbox() {
                   />
                 )}
                 <div className="min-w-0">
-                  <h3 className="font-serif-display text-lg sm:text-xl font-semibold text-[#171614] truncate">
+                  <h3 className="font-serif-display text-lg sm:text-xl font-semibold text-ink truncate">
                     {zoomModal.title}
                   </h3>
                   {zoomModal.subtitle && (
-                    <p className="text-xs text-[#6E6A63] truncate">{zoomModal.subtitle}</p>
+                    <p className="text-xs text-ink-soft truncate">{zoomModal.subtitle}</p>
                   )}
                 </div>
               </div>
@@ -42,7 +42,7 @@ export function ZoomLightbox() {
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Bottle + Swatch vs Swatch Card Close-Up Toggle when secondarySrc is present */}
                 {zoomModal.secondarySrc && (
-                  <div className="inline-flex items-center bg-[#E6E1D8] p-0.5 rounded border border-[#DCD5C7]">
+                  <div className="inline-flex items-center bg-line p-0.5 rounded border border-line">
                     <button
                       type="button"
                       onClick={() =>
@@ -52,8 +52,8 @@ export function ZoomLightbox() {
                       }
                       className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
                         zoomModal.activeView === 'primary'
-                          ? 'bg-[#163A5F] text-white'
-                          : 'text-[#524E48] hover:text-[#171614]'
+                          ? 'bg-ink text-white'
+                          : 'text-ink-soft hover:text-ink'
                       }`}
                     >
                       Bottle + Swatch
@@ -67,8 +67,8 @@ export function ZoomLightbox() {
                       }
                       className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
                         zoomModal.activeView === 'secondary'
-                          ? 'bg-[#163A5F] text-white'
-                          : 'text-[#524E48] hover:text-[#171614]'
+                          ? 'bg-ink text-white'
+                          : 'text-ink-soft hover:text-ink'
                       }`}
                     >
                       Swatch Card Close-Up
@@ -77,7 +77,7 @@ export function ZoomLightbox() {
                 )}
 
                 {/* Optical Zoom Level Buttons: 1x, 2x, 3x */}
-                <div className="inline-flex items-center gap-1 bg-white px-1.5 py-1 rounded border border-[#DCD5C7]">
+                <div className="inline-flex items-center gap-1 bg-white px-1.5 py-1 rounded border border-line">
                   <button
                     type="button"
                     onClick={() =>
@@ -91,7 +91,7 @@ export function ZoomLightbox() {
                       )
                     }
                     title="Zoom Out"
-                    className="p-1 text-[#524E48] hover:text-[#171614] cursor-pointer"
+                    className="p-1 text-ink-soft hover:text-ink cursor-pointer"
                   >
                     <ZoomOut className="w-3.5 h-3.5" />
                   </button>
@@ -104,8 +104,8 @@ export function ZoomLightbox() {
                       }
                       className={`px-2 py-0.5 text-xs font-mono-tabular rounded transition-colors cursor-pointer ${
                         zoomModal.zoomLevel === lvl
-                          ? 'bg-[#163A5F] text-white font-semibold'
-                          : 'text-[#524E48] hover:bg-[#EAE5DC]'
+                          ? 'bg-ink text-white font-semibold'
+                          : 'text-ink-soft hover:bg-line'
                       }`}
                     >
                       {lvl}×
@@ -124,7 +124,7 @@ export function ZoomLightbox() {
                       )
                     }
                     title="Zoom In"
-                    className="p-1 text-[#524E48] hover:text-[#171614] cursor-pointer"
+                    className="p-1 text-ink-soft hover:text-ink cursor-pointer"
                   >
                     <ZoomIn className="w-3.5 h-3.5" />
                   </button>
@@ -134,7 +134,7 @@ export function ZoomLightbox() {
                   type="button"
                   onClick={() => setZoomModal(null)}
                   aria-label="Close zoom inspector"
-                  className="p-1.5 rounded bg-[#EAE5DC] text-[#171614] hover:bg-[#171614] hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 rounded bg-line text-ink hover:bg-ink hover:text-white transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -223,7 +223,7 @@ export function ZoomLightbox() {
                       );
                     }}
                     title="Previous Iroshizuku Ink Shade"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#FAF8F5]/95 border border-[#DCD5C7] text-[#171614] hover:bg-[#163A5F] hover:text-white shadow-md transition-colors cursor-pointer"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-paper/95 border border-line text-ink hover:bg-ink hover:text-white shadow-md transition-colors cursor-pointer"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
@@ -251,7 +251,7 @@ export function ZoomLightbox() {
                       );
                     }}
                     title="Next Iroshizuku Ink Shade"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#FAF8F5]/95 border border-[#DCD5C7] text-[#171614] hover:bg-[#163A5F] hover:text-white shadow-md transition-colors cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-paper/95 border border-line text-ink hover:bg-ink hover:text-white shadow-md transition-colors cursor-pointer"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -260,7 +260,7 @@ export function ZoomLightbox() {
             </div>
 
             {/* Bottom Inspector Helper & Quick Add Bar */}
-            <div className="px-4 sm:px-6 py-3 border-t border-[#E6E1D8] bg-[#F3EFE8] flex flex-wrap items-center justify-between gap-3 text-xs text-[#5C5852]">
+            <div className="px-4 sm:px-6 py-3 border-t border-line bg-wash flex flex-wrap items-center justify-between gap-3 text-xs text-ink-soft">
               <span>
                 Move cursor across image to pan at <strong>{zoomModal.zoomLevel}×</strong> magnification · Click image to cycle zoom (1× / 2× / 3×)
               </span>
@@ -277,7 +277,7 @@ export function ZoomLightbox() {
                         handleAddInkShadeDirectly(shade);
                       }
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold tracking-wider uppercase rounded bg-[#163A5F] hover:bg-[#102B47] text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold tracking-wider uppercase rounded bg-ink hover:bg-ink text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add 50ml Bottle · KES 6,000</span>

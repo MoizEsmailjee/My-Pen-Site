@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { SeriesView, productPath, seriesPath, seriesViewFromPath } from '../lib/routes';
+import { useNavigate } from 'react-router-dom';
+import { productPath } from '../lib/routes';
 import { useEffect, useMemo, useState } from 'react';
 import { FEATURED_PRODUCTS, INK_STUDIO_SHADES, InkShadeOption, NibOption, Product, ProductVariant } from '../data/products';
 import { OperationType, User, addDoc, auth, collection, db, deleteDoc, doc, handleFirestoreError, onAuthStateChanged, onSnapshot, query, setDoc, signInWithGooglePopup, signOutFirebase, updateDoc, where } from '../firebase';
@@ -423,10 +423,6 @@ function useStorefrontState() {
 
   // Unified Atelier Series View Switcher ('all' | 'madoromi' | 'family' | 'prera' | 'iroshizuku' | 'waterman' | 'wishlist')
   const navigate = useNavigate();
-  const location = useLocation();
-  // The active series is the current route, not component state.
-  const activeSeriesView = seriesViewFromPath(location.pathname);
-  const goToSeries = (view: SeriesView) => navigate(seriesPath(view));
   const openProduct = (product: Product) => navigate(productPath(product.id));
 
   // Filter state for the Full 24-Shade Iroshizuku Variety Showcase
@@ -2326,8 +2322,6 @@ function useStorefrontState() {
     allProductReviews,
     activeCategory,
     setActiveCategory,
-    activeSeriesView,
-    goToSeries,
     openProduct,
     activeInkFamily,
     setActiveInkFamily,

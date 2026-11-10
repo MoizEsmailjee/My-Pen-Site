@@ -1,12 +1,11 @@
-import { CollectionShell } from '../components/CollectionShell';
 import { WishlistView } from '../components/WishlistView';
 import { usePageTitle } from '../lib/usePageTitle';
 
 export function WishlistPage() {
-  usePageTitle('Saved wishlist');
+  usePageTitle('Wishlist');
   return (
-    <CollectionShell>
+    <div className="page py-10">
       <WishlistView />
-    </CollectionShell>
+    </div>
   );
 }
