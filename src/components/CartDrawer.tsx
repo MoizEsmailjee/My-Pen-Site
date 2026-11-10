@@ -616,6 +616,7 @@ export function CartDrawer() {
                                           src={item.variant.image || item.product.image}
                                           alt={item.product.name}
                                           fallbackTitle={item.product.name}
+                                          size="small"
                                           className="w-10 h-10 rounded object-contain bg-white border border-[#E6E1D8] shrink-0"
                                         />
                                         <div className="min-w-0">
@@ -697,6 +698,7 @@ export function CartDrawer() {
                         src={item.variant.image || item.product.image}
                         alt={item.product.name}
                         fallbackTitle={item.product.name}
+                        size="small"
                         className="w-16 h-16 rounded object-contain bg-white shrink-0 border border-[#E6E1D8]"
                       />
                       <div className="flex-1 min-w-0">

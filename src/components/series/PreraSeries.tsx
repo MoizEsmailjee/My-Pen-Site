@@ -149,7 +149,9 @@ export function PreraSeries() {
                               }`}
                             >
                               <img
-                                src={resolveAssetUrl(imgItem.src)}
+                                loading="lazy"
+                                decoding="async"
+                                src={resolveAssetUrl(imgItem.src, 'small')}
                                 alt={imgItem.caption}
                                 referrerPolicy="no-referrer"
                                 className="w-full h-full object-contain"

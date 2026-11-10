@@ -164,6 +164,8 @@ export function ChromaticInkRibbonIsland({
             className="aspect-square w-full flex items-center justify-center p-4 cursor-zoom-in group"
           >
             <img
+              loading="lazy"
+              decoding="async"
               src={resolveAssetUrl(activeShade.image)}
               alt={`Pilot Iroshizuku ${activeShade.name} 50ml Bottle`}
               referrerPolicy="no-referrer"
@@ -211,6 +213,8 @@ export function ChromaticInkRibbonIsland({
             className="aspect-square w-full flex items-center justify-center p-4 cursor-zoom-in group"
           >
             <img
+              loading="lazy"
+              decoding="async"
               src={resolveAssetUrl(activeShade.swatchImage)}
               alt={`Pilot Iroshizuku ${activeShade.name} Handwritten Swatch Card`}
               referrerPolicy="no-referrer"

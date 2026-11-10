@@ -180,7 +180,9 @@ export function ZoomLightbox() {
 
                 return (
                   <img
-                    src={resolveAssetUrl(activeSrc)}
+                    loading="lazy"
+                    decoding="async"
+                    src={resolveAssetUrl(activeSrc, 'full')}
                     alt={zoomModal.title}
                     referrerPolicy="no-referrer"
                     style={{

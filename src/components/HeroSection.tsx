@@ -76,6 +76,8 @@ export function HeroSection() {
                 src="/assets/images/hero_pilot_fountain_pen_1794023542555.jpg"
                 alt="Japanese Pilot fountain pen resting beside a cut-glass bottle of Pilot Iroshizuku Tsuki-yo ink on cream Japanese washi paper"
                 fallbackTitle="Pilot Custom & Iroshizuku Tsuki-yo"
+                size="full"
+                priority
                 className="w-full h-full min-h-[340px] lg:h-full object-cover"
               />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 text-white flex items-end justify-between gap-4">

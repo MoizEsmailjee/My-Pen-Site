@@ -200,8 +200,11 @@ export function SiteHeader() {
                                   className="flex items-center gap-2.5 min-w-0 text-left flex-1 cursor-pointer"
                                 >
                                   <img
+                                    loading="lazy"
+                                    decoding="async"
                                     src={resolveAssetUrl(
-                                      match.matchedVariant.image || match.product.image
+                                      match.matchedVariant.image || match.product.image,
+                                      'small'
                                     )}
                                     alt={match.product.name}
                                     referrerPolicy="no-referrer"

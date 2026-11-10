@@ -1,121 +1,51 @@
-import { EMBEDDED_ASSETS } from '../data/embeddedAssets';
+import { IMAGE_THUMBS } from '../data/imageThumbs';
+
+export type AssetSize = 'small' | 'thumb' | 'full';
+
+const THUMB_FOLDERS = { small: '/assets/thumbs-small/', thumb: '/assets/thumbs/' } as const;
+
+/** Older catalogue records point at the pre-build source folder; the files are served from /assets. */
+function normaliseAssetPath(url: string): string {
+  let path = url;
+
+  // Full URLs on our own origin (e.g. https://shop.example/assets/...) reduce to their path.
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    try {
+      const parsed = new URL(path);
+      if (typeof window === 'undefined' || parsed.origin !== window.location.origin) {
+        return url;
+      }
+      path = parsed.pathname;
+    } catch {
+      return url;
+    }
+  }
+
+  if (path.startsWith('./')) path = path.slice(1);
+  if (path.startsWith('assets/') || path.startsWith('src/assets/')) path = `/${path}`;
+  if (path.startsWith('/src/assets/')) path = path.slice('/src'.length);
+  return path;
+}
 
 /**
- * Resolves any local `/assets/...` or `/src/assets/...` image path to its
- * self-contained base64 Data URI embedded in the TypeScript bundle.
- * This guarantees 100% image availability on Vercel, Cloud Run, and GitHub
- * exports even when static binary files are omitted or rewritten by SPA routing.
+ * Resolves a catalogue image reference to the URL the browser should load.
+ *
+ * Local `/assets/...` images are served as static files. By default the 720px
+ * thumbnail is returned, which suits cards and galleries. Pass `'small'` for
+ * the 200px version used in thumbnail strips and search results, or `'full'`
+ * for zoom views that need the full-resolution file. External URLs
+ * and data URIs (for example images entered in the merchant admin) pass through.
  */
-export function resolveAssetUrl(url?: string | null): string {
+export function resolveAssetUrl(url?: string | null, size: AssetSize = 'thumb'): string {
   if (!url) return '';
   const trimmed = url.trim();
-  if (!trimmed || trimmed.startsWith('data:')) {
+  if (!trimmed || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
     return trimmed;
   }
 
-  if (EMBEDDED_ASSETS[trimmed]) {
-    return EMBEDDED_ASSETS[trimmed];
+  const path = normaliseAssetPath(trimmed);
+  if (size !== 'full' && IMAGE_THUMBS.has(path)) {
+    return path.replace(/^\/assets\//, THUMB_FOLDERS[size]);
   }
-
-  // Handle relative paths like "assets/prera/..." or "./assets/prera/..."
-  const normalized = trimmed.startsWith('./')
-    ? trimmed.slice(1)
-    : trimmed.startsWith('assets/') || trimmed.startsWith('src/assets/')
-      ? `/${trimmed}`
-      : trimmed;
-
-  if (EMBEDDED_ASSETS[normalized]) {
-    return EMBEDDED_ASSETS[normalized];
-  }
-
-  // Handle full URLs where browser or origin was prepended (e.g. https://app.vercel.app/assets/...)
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    try {
-      const parsed = new URL(trimmed);
-      if (EMBEDDED_ASSETS[parsed.pathname]) {
-        return EMBEDDED_ASSETS[parsed.pathname];
-      }
-    } catch {
-      // Ignore invalid URL
-    }
-  }
-
-  return trimmed;
-}
-
-function patchImageElement(img: HTMLImageElement): void {
-  const rawAttr = img.getAttribute('src');
-  if (rawAttr && !rawAttr.startsWith('data:')) {
-    const resolved = resolveAssetUrl(rawAttr);
-    if (resolved !== rawAttr) {
-      img.setAttribute('src', resolved);
-      return;
-    }
-  }
-
-  if (img.src && !img.src.startsWith('data:')) {
-    const resolved = resolveAssetUrl(img.src);
-    if (resolved !== img.src) {
-      img.src = resolved;
-    }
-  }
-}
-
-function scanSubtree(root: ParentNode): void {
-  if (root instanceof HTMLImageElement) {
-    patchImageElement(root);
-  }
-  const images = root.querySelectorAll?.('img');
-  if (images) {
-    images.forEach(patchImageElement);
-  }
-}
-
-/**
- * Installs a global DOM observer and capture-phase error handler so that
- * any `<img>` element rendered anywhere in the application (including islands,
- * modals, cart drawers, or Firestore-synced catalog records) automatically
- * resolves `/assets/...` paths to embedded base64 Data URIs.
- */
-export function installGlobalAssetInterceptor(): void {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
-
-  scanSubtree(document);
-
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (
-        mutation.type === 'attributes' &&
-        mutation.target instanceof HTMLImageElement
-      ) {
-        patchImageElement(mutation.target);
-      } else if (mutation.type === 'childList') {
-        mutation.addedNodes.forEach((node) => {
-          if (node instanceof HTMLImageElement) {
-            patchImageElement(node);
-          } else if (node instanceof HTMLElement) {
-            scanSubtree(node);
-          }
-        });
-      }
-    }
-  });
-
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['src'],
-  });
-
-  window.addEventListener(
-    'error',
-    (event) => {
-      const target = event.target;
-      if (target instanceof HTMLImageElement) {
-        patchImageElement(target);
-      }
-    },
-    true
-  );
+  return path;
 }

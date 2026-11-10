@@ -191,6 +191,8 @@ export function WritingSetBuilderIsland({
 
               <div className="aspect-[4/3] w-full bg-[#FAF8F5] rounded border border-[#ECE8DF] p-4 flex items-center justify-center mb-4">
                 <img
+                  loading="lazy"
+                  decoding="async"
                   src={resolveAssetUrl(activePenVariant.image || activePenProduct.image)}
                   alt={activePenVariant.label}
                   referrerPolicy="no-referrer"
@@ -311,6 +313,8 @@ export function WritingSetBuilderIsland({
 
               <div className="aspect-[4/3] w-full bg-[#FAF8F5] rounded border border-[#ECE8DF] p-4 flex items-center justify-center mb-4">
                 <img
+                  loading="lazy"
+                  decoding="async"
                   src={resolveAssetUrl(con40Product.image)}
                   alt={con40Product.name}
                   referrerPolicy="no-referrer"
@@ -412,6 +416,8 @@ export function WritingSetBuilderIsland({
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
                 <div className="sm:col-span-5 aspect-square bg-[#FAF8F5] rounded border border-[#ECE8DF] p-3 flex items-center justify-center">
                   <img
+                    loading="lazy"
+                    decoding="async"
                     src={resolveAssetUrl(activeInkVariant.image || activeInkProduct.image)}
                     alt={activeInkVariant.label}
                     referrerPolicy="no-referrer"

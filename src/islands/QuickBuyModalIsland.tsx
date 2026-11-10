@@ -187,6 +187,8 @@ export function QuickBuyModalIsland({
           <div className="sm:col-span-5 flex flex-col gap-3">
             <div className="relative aspect-square w-full bg-white rounded border border-[#E6E1D8] p-4 flex items-center justify-center">
               <img
+                loading="lazy"
+                decoding="async"
                 src={resolveAssetUrl(displayedImage)}
                 alt={`${product.name} — ${chosenVariant.label}`}
                 referrerPolicy="no-referrer"

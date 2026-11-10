@@ -56,8 +56,11 @@ export function NotifyMeModal() {
             <div className="p-6 space-y-4">
               <div className="flex items-center gap-3.5 p-3 rounded-xl bg-white border border-[#E6E1D8]">
                 <img
+                  loading="lazy"
+                  decoding="async"
                   src={resolveAssetUrl(
-                    notifyModalTarget.variant.image || notifyModalTarget.product.image
+                    notifyModalTarget.variant.image || notifyModalTarget.product.image,
+                    'small'
                   )}
                   alt={notifyModalTarget.variant.label}
                   referrerPolicy="no-referrer"

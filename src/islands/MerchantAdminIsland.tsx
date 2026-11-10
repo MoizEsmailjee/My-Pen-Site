@@ -789,7 +789,9 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                       <div className="flex items-start gap-4">
                         <img
-                          src={resolveAssetUrl(product.variants[0]?.image || product.image)}
+                          loading="lazy"
+                          decoding="async"
+                          src={resolveAssetUrl(product.variants[0]?.image || product.image, 'small')}
                           alt={product.name}
                           referrerPolicy="no-referrer"
                           className="w-16 h-16 rounded-lg object-contain bg-white border border-[#E6E1D8] p-1 shrink-0"
@@ -1583,7 +1585,9 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                             <div className="bg-white px-5 py-4 border-b border-[#E6E1D8] flex flex-wrap items-center justify-between gap-4">
                               <div className="flex items-center gap-3.5 min-w-0">
                                 <img
-                                  src={resolveAssetUrl(group.image)}
+                                  loading="lazy"
+                                  decoding="async"
+                                  src={resolveAssetUrl(group.image, 'small')}
                                   alt={group.variantLabel}
                                   referrerPolicy="no-referrer"
                                   className="w-12 h-12 rounded-lg object-contain bg-[#FAF8F5] border border-[#E6E1D8] p-1 shrink-0"

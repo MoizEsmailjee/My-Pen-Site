@@ -343,6 +343,8 @@ export function InkMixingSetBuilderIsland({
                       {/* Bottle / Swatch Image */}
                       <div className="relative aspect-square w-full bg-white rounded border border-[#ECE8DF] p-3 flex items-center justify-center mb-3 overflow-hidden">
                         <img
+                          loading="lazy"
+                          decoding="async"
                           src={resolveAssetUrl(
                             showSwatchPreview ? shade.swatchImage : shade.image
                           )}

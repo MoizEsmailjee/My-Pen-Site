@@ -158,7 +158,7 @@ export function IroshizukuSeries() {
                       <div
                         className="pointer-events-none absolute inset-0 bg-white z-10 hidden sm:block"
                         style={{
-                          backgroundImage: `url(${resolveAssetUrl(activeCardImg)})`,
+                          backgroundImage: `url(${resolveAssetUrl(activeCardImg, 'full')})`,
                           backgroundRepeat: 'no-repeat',
                           backgroundSize: '225%',
                           backgroundPosition: `${hoveredInkZoom.x}% ${hoveredInkZoom.y}%`,

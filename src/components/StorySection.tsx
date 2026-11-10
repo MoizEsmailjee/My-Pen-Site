@@ -18,6 +18,7 @@ export function StorySection() {
                   src="/assets/images/japanese_nib_craftsmanship_1794023548186.jpg"
                   alt="Macro close-up of an engraved Japanese fountain pen nib gliding across textured cotton paper with deep indigo ink"
                   fallbackTitle="Japanese Nib Craftsmanship"
+                  size="full"
                   className="w-full h-full min-h-[320px] lg:h-full object-cover"
                 />
               </div>

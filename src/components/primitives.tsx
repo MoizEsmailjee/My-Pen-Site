@@ -1,7 +1,7 @@
 import { Feather } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BRAND_LOGO_SRC } from '../lib/storefront';
-import { resolveAssetUrl } from '../utils/assetResolver';
+import { AssetSize, resolveAssetUrl } from '../utils/assetResolver';
 
 export function VariantStockIndicator({
   stockCount,
@@ -59,14 +59,20 @@ export function ResilientImage({
   alt,
   className = '',
   fallbackTitle,
+  size = 'thumb',
+  priority = false,
 }: {
   src: string;
   alt: string;
   className?: string;
   fallbackTitle: string;
+  /** 'full' for large editorial photos; cards and galleries use the default thumbnail. */
+  size?: AssetSize;
+  /** Load immediately instead of lazily. Use only for the image at the top of a page. */
+  priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const resolvedSrc = resolveAssetUrl(src);
+  const resolvedSrc = resolveAssetUrl(src, size);
 
   useEffect(() => {
     setFailed(false);
@@ -88,6 +94,9 @@ export function ResilientImage({
 
   return (
     <img
+      loading={priority ? 'eager' : 'lazy'}
+      fetchPriority={priority ? 'high' : 'auto'}
+      decoding="async"
       src={resolvedSrc}
       alt={alt}
       referrerPolicy="no-referrer"
