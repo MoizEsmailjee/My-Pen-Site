@@ -26,9 +26,12 @@ import {
   ArrowUpRight,
   CloudUpload,
   Bell,
+  FileText,
+  Download,
 } from 'lucide-react';
 import { Product, ProductVariant } from '../data/products';
 import { resolveAssetUrl } from '../utils/assetResolver';
+import { generateOrderInvoicePdf } from '../utils/invoiceGenerator';
 
 export interface StoreSettings {
   inkMixingSetBundleKes: number;
@@ -69,10 +72,14 @@ export interface AdminOrderRecord {
   paymentMethod: 'mpesa' | 'cod' | 'whatsapp';
   promoCode?: string;
   promoDiscountKes?: number;
+  subtotal?: number;
+  deliveryFee?: number;
+  bundleDiscountKes?: number;
   total: number;
   timestamp: string;
   itemsCount: number;
   items?: AdminOrderItemSummary[];
+  isFirestoreSynced?: boolean;
 }
 
 export interface RestockAlertRecord {
@@ -197,6 +204,14 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   const [newPromoValue, setNewPromoValue] = useState<number>(10);
   const [newPromoMinSpend, setNewPromoMinSpend] = useState<number>(5000);
   const [newPromoDescription, setNewPromoDescription] = useState('');
+  const [selectedInvoiceOrderNo, setSelectedInvoiceOrderNo] = useState<string>('');
+
+  const selectedInvoiceOrder = useMemo(() => {
+    if (orders.length === 0) return null;
+    return (
+      orders.find((o) => o.orderNumber === selectedInvoiceOrderNo) || orders[0]
+    );
+  }, [orders, selectedInvoiceOrderNo]);
 
   useEffect(() => {
     setSettingsDraft(storeSettings);
@@ -2027,22 +2042,193 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
             </form>
           )}
 
-          {/* TAB 5: ORDERS MANAGEMENT */}
+          {/* TAB 5: ORDERS MANAGEMENT & PDF INVOICE GENERATOR */}
           {activeTab === 'orders' && (
-            <div className="space-y-4">
-              <div className="bg-white p-5 rounded-xl border border-[#E6E1D8] flex items-center justify-between">
+            <div className="space-y-5">
+              <div className="bg-white p-5 rounded-xl border border-[#E6E1D8] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-serif-display text-xl font-semibold text-[#0A2246]">
-                    Customer Orders &amp; Dispatch Queue
+                    Customer Orders, Dispatch Queue &amp; PDF Invoices
                   </h3>
                   <p className="text-xs text-[#6E6A63]">
-                    View M-Pesa Express, WhatsApp Concierge, and Cash-on-Delivery orders across Kenya.
+                    Manage M-Pesa Express, WhatsApp Concierge, and Cash-on-Delivery orders from Cloud Firestore and generate printable PENS R US PDF invoices.
                   </p>
                 </div>
-                <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#F3EFE8] text-[#0A2246]">
-                  {orders.length} Total Orders
-                </span>
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#F3EFE8] text-[#0A2246]">
+                    {orders.length} Total Orders
+                  </span>
+                </div>
               </div>
+
+              {/* PENS R US PRINTABLE PDF INVOICE GENERATOR WORKBENCH */}
+              {selectedInvoiceOrder && (
+                <div className="bg-white rounded-2xl border border-[#DCD5C7] shadow-xs overflow-hidden">
+                  <div className="bg-[#0A2246] text-white px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b-2 border-[#C88A2E]">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={resolveAssetUrl('/assets/logos/pens_r_us_logo.png')}
+                        alt="PENS R US"
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 object-contain rounded-lg bg-white p-1 shrink-0"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#E5B25D]">
+                            Printable jsPDF Document Builder
+                          </span>
+                          {selectedInvoiceOrder.isFirestoreSynced && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                              Firestore Order
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="font-serif-display text-lg font-semibold text-white">
+                          PENS R US — Official Tax &amp; Dispatch Invoice Generator
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <label className="text-xs text-white/80 font-medium" htmlFor="invoice-order-select">
+                        Select Order:
+                      </label>
+                      <select
+                        id="invoice-order-select"
+                        value={selectedInvoiceOrder.orderNumber}
+                        onChange={(e) => setSelectedInvoiceOrderNo(e.target.value)}
+                        className="px-3 py-2 rounded-lg bg-[#133468] border border-white/20 text-white text-xs font-semibold cursor-pointer"
+                      >
+                        {orders.map((ord) => (
+                          <option key={ord.id || ord.orderNumber} value={ord.orderNumber}>
+                            {ord.orderNumber} — {ord.customerName} (KES {ord.total.toLocaleString()})
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          generateOrderInvoicePdf(selectedInvoiceOrder);
+                          showToast(
+                            `Generated PDF Invoice for ${selectedInvoiceOrder.orderNumber}`
+                          );
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#C88A2E] hover:bg-[#b57922] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-xs"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Generate Invoice (PDF)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Live Invoice Preview Summary */}
+                  <div className="p-5 bg-[#FAF8F5] grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                    <div className="lg:col-span-5 space-y-2 bg-white p-4 rounded-xl border border-[#E6E1D8]">
+                      <div className="flex items-center justify-between border-b border-[#ECE8DF] pb-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#8C857B]">
+                          Billed To &amp; Delivery
+                        </span>
+                        <span className="font-mono-tabular text-xs font-bold text-[#0A2246]">
+                          {selectedInvoiceOrder.orderNumber}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-[#171614]">
+                        {selectedInvoiceOrder.customerName}
+                      </p>
+                      <p className="text-xs text-[#5C5852]">
+                        Phone: <span className="font-mono-tabular">{selectedInvoiceOrder.phone}</span>
+                      </p>
+                      <p className="text-xs text-[#5C5852]">
+                        Destination: {selectedInvoiceOrder.city} — {selectedInvoiceOrder.address}
+                      </p>
+                      <div className="pt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="px-2 py-0.5 rounded bg-[#F3EFE8] text-[#0A2246] font-semibold">
+                          {selectedInvoiceOrder.paymentMethod === 'mpesa'
+                            ? 'M-Pesa Express'
+                            : selectedInvoiceOrder.paymentMethod === 'whatsapp'
+                            ? 'WhatsApp Concierge'
+                            : 'Cash on Delivery'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-[#F3EFE8] text-[#5C5852] font-mono-tabular">
+                          {selectedInvoiceOrder.timestamp}
+                        </span>
+                        {selectedInvoiceOrder.promoCode && (
+                          <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono-tabular font-bold">
+                            Promo: {selectedInvoiceOrder.promoCode} (-KES{' '}
+                            {(selectedInvoiceOrder.promoDiscountKes || 0).toLocaleString()})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-7 bg-white p-4 rounded-xl border border-[#E6E1D8] space-y-3">
+                      <div className="flex items-center justify-between border-b border-[#ECE8DF] pb-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#8C857B]">
+                          Itemized Invoice Breakdown ({selectedInvoiceOrder.itemsCount} units)
+                        </span>
+                        <span className="text-[11px] font-semibold text-[#0A2246]">
+                          PENS R US Branded A4 Layout
+                        </span>
+                      </div>
+
+                      {selectedInvoiceOrder.items && selectedInvoiceOrder.items.length > 0 ? (
+                        <div className="divide-y divide-[#F1EDE4] max-h-44 overflow-y-auto pr-1">
+                          {selectedInvoiceOrder.items.map((item, idx) => (
+                            <div
+                              key={`${item.productName}-${item.variantLabel}-${idx}`}
+                              className="py-2 flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="min-w-0">
+                                <span className="font-semibold text-[#171614]">
+                                  {item.productName}
+                                </span>
+                                <span className="text-[#6E6A63] ml-1.5">
+                                  ({item.variantLabel.split(' · ')[0]}
+                                  {item.nibSize ? ` · ${item.nibSize} Nib` : ''})
+                                </span>
+                              </div>
+                              <div className="font-mono-tabular text-right shrink-0">
+                                <span className="text-[#6E6A63]">
+                                  {item.quantity} × KES {item.priceKes.toLocaleString()} ={' '}
+                                </span>
+                                <span className="font-bold text-[#0A2246]">
+                                  KES {(item.quantity * item.priceKes).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#6E6A63]">
+                          Consolidated Atelier Order ({selectedInvoiceOrder.itemsCount} items)
+                        </p>
+                      )}
+
+                      <div className="pt-2 border-t border-[#ECE8DF] flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-3 text-[#5C5852]">
+                          {typeof selectedInvoiceOrder.bundleDiscountKes === 'number' &&
+                            selectedInvoiceOrder.bundleDiscountKes > 0 && (
+                              <span className="text-emerald-800 font-semibold">
+                                Ink Bundle Privilege: -KES{' '}
+                                {selectedInvoiceOrder.bundleDiscountKes.toLocaleString()}
+                              </span>
+                            )}
+                          {selectedInvoiceOrder.promoCode && (
+                            <span className="text-emerald-800 font-semibold">
+                              Promo ({selectedInvoiceOrder.promoCode}): -KES{' '}
+                              {(selectedInvoiceOrder.promoDiscountKes || 0).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-mono-tabular text-sm font-bold text-[#0A2246]">
+                          Invoice Total: KES {selectedInvoiceOrder.total.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {orders.length === 0 ? (
                 <div className="bg-white p-12 rounded-xl border border-[#E6E1D8] text-center">
@@ -2054,9 +2240,13 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   {orders.map((order) => (
                     <div
                       key={order.id || order.orderNumber}
-                      className="bg-white p-5 rounded-xl border border-[#E6E1D8] flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                      className={`bg-white p-5 rounded-xl border transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${
+                        selectedInvoiceOrder?.orderNumber === order.orderNumber
+                          ? 'border-[#0A2246] ring-1 ring-[#0A2246]/15'
+                          : 'border-[#E6E1D8]'
+                      }`}
                     >
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <div className="flex flex-wrap items-center gap-2.5">
                           <span className="font-mono-tabular text-sm font-bold text-[#0A2246]">
                             {order.orderNumber}
@@ -2094,15 +2284,42 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                             {order.city} — {order.address}
                           </span>
                         </p>
+                        {order.items && order.items.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            {order.items.map((item, idx) => (
+                              <span
+                                key={`${order.orderNumber}-item-${idx}`}
+                                className="text-[11px] px-2 py-0.5 rounded bg-[#FAF8F5] border border-[#E6E1D8] text-[#5C5852]"
+                              >
+                                {item.quantity}× {item.productName} ({item.variantLabel.split(' · ')[0]}
+                                {item.nibSize ? `, ${item.nibSize}` : ''})
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-4 self-end lg:self-center">
-                        <div className="text-right">
+                      <div className="flex flex-wrap items-center gap-3 self-end lg:self-center">
+                        <div className="text-right mr-1">
                           <div className="text-xs text-[#6E6A63]">{order.itemsCount} items</div>
                           <div className="font-mono-tabular text-base font-bold text-[#0A2246]">
                             KES {order.total.toLocaleString()}
                           </div>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedInvoiceOrderNo(order.orderNumber);
+                            generateOrderInvoicePdf(order);
+                            showToast(`Generated PDF Invoice for ${order.orderNumber}`);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                          title="Generate printable PENS R US PDF Invoice"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-[#E5B25D]" />
+                          <span>Generate Invoice</span>
+                        </button>
 
                         <select
                           value={order.orderStatus || 'Processing'}

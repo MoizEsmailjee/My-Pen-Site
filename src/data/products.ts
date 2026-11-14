@@ -1,3 +1,9 @@
+import penzoramaBlackImg from '../assets/images/penzorama_pilot_30ml_black.jpg';
+import penzoramaBlueImg from '../assets/images/penzorama_pilot_30ml_blue.jpg';
+import penzoramaBlueBlackImg from '../assets/images/penzorama_pilot_30ml_blue_black.jpg';
+import paperwhisperDetail1Img from '../assets/images/paperwhisper_pilot_30ml_blue_detail1.jpg';
+import paperwhisperDetail2Img from '../assets/images/paperwhisper_pilot_30ml_blue_detail2.jpg';
+
 export type NibOption = 'Fine' | 'Medium';
 
 export interface ProductVariant {
@@ -591,8 +597,8 @@ export const FEATURED_PRODUCTS: Product[] = [
   },
   {
     id: 'pilot-prera',
-    name: 'PILOT PRERA · EMPRESS TEAL SERIES',
-    japaneseTitle: '万年筆 プレラ · Empress Teal & Café Collection',
+    name: 'PILOT PRERA · CAFÉ SERIES',
+    japaneseTitle: '万年筆 プレラ · Empress Teal, Cinnamon Brown & Porcelain White',
     category: 'Fountain Pens',
     priceKes: 8500,
     image: '/assets/prera/empress_teal_1.jpg',
@@ -636,9 +642,9 @@ export const FEATURED_PRODUCTS: Product[] = [
     Origin: 'Made in Japan',
     availability: 'In Stock in Nairobi',
     shortSummary:
-      'Translucent Empress Teal resin demonstrator with cushioned snap-cap, silver trim, Fine or Medium steel nib, and both a Pilot CON-40 converter and ink cartridge included.',
+      'Translucent Japanese resin demonstrators in Empress Teal, Cinnamon Brown & Porcelain White with cushioned snap-cap, silver trim, Fine/Medium nib, and Pilot CON-40 converter included.',
     description:
-      'The Pilot Prera Fountain Pen in Empress Teal blends subtle sophistication with everyday functionality. Inspired by the cozy, welcoming atmosphere of a café where the aroma of fresh coffee and warm spices fills the air, the deep vibrant teal resin body offers a glimpse into the pen’s inner mechanics and included CON-40 converter. Famous among collectors for its velvety, cushioned snap-cap closure and agile 15g pocket-to-full-size posted balance, the Prera delivers a buttery-smooth writing experience in Fine (0.35mm) or Medium (0.50mm).',
+      'Inspired by the cozy, welcoming atmosphere of a quiet café where the aroma of fresh coffee and warm spices fills the air, the Pilot Prera Café Series pairs a deep translucent resin body with Pilot’s iconic cushioned snap-cap closure. Available in Empress Teal, Cinnamon Brown, and Porcelain White, every pen includes a pre-installed Pilot CON-40 twist converter and IC-50 black ink cartridge, posting to a balanced 135mm writing length with your choice of Fine (0.35mm) or Medium (0.50mm) stainless steel nib.',
     variantLabel: 'Select Prera Café Finish (Includes CON-40 Converter · KES 8,500)',
     variants: [
       {
@@ -673,10 +679,12 @@ export const FEATURED_PRODUCTS: Product[] = [
       },
     ],
     specs: [
-      { label: 'Nib Options', value: 'Fine (0.35mm) & Medium (0.50mm) Silver Stainless Steel' },
-      { label: 'Filling Mechanism', value: 'Pilot CON-40 Converter + Black Ink Cartridge (Both Included)' },
-      { label: 'Body & Cap', value: 'Translucent Resin with Cushioned Snap-Cap & Silver Trim (15g)' },
-      { label: 'Dimensions', value: '121mm Capped · 107mm Uncapped · 135mm Posted · 13.5mm Cap Ø' },
+      { label: 'Nib Options', value: 'Fine (0.35mm) & Medium (0.50mm) Silver Steel' },
+      { label: 'Filling Mechanism', value: 'CON-40 Converter + Cartridge (Both Included)' },
+      { label: 'Cap & Trim', value: 'Cushioned Snap-Cap · Silver Rhodium Accent' },
+      { label: 'Length — Capped / Posted', value: '121 mm Capped · 135 mm Posted · 107 mm Uncapped' },
+      { label: 'Diameter & Weight', value: '13.5 mm Cap · 9.4 mm Grip · 15 g (0.53 oz)' },
+      { label: 'Body Material', value: 'Translucent Japanese Acrylic Resin' },
     ],
     includedItems: [
       'Pilot Prera Fountain Pen in Selected Finish (Fine or Medium Nib)',
@@ -853,6 +861,82 @@ export const FEATURED_PRODUCTS: Product[] = [
       'Waterman Paris 50ml Multi-Faceted Glass Ink Bottle',
       'Waterman Paris Presentation Box',
       'Side-Tilt Converter Filling Instructions',
+    ],
+  },
+  {
+    id: 'pilot-30ml-ink',
+    name: 'PILOT 30ML BOTTLED INK · CLASSIC SERIES',
+    japaneseTitle: 'パイロット 万年筆インキ 30ml · Black, Blue & Blue-Black',
+    category: 'Bottled Inks',
+    priceKes: 1200,
+    image: penzoramaBlueImg,
+    imageFit: 'contain',
+    hasNibSelector: false,
+    galleryImages: [
+      {
+        src: penzoramaBlueImg,
+        caption: 'Pilot 30ml Fountain Pen Ink — Blue (INK-30-L) & Box',
+      },
+      {
+        src: penzoramaBlackImg,
+        caption: 'Pilot 30ml Fountain Pen Ink — Black (INK-30-B) & Box',
+      },
+      {
+        src: penzoramaBlueBlackImg,
+        caption: 'Pilot 30ml Fountain Pen Ink — Blue-Black (INK-30-BB) & Box',
+      },
+      {
+        src: paperwhisperDetail1Img,
+        caption: 'Pilot 30ml Glass Bottle Collection Studio View',
+      },
+      {
+        src: paperwhisperDetail2Img,
+        caption: 'Wide-Base 30ml Glass Flacon & Ribbed Screw Cap Detail',
+      },
+    ],
+    Origin: 'Made in Japan',
+    availability: 'In Stock in Nairobi',
+    shortSummary:
+      'Classic wide-base 30ml Japanese glass ink bottles with tight-sealing screw caps in Black, Blue, and Blue-Black—smooth, well-lubricated everyday flow.',
+    description:
+      'Formulated in Japan by Pilot Corporation for dependable daily correspondence, journaling, and office writing, the classic 30ml Pilot Fountain Pen Ink bottle features a wide-base square-flared glass flacon stamped "PILOT MADE IN JAPAN" and a tight-sealing ribbed screw-top cap. Smooth and well-lubricated across Japanese Fine and Medium nibs, available in crisp pitch Black (INK-30-B), bright royal Blue (INK-30-L), and classic midnight Blue-Black (INK-30-BB).',
+    variantLabel: 'Select Pilot 30ml Shade (KES 1,200)',
+    variants: [
+      {
+        id: 'pilot-30ml-black',
+        label: 'Black · INK-30-B (Kuro)',
+        sublabel: 'Crisp, deep everyday fountain pen black with smooth lubricated flow on studio and office paper',
+        swatchHex: '#18181A',
+        image: penzoramaBlackImg,
+        stockCount: 10,
+      },
+      {
+        id: 'pilot-30ml-blue',
+        label: 'Blue · INK-30-L (Ao)',
+        sublabel: 'Vibrant, classic royal blue with effortless pen rinsing and balanced wet flow',
+        swatchHex: '#1246A8',
+        image: penzoramaBlueImg,
+        stockCount: 9,
+      },
+      {
+        id: 'pilot-30ml-blue-black',
+        label: 'Blue-Black · INK-30-BB',
+        sublabel: 'Timeless midnight navy blue-black prized for executive clarity and restrained shading',
+        swatchHex: '#172947',
+        image: penzoramaBlueBlackImg,
+        stockCount: 2,
+      },
+    ],
+    specs: [
+      { label: 'Available Shades', value: 'Black (INK-30-B), Blue (INK-30-L) & Blue-Black (INK-30-BB)' },
+      { label: 'Volume & Flacon', value: '30 ml Wide-Base Glass Bottle · Ribbed Screw-Top Cap' },
+      { label: 'Formulation', value: 'Smooth Lubricated Water-Based Dye Ink (Made in Japan)' },
+      { label: 'Compatibility', value: 'Pilot CON-40, Kakuno, Prera & All Fountain Pens' },
+    ],
+    includedItems: [
+      'Authentic Pilot Japan 30ml Wide-Base Glass Ink Bottle',
+      'Sealed Pilot Signature Retail Presentation Box',
+      'Compatible with Pilot CON-40 & CON-70 Converters',
     ],
   },
 ];
