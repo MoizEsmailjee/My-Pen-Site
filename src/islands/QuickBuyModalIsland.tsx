@@ -8,7 +8,13 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { NibOption, Product, ProductVariant } from '../data/products';
+import {
+  NibOption,
+  Product,
+  ProductVariant,
+  getVariantNibBreakdown,
+  getVariantEffectiveStock,
+} from '../data/products';
 import { resolveAssetUrl } from '../utils/assetResolver';
 
 interface QuickBuyModalIslandProps {
@@ -137,15 +143,19 @@ export function QuickBuyModalIsland({
             <span>{product.category}</span>
             <span aria-hidden="true">·</span>
             {(() => {
-              const vStock =
-                typeof chosenVariant.stockCount === 'number'
-                  ? chosenVariant.stockCount
-                  : 10;
+              const vStock = getVariantEffectiveStock(
+                product,
+                chosenVariant,
+                product.hasNibSelector ? selectedNib : undefined
+              );
               if (vStock === 0) {
                 return (
                   <span className="inline-flex items-center gap-1.5 text-rose-700 font-semibold">
                     <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
-                    <span>Sold Out (0 left)</span>
+                    <span>
+                      Sold Out (0 left
+                      {product.hasNibSelector ? ` in ${selectedNib} Nib` : ''})
+                    </span>
                   </span>
                 );
               }
@@ -156,7 +166,10 @@ export function QuickBuyModalIsland({
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
                     </span>
-                    <span>Low Stock · Only {vStock} left in Nairobi</span>
+                    <span>
+                      Low Stock · Only {vStock} left
+                      {product.hasNibSelector ? ` (${selectedNib} Nib)` : ' in Nairobi'}
+                    </span>
                   </span>
                 );
               }
@@ -164,7 +177,8 @@ export function QuickBuyModalIsland({
                 <span className="inline-flex items-center gap-1.5 text-[#6E6A63]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#9E988E] shrink-0" />
                   <span>
-                    {product.availability} ({vStock} in stock)
+                    {product.availability} ({vStock} in stock
+                    {product.hasNibSelector ? ` · ${selectedNib} Nib` : ''})
                   </span>
                 </span>
               );
@@ -292,69 +306,84 @@ export function QuickBuyModalIsland({
             {/* Step 2: Select Nib Size (Fine 0.35mm vs Medium 0.50mm) for Fountain Pens */}
             {product.hasNibSelector && (
               <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-semibold uppercase tracking-wider text-[#5C5852]">
-                    2. Select Nib Size
-                  </span>
-                  <span className="font-mono-tabular text-[11px] text-[#B58435] font-medium">
-                    {selectedNib === 'Fine' ? 'Fine · 0.35mm Line' : 'Medium · 0.50mm Line'}
-                  </span>
-                </div>
+                {(() => {
+                  const nibBreakdown = getVariantNibBreakdown(product, chosenVariant);
+                  return (
+                    <>
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="font-semibold uppercase tracking-wider text-[#5C5852]">
+                          2. Select Nib Size (F: {nibBreakdown.fine} · M: {nibBreakdown.medium})
+                        </span>
+                        <span className="font-mono-tabular text-[11px] text-[#B58435] font-medium">
+                          {selectedNib === 'Fine' ? 'Fine · 0.35mm Line' : 'Medium · 0.50mm Line'}
+                        </span>
+                      </div>
 
-                <div
-                  role="radiogroup"
-                  aria-label="Select Nib Size"
-                  className="grid grid-cols-2 gap-2.5"
-                >
-                  {(
-                    [
-                      {
-                        nib: 'Fine' as const,
-                        mm: '0.35mm',
-                        desc: 'Crisp precision for journals & ledgers',
-                      },
-                      {
-                        nib: 'Medium' as const,
-                        mm: '0.50mm',
-                        desc: 'Smooth flow that showcases ink shading',
-                      },
-                    ] as const
-                  ).map((option) => {
-                    const active = selectedNib === option.nib;
-                    return (
-                      <button
-                        key={option.nib}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        onClick={() => handleNibClick(option.nib)}
-                        className={`p-3 rounded border text-left transition-all cursor-pointer ${
-                          active
-                            ? 'border-[#0A2246] bg-[#0A2246] text-white shadow-xs'
-                            : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246]'
-                        }`}
+                      <div
+                        role="radiogroup"
+                        aria-label="Select Nib Size"
+                        className="grid grid-cols-2 gap-2.5"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold">{option.nib} Nib</span>
-                          <span
-                            className={`font-mono-tabular text-[11px] ${
-                              active ? 'text-[#E5B25D]' : 'text-[#6E6A63]'
-                            }`}
-                          >
-                            {option.mm}
-                          </span>
-                        </div>
-                        <p
-                          className={`text-[11px] mt-1 leading-snug ${
-                            active ? 'text-white/85' : 'text-[#6E6A63]'
-                          }`}
-                        >
-                          {option.desc}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
+                        {(
+                          [
+                            {
+                              nib: 'Fine' as const,
+                              mm: '0.35mm',
+                              desc: 'Crisp precision for journals & ledgers',
+                              stock: nibBreakdown.fine,
+                            },
+                            {
+                              nib: 'Medium' as const,
+                              mm: '0.50mm',
+                              desc: 'Smooth flow that showcases ink shading',
+                              stock: nibBreakdown.medium,
+                            },
+                          ] as const
+                        ).map((option) => {
+                          const active = selectedNib === option.nib;
+                          return (
+                            <button
+                              key={option.nib}
+                              type="button"
+                              role="radio"
+                              aria-checked={active}
+                              onClick={() => handleNibClick(option.nib)}
+                              className={`p-3 rounded border text-left transition-all cursor-pointer ${
+                                active
+                                  ? 'border-[#0A2246] bg-[#0A2246] text-white shadow-xs'
+                                  : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold">{option.nib} Nib</span>
+                                <span
+                                  className={`font-mono-tabular text-[10px] px-1.5 py-0.5 rounded ${
+                                    option.stock === 0
+                                      ? active
+                                        ? 'bg-rose-500/30 text-rose-200'
+                                        : 'bg-rose-50 text-rose-700'
+                                      : active
+                                      ? 'bg-white/15 text-[#E5B25D]'
+                                      : 'bg-[#F3EFE8] text-[#0A2246]'
+                                  }`}
+                                >
+                                  {option.stock === 0 ? 'Sold Out' : `${option.stock} in stock`}
+                                </span>
+                              </div>
+                              <p
+                                className={`text-[11px] mt-1 leading-snug ${
+                                  active ? 'text-white/85' : 'text-[#6E6A63]'
+                                }`}
+                              >
+                                {option.desc} ({option.mm})
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 

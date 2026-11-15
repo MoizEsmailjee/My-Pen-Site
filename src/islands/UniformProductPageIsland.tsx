@@ -16,6 +16,8 @@ import {
   ProductVariant,
   NibOption,
   INK_STUDIO_SHADES,
+  getVariantNibBreakdown,
+  getVariantEffectiveStock,
 } from '../data/products';
 import { resolveAssetUrl } from '../utils/assetResolver';
 import {
@@ -94,7 +96,7 @@ function StockStatusLine({
     return (
       <span className="inline-flex items-center gap-1.5 text-rose-700 font-semibold">
         <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
-        <span>Sold Out (0 left)</span>
+        <span>Out of Stock · Add to Wishlist</span>
       </span>
     );
   }
@@ -228,10 +230,20 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
     );
   }, [productReviews]);
 
-  const stockCount =
-    typeof selectedVariant?.stockCount === 'number'
-      ? selectedVariant.stockCount
-      : 10;
+  const nibBreakdown = useMemo(
+    () => getVariantNibBreakdown(product, selectedVariant),
+    [product, selectedVariant]
+  );
+
+  const stockCount = useMemo(
+    () =>
+      getVariantEffectiveStock(
+        product,
+        selectedVariant,
+        product.hasNibSelector ? selectedNib : undefined
+      ),
+    [product, selectedVariant, selectedNib]
+  );
 
   const feedbackKey = `pdp-uniform-${product.id}-${selectedVariant.id}-${
     product.hasNibSelector ? selectedNib : 'none'
@@ -379,8 +391,12 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
               </span>
               <span aria-hidden="true">·</span>
               <StockStatusLine
-                stockCount={selectedVariant.stockCount}
-                availabilityLabel={product.availability}
+                stockCount={stockCount}
+                availabilityLabel={
+                  product.hasNibSelector
+                    ? `${selectedNib} Nib · ${product.availability}`
+                    : product.availability
+                }
               />
             </div>
 
@@ -493,28 +509,46 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
               <div className="mt-5 pt-4 border-t border-[#E6E1D8] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <span className="block text-xs font-semibold uppercase tracking-wider text-[#0A2246]">
-                    Select Nib Size
+                    Select Nib Size (Per-Nib Stock)
                   </span>
                   <span className="text-[11px] text-[#6E6A63]">
                     {selectedVariant.nibEngraving ||
-                      'Precision Japanese Stainless Steel Nib'}
+                      'Precision Japanese Stainless Steel Nib'}{' '}
+                    · F: {nibBreakdown.fine} · M: {nibBreakdown.medium}
                   </span>
                 </div>
                 <div className="inline-flex items-center gap-2">
                   {(['Fine', 'Medium'] as const).map((nib) => {
                     const selected = selectedNib === nib;
+                    const nibStock =
+                      nib === 'Fine' ? nibBreakdown.fine : nibBreakdown.medium;
                     return (
                       <button
                         key={nib}
                         type="button"
                         onClick={() => onSelectNib(product.id, nib)}
-                        className={`px-4 py-2 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                        className={`px-3.5 py-2 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                           selected
                             ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
                             : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246]'
                         }`}
                       >
-                        {nib === 'Fine' ? 'Fine (0.35mm)' : 'Medium (0.50mm)'}
+                        <span>
+                          {nib === 'Fine' ? 'Fine (0.35mm)' : 'Medium (0.50mm)'}
+                        </span>
+                        <span
+                          className={`font-mono-tabular text-[10px] px-1.5 py-0.5 rounded ${
+                            nibStock === 0
+                              ? selected
+                                ? 'bg-rose-500/30 text-rose-200'
+                                : 'bg-rose-50 text-rose-700'
+                              : selected
+                              ? 'bg-white/15 text-[#E5B25D]'
+                              : 'bg-[#F3EFE8] text-[#0A2246]'
+                          }`}
+                        >
+                          {nibStock === 0 ? 'Out' : `${nibStock} left`}
+                        </span>
                       </button>
                     );
                   })}
@@ -555,27 +589,50 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
             </div>
           </div>
 
-          {/* Primary Purchase Actions: Add to Bag (or Notify Me) + Quick Buy + Wishlist + Reviews */}
+          {/* Primary Purchase Actions: Add to Bag (or Out of Stock · Add to Wishlist) + Quick Buy + Wishlist + Reviews */}
           <div className="mt-6 pt-4 border-t border-[#E6E1D8] flex flex-col gap-2.5">
             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
               {stockCount === 0 ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    onNotifyMe(
-                      product,
-                      selectedVariant,
-                      product.hasNibSelector ? selectedNib : undefined
-                    )
-                  }
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-5 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap"
-                >
-                  <Bell className="w-4 h-4" />
-                  <span>
-                    Notify Me — {shortVariantName}
-                    {product.hasNibSelector ? ` (${selectedNib})` : ''}
-                  </span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onToggleWishlist(
+                        product,
+                        selectedVariant,
+                        product.hasNibSelector ? selectedNib : undefined
+                      )
+                    }
+                    className={`flex-1 inline-flex items-center justify-center gap-2 py-3 px-5 text-xs font-semibold tracking-wider uppercase rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                      isWishlisted
+                        ? 'border-[#C88A2E] bg-[#C88A2E] text-white'
+                        : 'border-rose-700 bg-rose-700 hover:bg-rose-800 text-white'
+                    }`}
+                  >
+                    <Heart
+                      className={`w-4 h-4 ${isWishlisted ? 'fill-white text-white' : ''}`}
+                    />
+                    <span>
+                      {isWishlisted
+                        ? `Saved to Wishlist — ${shortVariantName}`
+                        : `Out of Stock · Add to Wishlist`}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onNotifyMe(
+                        product,
+                        selectedVariant,
+                        product.hasNibSelector ? selectedNib : undefined
+                      )
+                    }
+                    className="inline-flex items-center justify-center gap-1.5 py-3 px-4 text-xs font-semibold uppercase tracking-wider rounded border border-amber-700 bg-amber-50 text-amber-800 hover:bg-amber-700 hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <Bell className="w-4 h-4" />
+                    <span>Notify Me</span>
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
@@ -624,29 +681,31 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
                 <span>Quick Buy</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  onToggleWishlist(
-                    product,
-                    selectedVariant,
-                    product.hasNibSelector ? selectedNib : undefined
-                  )
-                }
-                aria-pressed={isWishlisted}
-                className={`inline-flex items-center justify-center gap-1.5 py-3 px-4 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                  isWishlisted
-                    ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                    : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
-                }`}
-              >
-                <Heart
-                  className={`w-4 h-4 ${
-                    isWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+              {stockCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onToggleWishlist(
+                      product,
+                      selectedVariant,
+                      product.hasNibSelector ? selectedNib : undefined
+                    )
+                  }
+                  aria-pressed={isWishlisted}
+                  className={`inline-flex items-center justify-center gap-1.5 py-3 px-4 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                    isWishlisted
+                      ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                      : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
                   }`}
-                />
-                <span>{isWishlisted ? 'In Wishlist' : 'Wishlist'}</span>
-              </button>
+                >
+                  <Heart
+                    className={`w-4 h-4 ${
+                      isWishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                    }`}
+                  />
+                  <span>{isWishlisted ? 'In Wishlist' : 'Wishlist'}</span>
+                </button>
+              )}
             </div>
 
             <button

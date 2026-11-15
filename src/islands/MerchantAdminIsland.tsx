@@ -29,7 +29,12 @@ import {
   FileText,
   Download,
 } from 'lucide-react';
-import { Product, ProductVariant } from '../data/products';
+import {
+  Product,
+  ProductVariant,
+  NibOption,
+  getVariantNibBreakdown,
+} from '../data/products';
 import { resolveAssetUrl } from '../utils/assetResolver';
 import { generateOrderInvoicePdf } from '../utils/invoiceGenerator';
 
@@ -51,6 +56,8 @@ export interface PromoCodeRecord {
 }
 
 export interface AdminOrderItemSummary {
+  productId?: string;
+  variantId?: string;
   productName: string;
   variantLabel: string;
   nibSize?: string;
@@ -80,6 +87,25 @@ export interface AdminOrderRecord {
   itemsCount: number;
   items?: AdminOrderItemSummary[];
   isFirestoreSynced?: boolean;
+  stockDeducted?: boolean;
+}
+
+export interface StockLedgerEntry {
+  id: string;
+  type: 'inbound_purchase' | 'order_serviced' | 'manual_adjustment';
+  productId: string;
+  productName: string;
+  variantId: string;
+  variantLabel: string;
+  nibSize?: NibOption;
+  quantityDelta: number;
+  previousStock: number;
+  newStock: number;
+  unitCostKes?: number;
+  orderNumber?: string;
+  referenceNote: string;
+  timestamp: string;
+  createdAt: number;
 }
 
 export interface RestockAlertRecord {
@@ -97,8 +123,19 @@ export interface RestockAlertRecord {
   createdAt: number;
 }
 
+export type AdminTabId =
+  | 'products'
+  | 'stock-manager'
+  | 'analytics'
+  | 'waitlist'
+  | 'promos'
+  | 'bundles'
+  | 'orders'
+  | 'add-product';
+
 interface MerchantAdminIslandProps {
   isOpen: boolean;
+  initialTab?: AdminTabId;
   onClose: () => void;
   products: Product[];
   onUpdateProduct: (product: Product) => Promise<void>;
@@ -120,8 +157,19 @@ interface MerchantAdminIslandProps {
     orderNumber: string,
     nextStatus: 'Processing' | 'Out for Courier' | 'Delivered'
   ) => void;
+  stockLedger: StockLedgerEntry[];
+  onAddStockBought: (payload: {
+    productId: string;
+    variantId: string;
+    nibSize?: NibOption;
+    quantityAdded: number;
+    unitCostKes?: number;
+    referenceNote: string;
+  }) => Promise<void>;
+  onServiceOrderAndDeductStock: (orderNumber: string) => Promise<void>;
   firebaseAdminEmail: string | null;
   isAuthorizedAdmin: boolean;
+  onUnlockPreviewAdmin?: () => void;
   isSigningIn: boolean;
   authError?: string | null;
   authorizedAdminHint?: string;
@@ -156,13 +204,14 @@ const DEFAULT_NEW_PRODUCT: Product = {
   ],
   specs: [
     { label: 'Origin', value: 'Made in Japan' },
-    { label: 'Dispatch', value: 'Same-Day Nairobi Courier' },
+    { label: 'Dispatch', value: '1-Day Processing · Ships Next Day' },
   ],
   includedItems: ['Fountain Pen', 'Pilot Ink Cartridge', 'Presentation Box'],
 };
 
 export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   isOpen,
+  initialTab = 'products',
   onClose,
   products,
   onUpdateProduct,
@@ -181,8 +230,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   onDeleteRestockAlert,
   orders,
   onUpdateOrderStatusByNumber,
+  stockLedger,
+  onAddStockBought,
+  onServiceOrderAndDeductStock,
   firebaseAdminEmail,
   isAuthorizedAdmin,
+  onUnlockPreviewAdmin,
   isSigningIn,
   authError,
   authorizedAdminHint = 'ananyapoudel641@gmail.com',
@@ -190,9 +243,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   onSignOut,
   cloudSyncStatus,
 }) => {
-  const [activeTab, setActiveTab] = useState<
-    'products' | 'analytics' | 'waitlist' | 'promos' | 'bundles' | 'orders' | 'add-product'
-  >('products');
+  const [activeTab, setActiveTab] = useState<AdminTabId>(initialTab);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [draftProduct, setDraftProduct] = useState<Product | null>(null);
   const [newProductDraft, setNewProductDraft] = useState<Product>(DEFAULT_NEW_PRODUCT);
@@ -201,6 +252,43 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmResetCatalog, setConfirmResetCatalog] = useState(false);
+
+  // Stock Manager Inbound Purchase Form State
+  const [stockProductId, setStockProductId] = useState<string>(
+    products[0]?.id || 'pilot-prera'
+  );
+  const [stockVariantId, setStockVariantId] = useState<string>(
+    products[0]?.variants[0]?.id || 'prera-empress-teal'
+  );
+  const [stockNibSize, setStockNibSize] = useState<NibOption>('Fine');
+  const [stockQtyAdded, setStockQtyAdded] = useState<number>(5);
+  const [stockUnitCostKes, setStockUnitCostKes] = useState<string>('');
+  const [stockReferenceNote, setStockReferenceNote] = useState<string>(
+    'Pilot Japan Air Freight Batch · Nairobi Atelier Intake'
+  );
+  const [ledgerFilter, setLedgerFilter] = useState<
+    'all' | 'inbound_purchase' | 'order_serviced'
+  >('all');
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
+  const selectedStockProduct = useMemo(
+    () => products.find((p) => p.id === stockProductId) || products[0],
+    [products, stockProductId]
+  );
+
+  useEffect(() => {
+    if (
+      selectedStockProduct &&
+      !selectedStockProduct.variants.some((v) => v.id === stockVariantId)
+    ) {
+      setStockVariantId(selectedStockProduct.variants[0]?.id || '');
+    }
+  }, [selectedStockProduct, stockVariantId]);
 
   // Promo Voucher creation state
   const [newPromoCode, setNewPromoCode] = useState('');
@@ -410,6 +498,16 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       <ArrowUpRight className="w-3.5 h-3.5 text-[#C88A2E]" />
                     </a>
                   )}
+                  {onUnlockPreviewAdmin && (
+                    <button
+                      type="button"
+                      onClick={onUnlockPreviewAdmin}
+                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Boxes className="w-4 h-4 text-emerald-200" />
+                      <span>Continue in Atelier Preview Mode (Manage Stock &amp; Orders)</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={onClose}
@@ -495,9 +593,20 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
     newStockCount: number
   ) => {
     const clamped = Math.max(0, Math.round(newStockCount));
-    const updatedVariants = product.variants.map((v) =>
-      v.id === variantId ? { ...v, stockCount: clamped } : v
-    );
+    const updatedVariants = product.variants.map((v) => {
+      if (v.id !== variantId) return v;
+      if (product.hasNibSelector) {
+        const fine = Math.ceil(clamped / 2);
+        const medium = Math.max(0, clamped - fine);
+        return {
+          ...v,
+          fineStockCount: fine,
+          mediumStockCount: medium,
+          stockCount: clamped,
+        };
+      }
+      return { ...v, stockCount: clamped };
+    });
     setSavingId(`${product.id}-${variantId}`);
     try {
       await onUpdateProduct({ ...product, variants: updatedVariants });
@@ -505,6 +614,77 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
         `Updated stock for ${product.name} (${variantId}) to ${clamped} ${
           clamped === 1 ? 'unit' : 'units'
         }`
+      );
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleVariantNibStockChange = async (
+    product: Product,
+    variantId: string,
+    nib: NibOption,
+    newNibCount: number
+  ) => {
+    const clampedNib = Math.max(0, Math.round(newNibCount));
+    const updatedVariants = product.variants.map((v) => {
+      if (v.id !== variantId) return v;
+      const breakdown = getVariantNibBreakdown(product, v);
+      const nextFine = nib === 'Fine' ? clampedNib : breakdown.fine;
+      const nextMedium = nib === 'Medium' ? clampedNib : breakdown.medium;
+      const nextTotal = nextFine + nextMedium;
+      return {
+        ...v,
+        fineStockCount: nextFine,
+        mediumStockCount: nextMedium,
+        stockCount: nextTotal,
+      };
+    });
+    setSavingId(`${product.id}-${variantId}-${nib}`);
+    try {
+      await onUpdateProduct({ ...product, variants: updatedVariants });
+      const targetVar = updatedVariants.find((v) => v.id === variantId);
+      showToast(
+        `Updated ${product.name} (${
+          targetVar?.label.split(' · ')[0] || variantId
+        }) ${nib} (${nib === 'Fine' ? 'F' : 'M'}) Nib stock to ${clampedNib} (Total: ${
+          targetVar?.stockCount ?? clampedNib
+        })`
+      );
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleStockBoughtSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStockProduct) return;
+    const qty = Math.max(1, Math.round(Number(stockQtyAdded) || 1));
+    const unitCost = stockUnitCostKes.trim()
+      ? Math.max(0, Number(stockUnitCostKes))
+      : undefined;
+    const targetVar =
+      selectedStockProduct.variants.find((v) => v.id === stockVariantId) ||
+      selectedStockProduct.variants[0];
+    if (!targetVar) return;
+
+    setSavingId('stock-bought');
+    try {
+      await onAddStockBought({
+        productId: selectedStockProduct.id,
+        variantId: targetVar.id,
+        nibSize: selectedStockProduct.hasNibSelector ? stockNibSize : undefined,
+        quantityAdded: qty,
+        unitCostKes: unitCost,
+        referenceNote:
+          stockReferenceNote.trim() || 'Inbound Stock Purchase · Nairobi Atelier',
+      });
+      showToast(
+        `Added +${qty} stock bought for ${selectedStockProduct.name} (${
+          targetVar.label.split(' · ')[0]
+        }${
+          selectedStockProduct.hasNibSelector ? ` · ${stockNibSize} Nib` : ''
+        })`
       );
     } finally {
       setSavingId(null);
@@ -736,6 +916,24 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
 
             <button
               type="button"
+              onClick={() => setActiveTab('stock-manager')}
+              className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+                activeTab === 'stock-manager'
+                  ? 'border-[#0A2246] text-[#0A2246] bg-[#FAF8F5]'
+                  : 'border-transparent text-[#6E6A63] hover:text-[#171614]'
+              }`}
+            >
+              <Boxes className="w-4 h-4 text-[#1D5B43]" />
+              <span>Stock Manager (F &amp; M Nibs)</span>
+              {orders.filter((o) => !o.stockDeducted).length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-emerald-100 text-emerald-900 font-bold">
+                  {orders.filter((o) => !o.stockDeducted).length} to service
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('analytics')}
               className={`inline-flex items-center gap-2 py-3.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
                 activeTab === 'analytics'
@@ -952,26 +1150,29 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       </div>
                     </div>
 
-                    {/* Per-Variant Stock Count Controls */}
+                    {/* Per-Variant & Per-Nib (F / M) Stock Count Controls */}
                     <div className="px-5 py-3.5 bg-[#FAF8F5] border-t border-[#E6E1D8]">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-[#6E6A63]">
-                          Per-Variant Stock Count ({product.variants.length} Variants · Auto-Deducted on Order):
+                          {product.hasNibSelector
+                            ? `Per-Variant & Per-Nib Stock Count (${product.variants.length} Finishes · Separate Fine [F] & Medium [M] Nib Quantities):`
+                            : `Per-Variant Stock Count (${product.variants.length} Variants · Auto-Deducted When Order Is Serviced):`}
                         </span>
                         <span className="text-[11px] text-[#6E6A63]">
                           Low-stock badge triggers at ≤ 3 units
                         </span>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[260px] overflow-y-auto pr-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[290px] overflow-y-auto pr-1">
                         {product.variants.map((v) => {
-                          const count = typeof v.stockCount === 'number' ? v.stockCount : 10;
+                          const breakdown = getVariantNibBreakdown(product, v);
+                          const count = breakdown.total;
                           const isLowStock = count > 0 && count <= 3;
                           const isOut = count === 0;
 
                           return (
                             <div
                               key={v.id}
-                              className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs ${
+                              className={`flex flex-col justify-between gap-2 px-3 py-2.5 rounded-lg border text-xs ${
                                 isOut
                                   ? 'bg-rose-50/70 border-rose-200 text-rose-900'
                                   : isLowStock
@@ -979,70 +1180,175 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   : 'bg-white border-[#E6E1D8] text-[#171614]'
                               }`}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span
-                                  className="w-3 h-3 rounded-full shrink-0 border border-black/20"
-                                  style={{ backgroundColor: v.swatchHex || '#0A2246' }}
-                                />
-                                <div className="truncate">
-                                  <p className="font-semibold truncate">{v.label.split(' · ')[0]}</p>
-                                  <p className="text-[10px] text-[#6E6A63]">
-                                    {isOut
-                                      ? 'Sold Out (0 left)'
-                                      : isLowStock
-                                      ? `Low Stock · Only ${count} left`
-                                      : `${count} units in stock`}
-                                  </p>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className="w-3 h-3 rounded-full shrink-0 border border-black/20"
+                                    style={{ backgroundColor: v.swatchHex || '#0A2246' }}
+                                  />
+                                  <div className="truncate">
+                                    <p className="font-semibold truncate">{v.label.split(' · ')[0]}</p>
+                                    <p className="text-[10px] text-[#6E6A63]">
+                                      {product.hasNibSelector
+                                        ? `Total: ${count} (F: ${breakdown.fine} · M: ${breakdown.medium})`
+                                        : isOut
+                                        ? 'Sold Out (0 left)'
+                                        : isLowStock
+                                        ? `Low Stock · Only ${count} left`
+                                        : `${count} units in stock`}
+                                    </p>
+                                  </div>
                                 </div>
+
+                                {!product.hasNibSelector ? (
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleVariantStockCountChange(
+                                          product,
+                                          v.id,
+                                          Math.max(0, count - 1)
+                                        )
+                                      }
+                                      className="w-6 h-6 rounded bg-[#F3EFE8] hover:bg-[#E6E1D8] text-[#171614] font-bold flex items-center justify-center cursor-pointer"
+                                      title="Decrease stock by 1"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      defaultValue={count}
+                                      key={`${product.id}-${v.id}-${count}`}
+                                      onBlur={(e) => {
+                                        const nextVal = Number(e.target.value);
+                                        if (!isNaN(nextVal) && nextVal !== count) {
+                                          handleVariantStockCountChange(product, v.id, nextVal);
+                                        }
+                                      }}
+                                      className="w-11 text-center font-mono-tabular font-bold text-xs bg-white border border-[#DCD5C7] rounded py-0.5 focus:outline-none focus:border-[#0A2246]"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleVariantStockCountChange(product, v.id, count + 1)
+                                      }
+                                      className="w-6 h-6 rounded bg-[#F3EFE8] hover:bg-[#E6E1D8] text-[#171614] font-bold flex items-center justify-center cursor-pointer"
+                                      title="Increase stock by 1"
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleVariantStockCountChange(
+                                          product,
+                                          v.id,
+                                          isOut ? 10 : 0
+                                        )
+                                      }
+                                      className={`ml-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase cursor-pointer ${
+                                        isOut
+                                          ? 'bg-emerald-700 text-white hover:bg-emerald-600'
+                                          : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
+                                      }`}
+                                    >
+                                      {isOut ? 'Restock' : 'Out'}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleVariantStockCountChange(
+                                        product,
+                                        v.id,
+                                        isOut ? 8 : 0
+                                      )
+                                    }
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase cursor-pointer shrink-0 ${
+                                      isOut
+                                        ? 'bg-emerald-700 text-white hover:bg-emerald-600'
+                                        : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
+                                    }`}
+                                    title={isOut ? 'Restock F & M nibs' : 'Mark both F & M Sold Out'}
+                                  >
+                                    {isOut ? 'Restock F+M' : 'Zero All'}
+                                  </button>
+                                )}
                               </div>
 
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleVariantStockCountChange(product, v.id, Math.max(0, count - 1))
-                                  }
-                                  className="w-6 h-6 rounded bg-[#F3EFE8] hover:bg-[#E6E1D8] text-[#171614] font-bold flex items-center justify-center cursor-pointer"
-                                  title="Decrease stock by 1"
-                                >
-                                  -
-                                </button>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  defaultValue={count}
-                                  key={`${product.id}-${v.id}-${count}`}
-                                  onBlur={(e) => {
-                                    const nextVal = Number(e.target.value);
-                                    if (!isNaN(nextVal) && nextVal !== count) {
-                                      handleVariantStockCountChange(product, v.id, nextVal);
-                                    }
-                                  }}
-                                  className="w-11 text-center font-mono-tabular font-bold text-xs bg-white border border-[#DCD5C7] rounded py-0.5 focus:outline-none focus:border-[#0A2246]"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleVariantStockCountChange(product, v.id, count + 1)}
-                                  className="w-6 h-6 rounded bg-[#F3EFE8] hover:bg-[#E6E1D8] text-[#171614] font-bold flex items-center justify-center cursor-pointer"
-                                  title="Increase stock by 1"
-                                >
-                                  +
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleVariantStockCountChange(product, v.id, isOut ? 10 : 0)
-                                  }
-                                  className={`ml-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase cursor-pointer ${
-                                    isOut
-                                      ? 'bg-emerald-700 text-white hover:bg-emerald-600'
-                                      : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
-                                  }`}
-                                  title={isOut ? 'Restock to 10 units' : 'Mark Sold Out (0)'}
-                                >
-                                  {isOut ? 'Restock' : 'Out'}
-                                </button>
-                              </div>
+                              {/* Independent Fine (F) and Medium (M) Nib Stock Controls */}
+                              {product.hasNibSelector && (
+                                <div className="pt-2 border-t border-[#ECE8DF] grid grid-cols-2 gap-2">
+                                  {(
+                                    [
+                                      { nib: 'Fine' as const, short: 'F', val: breakdown.fine },
+                                      { nib: 'Medium' as const, short: 'M', val: breakdown.medium },
+                                    ] as const
+                                  ).map((nibCtrl) => (
+                                    <div
+                                      key={nibCtrl.nib}
+                                      className="flex items-center justify-between gap-1 bg-[#FAF8F5] px-2 py-1 rounded border border-[#E6E1D8]"
+                                    >
+                                      <span className="text-[10px] font-bold text-[#0A2246]">
+                                        Nib {nibCtrl.short}:
+                                      </span>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleVariantNibStockChange(
+                                              product,
+                                              v.id,
+                                              nibCtrl.nib,
+                                              Math.max(0, nibCtrl.val - 1)
+                                            )
+                                          }
+                                          className="w-5 h-5 rounded bg-white hover:bg-[#E6E1D8] border border-[#DCD5C7] text-[#171614] font-bold flex items-center justify-center cursor-pointer text-[11px]"
+                                          title={`Decrease ${nibCtrl.nib} (${nibCtrl.short}) nib stock`}
+                                        >
+                                          -
+                                        </button>
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          defaultValue={nibCtrl.val}
+                                          key={`${product.id}-${v.id}-${nibCtrl.nib}-${nibCtrl.val}`}
+                                          onBlur={(e) => {
+                                            const nextVal = Number(e.target.value);
+                                            if (!isNaN(nextVal) && nextVal !== nibCtrl.val) {
+                                              handleVariantNibStockChange(
+                                                product,
+                                                v.id,
+                                                nibCtrl.nib,
+                                                nextVal
+                                              );
+                                            }
+                                          }}
+                                          className="w-9 text-center font-mono-tabular font-bold text-[11px] bg-white border border-[#DCD5C7] rounded py-0.5 focus:outline-none focus:border-[#0A2246]"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleVariantNibStockChange(
+                                              product,
+                                              v.id,
+                                              nibCtrl.nib,
+                                              nibCtrl.val + 1
+                                            )
+                                          }
+                                          className="w-5 h-5 rounded bg-white hover:bg-[#E6E1D8] border border-[#DCD5C7] text-[#171614] font-bold flex items-center justify-center cursor-pointer text-[11px]"
+                                          title={`Increase ${nibCtrl.nib} (${nibCtrl.short}) nib stock`}
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1233,23 +1539,94 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                                   />
                                 </div>
 
-                                <div className="md:col-span-2">
-                                  <label className="block text-[10px] font-bold uppercase text-[#6E6A63]">
-                                    Stock Count
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={typeof variant.stockCount === 'number' ? variant.stockCount : 10}
-                                    onChange={(e) => {
-                                      const count = Math.max(0, Number(e.target.value) || 0);
-                                      const updated = [...draftProduct.variants];
-                                      updated[idx] = { ...variant, stockCount: count };
-                                      setDraftProduct({ ...draftProduct, variants: updated });
-                                    }}
-                                    className="w-20 text-xs font-mono-tabular font-bold text-[#0A2246] border-b border-[#E6E1D8] py-1 focus:outline-none"
-                                  />
-                                </div>
+                                {draftProduct.hasNibSelector ? (
+                                  <div className="md:col-span-2 grid grid-cols-2 gap-1.5">
+                                    <div>
+                                      <label className="block text-[10px] font-bold uppercase text-[#0A2246]">
+                                        Nib F Stock
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={
+                                          getVariantNibBreakdown(draftProduct, variant).fine
+                                        }
+                                        onChange={(e) => {
+                                          const nextF = Math.max(0, Number(e.target.value) || 0);
+                                          const currM = getVariantNibBreakdown(
+                                            draftProduct,
+                                            variant
+                                          ).medium;
+                                          const updated = [...draftProduct.variants];
+                                          updated[idx] = {
+                                            ...variant,
+                                            fineStockCount: nextF,
+                                            mediumStockCount: currM,
+                                            stockCount: nextF + currM,
+                                          };
+                                          setDraftProduct({
+                                            ...draftProduct,
+                                            variants: updated,
+                                          });
+                                        }}
+                                        className="w-full text-xs font-mono-tabular font-bold text-[#0A2246] border-b border-[#E6E1D8] py-1 focus:outline-none"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold uppercase text-[#0A2246]">
+                                        Nib M Stock
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={
+                                          getVariantNibBreakdown(draftProduct, variant).medium
+                                        }
+                                        onChange={(e) => {
+                                          const nextM = Math.max(0, Number(e.target.value) || 0);
+                                          const currF = getVariantNibBreakdown(
+                                            draftProduct,
+                                            variant
+                                          ).fine;
+                                          const updated = [...draftProduct.variants];
+                                          updated[idx] = {
+                                            ...variant,
+                                            fineStockCount: currF,
+                                            mediumStockCount: nextM,
+                                            stockCount: currF + nextM,
+                                          };
+                                          setDraftProduct({
+                                            ...draftProduct,
+                                            variants: updated,
+                                          });
+                                        }}
+                                        className="w-full text-xs font-mono-tabular font-bold text-[#0A2246] border-b border-[#E6E1D8] py-1 focus:outline-none"
+                                      />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-bold uppercase text-[#6E6A63]">
+                                      Stock Count
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={
+                                        typeof variant.stockCount === 'number'
+                                          ? variant.stockCount
+                                          : 10
+                                      }
+                                      onChange={(e) => {
+                                        const count = Math.max(0, Number(e.target.value) || 0);
+                                        const updated = [...draftProduct.variants];
+                                        updated[idx] = { ...variant, stockCount: count };
+                                        setDraftProduct({ ...draftProduct, variants: updated });
+                                      }}
+                                      className="w-20 text-xs font-mono-tabular font-bold text-[#0A2246] border-b border-[#E6E1D8] py-1 focus:outline-none"
+                                    />
+                                  </div>
+                                )}
 
                                 <div className="md:col-span-1 flex items-center justify-end">
                                   {draftProduct.variants.length > 1 && (
@@ -1298,6 +1675,425 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* TAB 1B: STOCK MANAGER (STOCK BOUGHT INTAKE, PER-NIB F & M STOCK & AUTO ORDER SERVICE DEDUCTION) */}
+          {activeTab === 'stock-manager' && (
+            <div className="space-y-6">
+              {/* Top Banner */}
+              <div className="bg-[#0A2246] text-white p-6 rounded-2xl border border-[#C88A2E]/40 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#E5B25D]">
+                    Nairobi Atelier Inventory &amp; Nib Ledger
+                  </span>
+                  <h3 className="font-serif-display text-2xl font-semibold mt-0.5">
+                    Stock Manager — Stock Bought Intake &amp; Automatic Serviced Order Deductions
+                  </h3>
+                  <p className="text-xs text-white/80 mt-1 max-w-3xl leading-relaxed">
+                    Record inbound stock bought (with separate Fine <span className="font-mono font-bold text-[#E5B25D]">F</span> &amp; Medium <span className="font-mono font-bold text-[#E5B25D]">M</span> nib quantities for fountain pens) and service customer orders to automatically deduct sold units from live storefront stock.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
+                  <div className="px-4 py-2.5 rounded-xl bg-white/10 border border-white/15 text-right">
+                    <span className="block text-[10px] uppercase tracking-wider text-white/70">
+                      Total Catalog Stock
+                    </span>
+                    <span className="font-mono-tabular text-lg font-bold text-[#E5B25D]">
+                      {analyticsData.totalUnitsInStock} units
+                    </span>
+                  </div>
+                  <div className="px-4 py-2.5 rounded-xl bg-emerald-900/60 border border-emerald-400/40 text-right">
+                    <span className="block text-[10px] uppercase tracking-wider text-emerald-200">
+                      Orders Pending Service
+                    </span>
+                    <span className="font-mono-tabular text-lg font-bold text-white">
+                      {orders.filter((o) => !o.stockDeducted).length} orders
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* LEFT COLUMN: Add Stock Bought (Inbound Purchase / Restock) */}
+                <form
+                  onSubmit={handleStockBoughtSubmit}
+                  className="lg:col-span-5 bg-white p-6 rounded-xl border border-[#E6E1D8] space-y-4 shadow-2xs"
+                >
+                  <div className="border-b border-[#ECE8DF] pb-3">
+                    <h4 className="font-serif-display text-xl font-semibold text-[#0A2246] flex items-center gap-2">
+                      <Plus className="w-5 h-5 text-[#1D5B43]" />
+                      <span>Record Stock Bought (Inbound Restock)</span>
+                    </h4>
+                    <p className="text-xs text-[#6E6A63] mt-0.5">
+                      Add newly purchased stock into Nairobi inventory. For fountain pens, choose whether the stock bought is Fine (F) or Medium (M) nib.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                      1. Select Product *
+                    </label>
+                    <select
+                      value={stockProductId}
+                      onChange={(e) => {
+                        const nextPid = e.target.value;
+                        setStockProductId(nextPid);
+                        const prod = products.find((p) => p.id === nextPid);
+                        if (prod?.variants[0]) {
+                          setStockVariantId(prod.variants[0].id);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-xs font-bold text-[#0A2246]"
+                    >
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} (KES {p.priceKes.toLocaleString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedStockProduct && (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                        2. Select Finish / Ink Shade Variant *
+                      </label>
+                      <select
+                        value={stockVariantId}
+                        onChange={(e) => setStockVariantId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-xs font-semibold text-[#171614]"
+                      >
+                        {selectedStockProduct.variants.map((v) => {
+                          const b = getVariantNibBreakdown(selectedStockProduct, v);
+                          return (
+                            <option key={v.id} value={v.id}>
+                              {v.label.split(' · ')[0]} —{' '}
+                              {selectedStockProduct.hasNibSelector
+                                ? `Current Stock: ${b.total} (F: ${b.fine} | M: ${b.medium})`
+                                : `Current Stock: ${b.total} units`}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
+                  {selectedStockProduct?.hasNibSelector && (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[#0A2246] mb-1.5">
+                        3. Select Nib Size Bought (F or M) *
+                      </label>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {(['Fine', 'Medium'] as const).map((nib) => {
+                          const active = stockNibSize === nib;
+                          const targetVar =
+                            selectedStockProduct.variants.find((v) => v.id === stockVariantId) ||
+                            selectedStockProduct.variants[0];
+                          const b = getVariantNibBreakdown(selectedStockProduct, targetVar);
+                          const currentNibStock = nib === 'Fine' ? b.fine : b.medium;
+                          return (
+                            <button
+                              key={nib}
+                              type="button"
+                              onClick={() => setStockNibSize(nib)}
+                              className={`py-2.5 px-3 rounded-lg border text-left transition-all cursor-pointer ${
+                                active
+                                  ? 'border-[#0A2246] bg-[#0A2246] text-white font-bold'
+                                  : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#171614] hover:border-[#0A2246]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between text-xs">
+                                <span>
+                                  {nib} ({nib === 'Fine' ? 'F · 0.35mm' : 'M · 0.50mm'})
+                                </span>
+                                <span
+                                  className={`font-mono-tabular text-[11px] px-1.5 py-0.5 rounded ${
+                                    active
+                                      ? 'bg-white/20 text-[#E5B25D]'
+                                      : 'bg-white text-[#0A2246]'
+                                  }`}
+                                >
+                                  Now: {currentNibStock}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                        Quantity Bought (+) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min={1}
+                        max={5000}
+                        value={stockQtyAdded}
+                        onChange={(e) => setStockQtyAdded(Math.max(1, Number(e.target.value) || 1))}
+                        className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm font-mono-tabular font-bold text-[#1D5B43]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                        Unit Cost (KES, Optional)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={stockUnitCostKes}
+                        onChange={(e) => setStockUnitCostKes(e.target.value)}
+                        placeholder="e.g. 4800"
+                        className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-sm font-mono-tabular"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                      Supplier / Batch Reference Note *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={stockReferenceNote}
+                      onChange={(e) => setStockReferenceNote(e.target.value)}
+                      placeholder="e.g. Pilot Tokyo Shipment #KE-114 · Restock"
+                      className="w-full px-3.5 py-2 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] text-xs"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={savingId === 'stock-bought'}
+                    className="w-full py-3 px-4 rounded-xl bg-[#1D5B43] hover:bg-[#164935] text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>
+                      {savingId === 'stock-bought'
+                        ? 'Adding Stock Bought...'
+                        : `Add +${stockQtyAdded} Stock Bought to Inventory`}
+                    </span>
+                  </button>
+                </form>
+
+                {/* RIGHT COLUMN: Orders Awaiting Servicing (Auto-Deduct Stock on Service) */}
+                <div className="lg:col-span-7 bg-white p-6 rounded-xl border border-[#E6E1D8] space-y-4 shadow-2xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#ECE8DF] pb-3">
+                    <div>
+                      <h4 className="font-serif-display text-xl font-semibold text-[#0A2246] flex items-center gap-2">
+                        <Truck className="w-5 h-5 text-[#C88A2E]" />
+                        <span>Order Servicing &amp; Automatic Stock Sales Deduction</span>
+                      </h4>
+                      <p className="text-xs text-[#6E6A63] mt-0.5">
+                        1-Day Order Processing (Next-Day Dispatch). When an order is serviced, its items and specific nib sizes (F / M) are automatically deducted from stock.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                    {orders.map((ord) => {
+                      const isServiced = Boolean(
+                        ord.stockDeducted ||
+                          ord.orderStatus === 'Out for Courier' ||
+                          ord.orderStatus === 'Delivered'
+                      );
+                      return (
+                        <div
+                          key={ord.id || ord.orderNumber}
+                          className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            isServiced
+                              ? 'bg-[#FAF8F5] border-[#E6E1D8]'
+                              : 'bg-amber-50/60 border-amber-300'
+                          }`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono-tabular text-xs font-bold text-[#0A2246]">
+                                {ord.orderNumber}
+                              </span>
+                              <span className="text-xs font-semibold text-[#171614]">
+                                {ord.customerName}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                                  isServiced
+                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                                    : 'bg-amber-200/80 text-amber-950'
+                                }`}
+                              >
+                                {isServiced
+                                  ? `Serviced · Stock Deducted ✓ (${ord.orderStatus})`
+                                  : 'Pending Service (1-Day Processing)'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#5C5852]">
+                              {ord.city} · Delivery:{' '}
+                              {ord.deliveryFee === 0
+                                ? 'FREE (Over KES 10,000)'
+                                : `KES ${(ord.deliveryFee || 0).toLocaleString()}`}{' '}
+                              · Total: <span className="font-mono-tabular font-bold">KES {ord.total.toLocaleString()}</span>
+                            </p>
+                            {ord.items && ord.items.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {ord.items.map((item, i) => (
+                                  <span
+                                    key={`${ord.orderNumber}-${i}`}
+                                    className="text-[10px] font-semibold px-2 py-0.5 rounded bg-white border border-[#DCD5C7] text-[#0A2246]"
+                                  >
+                                    {item.quantity}× {item.productName} ({item.variantLabel.split(' · ')[0]}
+                                    {item.nibSize ? ` · ${item.nibSize} Nib` : ''})
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            {!isServiced ? (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setSavingId(`service-${ord.orderNumber}`);
+                                  try {
+                                    await onServiceOrderAndDeductStock(ord.orderNumber);
+                                    showToast(
+                                      `Serviced Order ${ord.orderNumber} & automatically deducted sold stock`
+                                    );
+                                  } finally {
+                                    setSavingId(null);
+                                  }
+                                }}
+                                disabled={savingId === `service-${ord.orderNumber}`}
+                                className="px-3.5 py-2 rounded-lg bg-[#0A2246] hover:bg-[#133468] text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                              >
+                                {savingId === `service-${ord.orderNumber}`
+                                  ? 'Servicing...'
+                                  : 'Service Order & Deduct Stock'}
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-[#1D5B43] px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Stock Auto-Updated</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Chronological Stock Movement Audit Ledger */}
+              <div className="bg-white p-6 rounded-xl border border-[#E6E1D8] space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ECE8DF] pb-3">
+                  <div>
+                    <h4 className="font-serif-display text-xl font-semibold text-[#0A2246]">
+                      Stock Movement Ledger (Stock Bought vs. Serviced Order Sales)
+                    </h4>
+                    <p className="text-xs text-[#6E6A63]">
+                      Complete audit trail of all inbound stock purchases (+) and automatic order servicing deductions (-).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-[#FAF8F5] p-1 rounded-lg border border-[#DCD5C7]">
+                    {(
+                      [
+                        { id: 'all', label: `All (${stockLedger.length})` },
+                        {
+                          id: 'inbound_purchase',
+                          label: `Stock Bought (${
+                            stockLedger.filter((e) => e.type === 'inbound_purchase').length
+                          })`,
+                        },
+                        {
+                          id: 'order_serviced',
+                          label: `Sales Deducted (${
+                            stockLedger.filter((e) => e.type === 'order_serviced').length
+                          })`,
+                        },
+                      ] as const
+                    ).map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setLedgerFilter(f.id)}
+                        className={`px-3 py-1 rounded text-xs font-bold cursor-pointer transition-colors ${
+                          ledgerFilter === f.id
+                            ? 'bg-[#0A2246] text-white'
+                            : 'text-[#5C5852] hover:text-[#0A2246]'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="divide-y divide-[#ECE8DF] max-h-[340px] overflow-y-auto pr-1">
+                  {stockLedger
+                    .filter((entry) => ledgerFilter === 'all' || entry.type === ledgerFilter)
+                    .map((entry) => {
+                      const isPositive = entry.quantityDelta > 0;
+                      return (
+                        <div
+                          key={entry.id}
+                          className="py-3 flex flex-wrap items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`font-mono-tabular font-bold px-2 py-0.5 rounded text-[11px] ${
+                                  isPositive
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                    : 'bg-amber-50 text-amber-900 border border-amber-200'
+                                }`}
+                              >
+                                {isPositive
+                                  ? `+${entry.quantityDelta} Stock Bought`
+                                  : `${entry.quantityDelta} Order Serviced`}
+                              </span>
+                              <span className="font-bold text-[#0A2246]">
+                                {entry.productName} — {entry.variantLabel.split(' · ')[0]}
+                              </span>
+                              {entry.nibSize && (
+                                <span className="px-2 py-0.5 rounded bg-[#F3EFE8] border border-[#DCD5C7] text-[#0A2246] font-bold text-[10px]">
+                                  Nib {entry.nibSize === 'Fine' ? 'F (Fine)' : 'M (Medium)'}
+                                </span>
+                              )}
+                              {entry.orderNumber && (
+                                <span className="font-mono-tabular text-[11px] font-bold text-[#B58435]">
+                                  Order #{entry.orderNumber}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-[#6E6A63]">
+                              {entry.referenceNote}
+                              {typeof entry.unitCostKes === 'number'
+                                ? ` · Unit Cost: KES ${entry.unitCostKes.toLocaleString()}`
+                                : ''}{' '}
+                              · {entry.timestamp}
+                            </p>
+                          </div>
+
+                          <div className="font-mono-tabular text-right shrink-0">
+                            <span className="text-[#6E6A63]">
+                              {entry.previousStock} →{' '}
+                            </span>
+                            <span className="font-bold text-[#0A2246]">
+                              {entry.newStock} in stock
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
             </div>
           )}
 
@@ -2355,6 +3151,39 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                           </div>
                         </div>
 
+                        <span
+                          className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded border ${
+                            order.stockDeducted ||
+                            order.orderStatus === 'Out for Courier' ||
+                            order.orderStatus === 'Delivered'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-amber-50 text-amber-900 border-amber-300'
+                          }`}
+                        >
+                          {order.stockDeducted ||
+                          order.orderStatus === 'Out for Courier' ||
+                          order.orderStatus === 'Delivered'
+                            ? 'Stock Deducted ✓'
+                            : 'Pending Service'}
+                        </span>
+
+                        {!order.stockDeducted && order.orderStatus === 'Processing' && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await onServiceOrderAndDeductStock(order.orderNumber);
+                              showToast(
+                                `Order ${order.orderNumber} serviced & sold stock automatically deducted`
+                              );
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1D5B43] hover:bg-[#164935] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                            title="Service this order and automatically deduct item & nib quantities from stock"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Service &amp; Deduct Stock</span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => {
@@ -2377,7 +3206,11 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                               | 'Out for Courier'
                               | 'Delivered';
                             onUpdateOrderStatusByNumber(order.orderNumber, newStatus);
-                            showToast(`Order ${order.orderNumber} marked as ${newStatus}`);
+                            showToast(
+                              `Order ${order.orderNumber} marked as ${newStatus}${
+                                newStatus !== 'Processing' ? ' (Stock Auto-Updated)' : ''
+                              }`
+                            );
                           }}
                           className={`text-xs font-bold px-3 py-2 rounded-lg border cursor-pointer ${
                             order.orderStatus === 'Delivered'
@@ -2387,9 +3220,9 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                               : 'bg-amber-50 text-amber-900 border-amber-300'
                           }`}
                         >
-                          <option value="Processing">Processing</option>
-                          <option value="Out for Courier">Out for Courier</option>
-                          <option value="Delivered">Delivered</option>
+                          <option value="Processing">Processing (1-Day Prep)</option>
+                          <option value="Out for Courier">Out for Courier (Serviced)</option>
+                          <option value="Delivered">Delivered (Serviced)</option>
                         </select>
                       </div>
                     </div>

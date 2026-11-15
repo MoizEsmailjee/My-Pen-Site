@@ -16,6 +16,44 @@ export interface ProductVariant {
   colorFamily?: string;
   nibEngraving?: string;
   stockCount?: number;
+  fineStockCount?: number;
+  mediumStockCount?: number;
+}
+
+export function getVariantNibBreakdown(
+  product: Pick<Product, 'hasNibSelector'>,
+  variant?: ProductVariant | null
+): { fine: number; medium: number; total: number } {
+  const fallbackTotal =
+    typeof variant?.stockCount === 'number' ? Math.max(0, variant.stockCount) : 10;
+  if (!product.hasNibSelector) {
+    return { fine: 0, medium: 0, total: fallbackTotal };
+  }
+  const fine =
+    typeof variant?.fineStockCount === 'number'
+      ? Math.max(0, variant.fineStockCount)
+      : Math.ceil(fallbackTotal / 2);
+  const medium =
+    typeof variant?.mediumStockCount === 'number'
+      ? Math.max(0, variant.mediumStockCount)
+      : Math.floor(fallbackTotal / 2);
+  return {
+    fine,
+    medium,
+    total: fine + medium,
+  };
+}
+
+export function getVariantEffectiveStock(
+  product: Pick<Product, 'hasNibSelector'>,
+  variant?: ProductVariant | null,
+  nibSize?: NibOption
+): number {
+  const breakdown = getVariantNibBreakdown(product, variant);
+  if (!product.hasNibSelector || !nibSize) {
+    return breakdown.total;
+  }
+  return nibSize === 'Medium' ? breakdown.medium : breakdown.fine;
 }
 
 export interface Product {
@@ -362,6 +400,24 @@ export const INK_STUDIO_SHADES: InkShadeOption[] = [
   },
 ];
 
+export const IROSHIZUKU_INITIAL_STOCK_MAP: Record<string, number> = {
+  'iroshizuku-ama-iro': 2,
+  'iroshizuku-kon-peki': 4,
+  'iroshizuku-tsuki-yo': 2,
+  'iroshizuku-shin-kai': 1,
+  'iroshizuku-asa-gao': 3,
+  'iroshizuku-ku-jaku': 2,
+  'iroshizuku-rikka': 2,
+  'iroshizuku-yama-budo': 2,
+  'iroshizuku-momiji': 4,
+  'iroshizuku-fuyu-gaki': 1,
+  'iroshizuku-yu-yake': 1,
+  'iroshizuku-shin-ryoku': 1,
+  'iroshizuku-sui-gyoku': 1,
+  'iroshizuku-take-sumi': 4,
+  'iroshizuku-yama-guri': 2,
+};
+
 export const FEATURED_PRODUCTS: Product[] = [
   {
     id: 'pilot-kakuno-madoromi',
@@ -419,7 +475,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_ivory.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
-        stockCount: 6,
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
       },
       {
         id: 'madoromi-blue',
@@ -429,7 +487,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_blue.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
-        stockCount: 5,
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
       },
       {
         id: 'madoromi-pink',
@@ -439,7 +499,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_pink.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
-        stockCount: 2,
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
       },
       {
         id: 'madoromi-brown',
@@ -449,6 +511,8 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_brown.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
+        fineStockCount: 2,
+        mediumStockCount: 2,
         stockCount: 4,
       },
       {
@@ -459,7 +523,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 2.0,
         image: '/assets/madoromi/madoromi_lightblue.jpg',
         nibEngraving: 'Gold-Tone Smiley Nib',
-        stockCount: 0,
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
       },
     ],
     specs: [
@@ -530,7 +596,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_papa_blue.jpg',
         nibEngraving: 'Papa Face (Mustache & Bow Tie)',
-        stockCount: 9,
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
       },
       {
         id: 'family-mama-red',
@@ -540,7 +608,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_mama_red.jpg',
         nibEngraving: 'Mama Face (Eyelashes & Necklace)',
-        stockCount: 7,
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
       },
       {
         id: 'family-boy-green',
@@ -550,17 +620,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_boy_green.jpg',
         nibEngraving: 'Boy Face (Cheerful Smile)',
-        stockCount: 6,
-      },
-      {
-        id: 'family-girl-pink',
-        label: 'Girl Pink',
-        sublabel: 'Translucent rose-pink barrel · Cute ribbon bow nib engraving',
-        swatchHex: '#E87BB1',
-        strokeWidthPx: 1.8,
-        image: '/assets/kakuno_family/family_girl_pink.jpg',
-        nibEngraving: 'Girl Face (Ribbon Bow)',
-        stockCount: 8,
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
       },
       {
         id: 'family-baby-yellow',
@@ -570,7 +632,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_baby_yellow.jpg',
         nibEngraving: 'Baby Face (Pacifier)',
-        stockCount: 2,
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
       },
       {
         id: 'family-clear',
@@ -580,6 +644,20 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/kakuno_family/family_clear.jpg',
         nibEngraving: 'Classic Winking Smiley',
+        fineStockCount: 2,
+        mediumStockCount: 2,
+        stockCount: 4,
+      },
+      {
+        id: 'family-girl-pink',
+        label: 'Girl Pink',
+        sublabel: 'Translucent rose-pink barrel · Cute ribbon bow nib engraving',
+        swatchHex: '#E87BB1',
+        strokeWidthPx: 1.8,
+        image: '/assets/kakuno_family/family_girl_pink.jpg',
+        nibEngraving: 'Girl Face (Ribbon Bow)',
+        fineStockCount: 0,
+        mediumStockCount: 0,
         stockCount: 0,
       },
     ],
@@ -655,7 +733,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/prera/empress_teal_1.jpg',
         nibEngraving: 'Super Quality Japan Steel Nib',
-        stockCount: 8,
+        fineStockCount: 1,
+        mediumStockCount: 1,
+        stockCount: 2,
       },
       {
         id: 'prera-cinnamon-brown',
@@ -665,7 +745,9 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/prera/cinnamon_brown.jpg',
         nibEngraving: 'Super Quality Japan Steel Nib',
-        stockCount: 5,
+        fineStockCount: 1,
+        mediumStockCount: 1,
+        stockCount: 2,
       },
       {
         id: 'prera-porcelain-white',
@@ -675,6 +757,8 @@ export const FEATURED_PRODUCTS: Product[] = [
         strokeWidthPx: 1.8,
         image: '/assets/prera/porcelain_white.jpg',
         nibEngraving: 'Super Quality Japan Steel Nib',
+        fineStockCount: 1,
+        mediumStockCount: 1,
         stockCount: 2,
       },
     ],
@@ -707,21 +791,20 @@ export const FEATURED_PRODUCTS: Product[] = [
       caption: `${shade.name} (${shade.kanji}) — ${shade.meaning}`,
     })),
     Origin: 'Made in Japan',
-    availability: 'All 24 Shades In Stock',
+    availability: '15 Shades In Stock · 9 Wishlist',
     shortSummary:
       'Explore the complete 24-color Japanese landscape ink library—each 50ml hand-blown glass bottle pictured with its authentic shade.',
     description:
       'Directly translated as "Color Droplets," Pilot Iroshizuku inks are formulated in Japan to offer extraordinary lubrication, nuanced shading, and effortless cleaning. Browse all 24 botanical and seasonal shades below—from Kon-peki (Deep Cerulean) and Tsuki-yo (Moonlight) to Yama-budo (Crimson Wild Grape) and Shin-ryoku (Deep Forest Green). Each heavy 50ml glass flacon features an internal dip reservoir to fill your fountain pen down to the very last drop.',
     variantLabel: 'Select Iroshizuku Shade (24 Colors · 50ml)',
-    variants: INK_STUDIO_SHADES.map((shade, idx) => ({
+    variants: INK_STUDIO_SHADES.map((shade) => ({
       id: shade.id,
       label: `${shade.name} (${shade.kanji}) · ${shade.meaning}`,
       sublabel: shade.sheenNote,
       swatchHex: shade.hex,
       image: shade.image,
       colorFamily: shade.colorFamily,
-      stockCount:
-        shade.id === 'iroshizuku-tsuki-yo' ? 0 : idx % 6 === 2 ? 2 : 7,
+      stockCount: IROSHIZUKU_INITIAL_STOCK_MAP[shade.id] ?? 0,
     })),
     specs: [
       { label: 'Complete Range', value: '24 Authentic Japanese Nature Shades Available' },

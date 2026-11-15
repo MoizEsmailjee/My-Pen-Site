@@ -86,6 +86,10 @@
         "createdAt": {
           "type": "number",
           "description": "Unix epoch timestamp in milliseconds."
+        },
+        "stockDeducted": {
+          "type": "boolean",
+          "description": "Whether inventory stock has been automatically deducted upon servicing this order."
         }
       },
       "required": [
@@ -355,6 +359,88 @@
         "timestamp",
         "createdAt"
       ]
+    },
+    "StockLedgerEntry": {
+      "title": "StockLedgerEntry",
+      "description": "An inventory stock movement entry recording inbound stock bought or automatic stock deduction when an order is serviced.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique ledger entry ID."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["inbound_purchase", "order_serviced", "manual_adjustment"],
+          "description": "Movement type: inbound stock bought, automatic deduction on order serviced, or manual stock adjustment."
+        },
+        "productId": {
+          "type": "string",
+          "description": "Product ID."
+        },
+        "productName": {
+          "type": "string",
+          "description": "Product display name."
+        },
+        "variantId": {
+          "type": "string",
+          "description": "Variant or ink shade ID."
+        },
+        "variantLabel": {
+          "type": "string",
+          "description": "Variant or ink shade display label."
+        },
+        "nibSize": {
+          "type": "string",
+          "description": "Optional nib size (Fine or Medium) when the stock movement applies to a fountain pen nib."
+        },
+        "quantityDelta": {
+          "type": "number",
+          "description": "Signed quantity change (+ for stock bought, - for serviced order sale)."
+        },
+        "previousStock": {
+          "type": "number",
+          "description": "Stock count prior to this movement."
+        },
+        "newStock": {
+          "type": "number",
+          "description": "Updated stock count after this movement."
+        },
+        "unitCostKes": {
+          "type": "number",
+          "description": "Optional unit purchase cost in KES for stock bought."
+        },
+        "orderNumber": {
+          "type": "string",
+          "description": "Associated order number when type is order_serviced."
+        },
+        "referenceNote": {
+          "type": "string",
+          "description": "Supplier batch reference or serviced order summary note."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Human-readable timestamp."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Unix epoch timestamp in milliseconds."
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "productId",
+        "productName",
+        "variantId",
+        "variantLabel",
+        "quantityDelta",
+        "previousStock",
+        "newStock",
+        "referenceNote",
+        "timestamp",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
@@ -393,6 +479,12 @@
         "$ref": "#/entities/RestockAlert"
       },
       "description": "Customer 'Notify Me' waitlist entries for out-of-stock variants, readable and manageable by the Merchant Admin."
+    },
+    "/stock_ledger/{entryId}": {
+      "schema": {
+        "$ref": "#/entities/StockLedgerEntry"
+      },
+      "description": "Inventory stock movement ledger recording stock bought and automatic stock sales deductions when orders are serviced."
     }
   }
 }

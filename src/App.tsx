@@ -38,6 +38,8 @@ import {
   NibOption,
   Product,
   ProductVariant,
+  getVariantNibBreakdown,
+  getVariantEffectiveStock,
 } from './data/products';
 import { ChromaticInkRibbonIsland } from './islands/ChromaticInkRibbonIsland';
 import { WritingSetBuilderIsland } from './islands/WritingSetBuilderIsland';
@@ -48,6 +50,8 @@ import {
   StoreSettings,
   PromoCodeRecord,
   RestockAlertRecord,
+  StockLedgerEntry,
+  AdminTabId,
 } from './islands/MerchantAdminIsland';
 import {
   CustomerReviewsIsland,
@@ -102,13 +106,14 @@ interface WishlistItem {
 const BRAND_LOGO_SRC =
   '/assets/aistudio/Gemini_Generated_Image_644qn3644qn3644q_cd72faa3.jpg';
 const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
-const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v1';
+const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v3';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
-const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v6';
-const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v2';
+const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v8';
+const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v3';
 const PROMO_CODES_STORAGE_KEY = 'pens_r_us_promo_codes_v1';
 const REVIEWS_STORAGE_KEY = 'pens_r_us_reviews_v1';
 const RESTOCK_ALERTS_STORAGE_KEY = 'pens_r_us_restock_alerts_v1';
+const STOCK_LEDGER_STORAGE_KEY = 'pens_r_us_stock_ledger_v1';
 const AUTHORIZED_ADMIN_EMAIL = 'ananyapoudel641@gmail.com';
 
 const DEFAULT_SEED_RESTOCK_ALERTS: RestockAlertRecord[] = [
@@ -297,14 +302,16 @@ const ORDER_TRACKING_STAGES: {
   {
     status: 'Processing',
     stepNumber: '01',
-    label: 'Processing',
-    atelierNote: 'Japanese nib tine alignment check & protective flacon wrapping at Nairobi Atelier',
+    label: 'Processing (1-Day Turnaround)',
+    atelierNote:
+      '1-Day order processing at our Nairobi Atelier — Japanese nib tine alignment check & protective flacon wrapping; ships out next day',
   },
   {
     status: 'Out for Courier',
     stepNumber: '02',
-    label: 'Out for Courier',
-    atelierNote: 'Handed to Nairobi same-day dispatch rider / nationwide express courier',
+    label: 'Out for Courier (Next-Day Dispatch)',
+    atelierNote:
+      'Shipped out next day via Nairobi courier (Shs. 300 or Free over KES 10,000) or nationwide express courier (Shs. 700 or Free over KES 10,000)',
   },
   {
     status: 'Delivered',
@@ -320,6 +327,7 @@ interface OrderConfirmation {
   userEmail?: string;
   orderNumber: string;
   orderStatus?: OrderStatus;
+  stockDeducted?: boolean;
   trackingCode?: string;
   estimatedDelivery?: string;
   customerName: string;
@@ -339,10 +347,26 @@ interface OrderConfirmation {
 }
 
 const KENYA_LOCATIONS = [
-  { city: 'Nairobi (CBD, Westlands, Kilimani, Karen)', fee: 0, eta: 'Same-Day Courier (2–4 hrs)' },
-  { city: 'Kiambu / Thika / Machakos / Ngong', fee: 250, eta: 'Next Morning Delivery' },
-  { city: 'Mombasa / Diani / Nyali', fee: 450, eta: 'Next-Day Overnight Courier' },
-  { city: 'Kisumu / Nakuru / Eldoret / Nanyuki', fee: 400, eta: 'Next-Day Fargo / G4S Courier' },
+  {
+    city: 'Nairobi (CBD, Westlands, Kilimani, Karen)',
+    fee: 300,
+    eta: '1-Day Processing · Ships Next Day (Nairobi Courier)',
+  },
+  {
+    city: 'Kiambu / Thika / Machakos / Ngong (Outside Nairobi)',
+    fee: 700,
+    eta: '1-Day Processing · Ships Next Day (Advance Payment Required)',
+  },
+  {
+    city: 'Mombasa / Diani / Nyali (Outside Nairobi)',
+    fee: 700,
+    eta: '1-Day Processing · Ships Next Day (Advance Payment Required)',
+  },
+  {
+    city: 'Kisumu / Nakuru / Eldoret / Nanyuki (Outside Nairobi)',
+    fee: 700,
+    eta: '1-Day Processing · Ships Next Day (Advance Payment Required)',
+  },
 ];
 
 const INK_COLOR_FAMILIES = [
@@ -372,7 +396,7 @@ function VariantStockIndicator({
     return (
       <span className="inline-flex items-center gap-1.5 text-rose-700 font-semibold">
         <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
-        <span>Sold Out (0 left)</span>
+        <span>{compact ? 'Out of Stock · Add to Wishlist' : 'Out of Stock · Add to Wishlist (0 left)'}</span>
       </span>
     );
   }
@@ -549,7 +573,7 @@ export default function App() {
     }
     return {
       inkMixingSetBundleKes: 16200,
-      freeDeliveryThresholdKes: 6000,
+      freeDeliveryThresholdKes: 10000,
       whatsappConciergePhone: '254700000000',
     };
   });
@@ -576,7 +600,64 @@ export default function App() {
   }, [promoCodes]);
 
   const [isMerchantAdminOpen, setIsMerchantAdminOpen] = useState(false);
+  const [adminInitialTab] = useState<AdminTabId>('products');
+  const [isPreviewAdminUnlocked, setIsPreviewAdminUnlocked] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
+
+  // Stock Manager Ledger State (Tracks inbound stock bought + automatic sales deductions when orders are serviced)
+  const [stockLedger, setStockLedger] = useState<StockLedgerEntry[]>(() => {
+    try {
+      const saved = window.localStorage.getItem(STOCK_LEDGER_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return [
+      {
+        id: 'seed-ledger-in-1',
+        type: 'inbound_purchase',
+        productId: 'pilot-kakuno-madoromi',
+        productName: 'Pilot Kakuno Fountain Pen — Madoromi Series',
+        variantId: 'madoromi-ivory',
+        variantLabel: 'Madoromi Ivory · Gold-Tone Smiley Nib',
+        nibSize: 'Fine',
+        quantityDelta: 2,
+        previousStock: 0,
+        newStock: 2,
+        referenceNote: 'Tokyo Shipment #NBO-108 (Kakuno Madoromi Fine & Medium)',
+        unitCostKes: 1850,
+        timestamp: '14 Nov · 09:00 AM',
+        createdAt: Date.now() - 86400000 * 3,
+      },
+      {
+        id: 'seed-ledger-out-1',
+        type: 'order_serviced',
+        productId: 'pilot-kakuno-family',
+        productName: 'Pilot Kakuno Fountain Pen — Family Series',
+        variantId: 'family-papa-blue',
+        variantLabel: 'Kakuno Papa (Blue)',
+        nibSize: 'Fine',
+        quantityDelta: -1,
+        previousStock: 3,
+        newStock: 2,
+        orderNumber: 'PRU-4892',
+        referenceNote: 'Order #PRU-4892 Serviced (Out for Courier)',
+        timestamp: 'Yesterday · 04:10 PM',
+        createdAt: Date.now() - 86400000,
+      },
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STOCK_LEDGER_STORAGE_KEY, JSON.stringify(stockLedger));
+    } catch {
+      // Ignore storage error
+    }
+  }, [stockLedger]);
 
   // Out-of-Stock "Notify Me" Waitlist State (Local + Real-Time Firestore /restock_alerts Sync)
   const [localRestockAlerts, setLocalRestockAlerts] = useState<RestockAlertRecord[]>(() => {
@@ -1077,6 +1158,7 @@ export default function App() {
   }, [firebaseUser]);
 
   const isAuthorizedAdmin = useMemo(() => {
+    if (isPreviewAdminUnlocked) return true;
     if (!firebaseUser) return false;
     const normalizedEmail = (resolvedFirebaseEmail || '').trim().toLowerCase();
     const isGoogleProvider = Boolean(
@@ -1086,7 +1168,7 @@ export default function App() {
       normalizedEmail === AUTHORIZED_ADMIN_EMAIL &&
       (firebaseUser.emailVerified || isGoogleProvider);
     return Boolean(isBootstrappedOwner || isFirestoreAdminDoc);
-  }, [firebaseUser, resolvedFirebaseEmail, isFirestoreAdminDoc]);
+  }, [firebaseUser, resolvedFirebaseEmail, isFirestoreAdminDoc, isPreviewAdminUnlocked]);
 
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(() => {
     try {
@@ -1124,8 +1206,9 @@ export default function App() {
         id: 'seed-order-pru-5104',
         orderNumber: 'PRU-5104',
         orderStatus: 'Processing',
+        stockDeducted: false,
         trackingCode: 'NBO-COUR-5104',
-        estimatedDelivery: 'Same-Day Nairobi Courier · Dispatching within 90 mins',
+        estimatedDelivery: '1-Day Processing · Ships Out Next Day (Nairobi Courier · Shs. 300)',
         customerName: 'Wanjiku Mwangi',
         phone: '+254 712 345 678',
         city: 'Nairobi (CBD, Westlands, Kilimani, Karen)',
@@ -1140,8 +1223,8 @@ export default function App() {
           },
         ],
         subtotal: 8500,
-        deliveryFee: 0,
-        total: 8500,
+        deliveryFee: 300,
+        total: 8800,
         timestamp: 'Today · 10:15 AM',
         createdAt: Date.now() - 3600000 * 2,
       },
@@ -1149,8 +1232,9 @@ export default function App() {
         id: 'seed-order-pru-4892',
         orderNumber: 'PRU-4892',
         orderStatus: 'Out for Courier',
+        stockDeducted: true,
         trackingCode: 'NBO-COUR-4892',
-        estimatedDelivery: 'Rider En Route via Waiyaki Way · Est. 40 mins',
+        estimatedDelivery: '1-Day Processing · Shipped Next Day (Nairobi Courier · Shs. 300)',
         customerName: 'Wanjiku Mwangi',
         phone: '+254 712 345 678',
         city: 'Nairobi (CBD, Westlands, Kilimani, Karen)',
@@ -1170,8 +1254,8 @@ export default function App() {
           },
         ],
         subtotal: 4500,
-        deliveryFee: 0,
-        total: 4500,
+        deliveryFee: 300,
+        total: 4800,
         timestamp: 'Yesterday · 03:45 PM',
         createdAt: Date.now() - 86400000,
       },
@@ -1179,8 +1263,9 @@ export default function App() {
         id: 'seed-order-pru-3910',
         orderNumber: 'PRU-3910',
         orderStatus: 'Delivered',
+        stockDeducted: true,
         trackingCode: 'NBO-COUR-3910',
-        estimatedDelivery: 'Delivered & Signed · Received at Reception',
+        estimatedDelivery: 'Delivered & Signed · Free Delivery (Order Over KES 10,000)',
         customerName: 'Wanjiku Mwangi',
         phone: '+254 712 345 678',
         city: 'Nairobi (CBD, Westlands, Kilimani, Karen)',
@@ -1347,11 +1432,15 @@ export default function App() {
             orderNumber: data.orderNumber,
             orderStatus:
               (data.orderStatus as OrderStatus) || 'Processing',
+            stockDeducted:
+              typeof data.stockDeducted === 'boolean'
+                ? data.stockDeducted
+                : data.orderStatus === 'Out for Courier' || data.orderStatus === 'Delivered',
             trackingCode:
               data.trackingCode ||
               `NBO-COUR-${String(data.orderNumber || '').replace(/[^0-9]/g, '') || '4000'}`,
             estimatedDelivery:
-              data.estimatedDelivery || 'Same-Day Nairobi Courier (2–4 hrs)',
+              data.estimatedDelivery || '1-Day Processing · Ships Next Day',
             customerName: data.customerName,
             phone: data.phone,
             city: data.city,
@@ -1626,7 +1715,7 @@ export default function App() {
   );
 
   // Automatic Ink Mixing Set Trio Discount: Every 3 × 50ml Pilot Iroshizuku bottles
-  // are bundled at storeSettings.inkMixingSetBundleKes (default KES 20,000)
+  // receive a 10% Triple Ink Combo discount (default KES 16,200 vs KES 18,000, saving KES 1,800)
   const inkMixingSetDiscount = useMemo(() => {
     const iroshizukuQty = cart
       .filter((item) => item.product.id === 'pilot-iroshizuku-ink')
@@ -1640,7 +1729,64 @@ export default function App() {
     return trioCount * discountPerTrio;
   }, [cart, iroshizukuProduct.priceKes, storeSettings.inkMixingSetBundleKes]);
 
-  const cartSubtotalAfterBundle = Math.max(0, cartRawSubtotal - inkMixingSetDiscount);
+  // Automatic 5% Complete Writing Set Bundle Discount:
+  // Whenever a customer buys a Fountain Pen + Converter (or Pilot Prera which includes CON-40 in box) + Bottled Ink,
+  // apply a 5% discount on each complete Pen + Converter + Ink writing set in the bag.
+  const writingSetBundleDiscount = useMemo(() => {
+    const penUnitPrices: { price: number; includesConverter: boolean }[] = [];
+    let standaloneConverters = 0;
+    const inkUnitPrices: number[] = [];
+
+    // Account for Iroshizuku bottles already consumed by the 10% Triple Ink Combo so discounts don't double-count the same ink bottle
+    const totalIroshizukuQty = cart
+      .filter((item) => item.product.id === 'pilot-iroshizuku-ink')
+      .reduce((acc, item) => acc + item.quantity, 0);
+    let iroshizukuUsedInTrio = Math.floor(totalIroshizukuQty / 3) * 3;
+
+    for (const item of cart) {
+      if (item.product.category === 'Fountain Pens') {
+        const includesConverter = item.product.id === 'pilot-prera';
+        for (let i = 0; i < item.quantity; i++) {
+          penUnitPrices.push({ price: item.product.priceKes, includesConverter });
+        }
+      } else if (item.product.id === 'pilot-con-40' || item.product.category === 'Converters & Refills') {
+        standaloneConverters += item.quantity;
+      } else if (item.product.category === 'Bottled Inks') {
+        for (let i = 0; i < item.quantity; i++) {
+          if (item.product.id === 'pilot-iroshizuku-ink' && iroshizukuUsedInTrio > 0) {
+            iroshizukuUsedInTrio--;
+          } else {
+            inkUnitPrices.push(item.product.priceKes);
+          }
+        }
+      }
+    }
+
+    if (penUnitPrices.length === 0 || inkUnitPrices.length === 0) return 0;
+
+    let totalFivePercentDiscount = 0;
+    let remainingConverters = standaloneConverters;
+    let remainingInks = [...inkUnitPrices];
+
+    for (const pen of penUnitPrices) {
+      if (remainingInks.length === 0) break;
+      if (pen.includesConverter) {
+        const inkPrice = remainingInks.shift()!;
+        totalFivePercentDiscount += Math.round((pen.price + inkPrice) * 0.05);
+      } else if (remainingConverters > 0) {
+        remainingConverters--;
+        const inkPrice = remainingInks.shift()!;
+        const converterPrice = pilotCon40Product.priceKes;
+        totalFivePercentDiscount += Math.round((pen.price + converterPrice + inkPrice) * 0.05);
+      }
+    }
+
+    return totalFivePercentDiscount;
+  }, [cart, pilotCon40Product.priceKes]);
+
+  const totalBundleDiscountKes = inkMixingSetDiscount + writingSetBundleDiscount;
+
+  const cartSubtotalAfterBundle = Math.max(0, cartRawSubtotal - totalBundleDiscountKes);
 
   const promoDiscountKes = useMemo(() => {
     if (!appliedPromoCode || !appliedPromoCode.active) return 0;
@@ -1654,6 +1800,15 @@ export default function App() {
   const cartSubtotal = Math.max(0, cartSubtotalAfterBundle - promoDiscountKes);
 
   const selectedLocation = KENYA_LOCATIONS[selectedLocationIdx];
+  const isOutsideNairobi = selectedLocationIdx > 0;
+
+  // Enforce advance payment for orders outside Nairobi (disable Cash on Delivery outside Nairobi)
+  useEffect(() => {
+    if (isOutsideNairobi && paymentMethod === 'cod') {
+      setPaymentMethod('mpesa');
+    }
+  }, [isOutsideNairobi, paymentMethod]);
+
   const deliveryFee = useMemo(() => {
     if (cartSubtotal === 0) return 0;
     if (cartSubtotal >= storeSettings.freeDeliveryThresholdKes) return 0;
@@ -2095,16 +2250,268 @@ export default function App() {
     }));
   };
 
+  // Helper: Automatically deduct stock for an order when it is serviced (moved to Out for Courier or Delivered)
+  // Supports per-nib (Fine F / Medium M) stock deduction for fountain pens.
+  const deductOrderStockFromCatalog = (order: OrderConfirmation) => {
+    const nowFormatted =
+      new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'short' }) +
+      ' · ' +
+      new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const newEntries: StockLedgerEntry[] = [];
+
+    setCatalogProducts((prevCatalog) =>
+      prevCatalog.map((prod) => {
+        const orderedForProd = (order.items || []).filter(
+          (c) =>
+            c.product?.id === prod.id ||
+            c.product?.name?.toLowerCase() === prod.name.toLowerCase()
+        );
+        if (orderedForProd.length === 0) return prod;
+
+        const nextVariants = prod.variants.map((v) => {
+          const matchingItems = orderedForProd.filter(
+            (c) =>
+              c.variant?.id === v.id ||
+              c.variant?.label?.toLowerCase() === v.label.toLowerCase()
+          );
+          if (matchingItems.length === 0) return v;
+
+          if (prod.hasNibSelector) {
+            const breakdown = getVariantNibBreakdown(prod, v);
+            let nextFine = breakdown.fine;
+            let nextMedium = breakdown.medium;
+
+            for (const item of matchingItems) {
+              const qty = item.quantity || 1;
+              const itemNib: NibOption = item.nibSize === 'Medium' ? 'Medium' : 'Fine';
+              if (itemNib === 'Fine') {
+                const prevFine = nextFine;
+                nextFine = Math.max(0, prevFine - qty);
+                newEntries.push({
+                  id: `ledger-sale-${order.orderNumber}-${v.id}-F-${Date.now()}-${Math.random()
+                    .toString(36)
+                    .slice(2, 6)}`,
+                  type: 'order_serviced',
+                  productId: prod.id,
+                  productName: prod.name,
+                  variantId: v.id,
+                  variantLabel: v.label,
+                  nibSize: 'Fine',
+                  quantityDelta: -qty,
+                  previousStock: prevFine,
+                  newStock: nextFine,
+                  orderNumber: order.orderNumber,
+                  referenceNote: `Order #${order.orderNumber} Serviced (${order.customerName}) · Fine (F) Nib`,
+                  timestamp: nowFormatted,
+                  createdAt: Date.now(),
+                });
+              } else {
+                const prevMed = nextMedium;
+                nextMedium = Math.max(0, prevMed - qty);
+                newEntries.push({
+                  id: `ledger-sale-${order.orderNumber}-${v.id}-M-${Date.now()}-${Math.random()
+                    .toString(36)
+                    .slice(2, 6)}`,
+                  type: 'order_serviced',
+                  productId: prod.id,
+                  productName: prod.name,
+                  variantId: v.id,
+                  variantLabel: v.label,
+                  nibSize: 'Medium',
+                  quantityDelta: -qty,
+                  previousStock: prevMed,
+                  newStock: nextMedium,
+                  orderNumber: order.orderNumber,
+                  referenceNote: `Order #${order.orderNumber} Serviced (${order.customerName}) · Medium (M) Nib`,
+                  timestamp: nowFormatted,
+                  createdAt: Date.now(),
+                });
+              }
+            }
+
+            return {
+              ...v,
+              fineStockCount: nextFine,
+              mediumStockCount: nextMedium,
+              stockCount: nextFine + nextMedium,
+            };
+          } else {
+            const orderedQty = matchingItems.reduce((sum, c) => sum + (c.quantity || 1), 0);
+            if (orderedQty === 0) return v;
+            const currStock = typeof v.stockCount === 'number' ? v.stockCount : 10;
+            const nextStock = Math.max(0, currStock - orderedQty);
+            newEntries.push({
+              id: `ledger-sale-${order.orderNumber}-${v.id}-${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2, 6)}`,
+              type: 'order_serviced',
+              productId: prod.id,
+              productName: prod.name,
+              variantId: v.id,
+              variantLabel: v.label,
+              quantityDelta: -orderedQty,
+              previousStock: currStock,
+              newStock: nextStock,
+              orderNumber: order.orderNumber,
+              referenceNote: `Order #${order.orderNumber} Serviced (${order.customerName})`,
+              timestamp: nowFormatted,
+              createdAt: Date.now(),
+            });
+            return {
+              ...v,
+              stockCount: nextStock,
+            };
+          }
+        });
+
+        const updatedProd = { ...prod, variants: nextVariants };
+        if (auth.currentUser && isAuthorizedAdmin) {
+          persistProductToFirestore(updatedProd);
+        }
+        return updatedProd;
+      })
+    );
+
+    if (newEntries.length > 0) {
+      setStockLedger((prev) => [...newEntries, ...prev]);
+      if (auth.currentUser && isAuthorizedAdmin) {
+        newEntries.forEach(async (entry) => {
+          try {
+            await setDoc(doc(db, 'stock_ledger', entry.id), entry);
+          } catch {
+            // Local ledger remains source of truth if Firestore write is skipped
+          }
+        });
+      }
+    }
+  };
+
+  // Stock Manager Handler: Add Inbound Stock Bought (Supports Fine F & Medium M Nib Quantities)
+  const handleAddStockBought = async (payload: {
+    productId: string;
+    variantId: string;
+    nibSize?: NibOption;
+    quantityAdded: number;
+    referenceNote: string;
+    unitCostKes?: number;
+  }) => {
+    const qty = Math.max(1, Math.round(payload.quantityAdded));
+    const nowFormatted =
+      new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'short' }) +
+      ' · ' +
+      new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    let createdEntry: StockLedgerEntry | null = null;
+
+    setCatalogProducts((prevCatalog) =>
+      prevCatalog.map((prod) => {
+        if (prod.id !== payload.productId) return prod;
+        const nextVariants = prod.variants.map((v) => {
+          if (v.id !== payload.variantId) return v;
+
+          if (prod.hasNibSelector && payload.nibSize) {
+            const breakdown = getVariantNibBreakdown(prod, v);
+            const isFine = payload.nibSize === 'Fine';
+            const prevNibStock = isFine ? breakdown.fine : breakdown.medium;
+            const nextNibStock = prevNibStock + qty;
+            const nextFine = isFine ? nextNibStock : breakdown.fine;
+            const nextMedium = isFine ? breakdown.medium : nextNibStock;
+
+            createdEntry = {
+              id: `ledger-in-${prod.id}-${v.id}-${payload.nibSize}-${Date.now()}`,
+              type: 'inbound_purchase',
+              productId: prod.id,
+              productName: prod.name,
+              variantId: v.id,
+              variantLabel: v.label,
+              nibSize: payload.nibSize,
+              quantityDelta: qty,
+              previousStock: prevNibStock,
+              newStock: nextNibStock,
+              referenceNote:
+                payload.referenceNote.trim() ||
+                `Inbound Stock Purchase (${payload.nibSize} Nib)`,
+              unitCostKes: payload.unitCostKes,
+              timestamp: nowFormatted,
+              createdAt: Date.now(),
+            };
+
+            return {
+              ...v,
+              fineStockCount: nextFine,
+              mediumStockCount: nextMedium,
+              stockCount: nextFine + nextMedium,
+            };
+          }
+
+          const prevStock = typeof v.stockCount === 'number' ? v.stockCount : 10;
+          const nextStock = prevStock + qty;
+          createdEntry = {
+            id: `ledger-in-${prod.id}-${v.id}-${Date.now()}`,
+            type: 'inbound_purchase',
+            productId: prod.id,
+            productName: prod.name,
+            variantId: v.id,
+            variantLabel: v.label,
+            quantityDelta: qty,
+            previousStock: prevStock,
+            newStock: nextStock,
+            referenceNote: payload.referenceNote.trim() || 'Inbound Stock Purchase',
+            unitCostKes: payload.unitCostKes,
+            timestamp: nowFormatted,
+            createdAt: Date.now(),
+          };
+          return {
+            ...v,
+            stockCount: nextStock,
+          };
+        });
+        const updatedProd = { ...prod, variants: nextVariants };
+        if (auth.currentUser && isAuthorizedAdmin) {
+          persistProductToFirestore(updatedProd);
+        }
+        return updatedProd;
+      })
+    );
+
+    if (createdEntry) {
+      const entryToSave: StockLedgerEntry = createdEntry;
+      setStockLedger((prev) => [entryToSave, ...prev]);
+      setCloudSyncStatus(
+        `Added +${qty} units${
+          entryToSave.nibSize ? ` (${entryToSave.nibSize} Nib)` : ''
+        } to ${entryToSave.variantLabel.split(' · ')[0]} (New Stock: ${entryToSave.newStock})`
+      );
+      window.setTimeout(() => setCloudSyncStatus(null), 4000);
+      if (auth.currentUser && isAuthorizedAdmin) {
+        try {
+          await setDoc(doc(db, 'stock_ledger', entryToSave.id), entryToSave);
+        } catch {
+          // Local ledger persisted
+        }
+      }
+    }
+  };
+
   const handleUpdateOrderStatus = async (
     order: OrderConfirmation,
     nextStatus: OrderStatus
   ) => {
     if (!isAuthorizedAdmin) return;
+    const isNowServiced = nextStatus === 'Out for Courier' || nextStatus === 'Delivered';
+    const shouldDeductStockNow = isNowServiced && !order.stockDeducted;
+
+    if (shouldDeductStockNow) {
+      deductOrderStockFromCatalog(order);
+    }
+
+    const nextStockDeducted = Boolean(order.stockDeducted || shouldDeductStockNow);
+
     const nextEta =
       nextStatus === 'Processing'
-        ? 'Preparing at Nairobi Atelier · Nib Inspection in Progress'
+        ? '1-Day Order Processing · Ships Out Next Day from Nairobi Atelier'
         : nextStatus === 'Out for Courier'
-        ? `Courier Dispatched (${order.city.split(' ')[0]}) · Rider En Route`
+        ? `Shipped Next Day (${order.city.split(' ')[0]}) · Courier En Route`
         : `Delivered & Signed · ${order.address}`;
 
     setLocalOrders((prev) =>
@@ -2113,6 +2520,7 @@ export default function App() {
           ? {
               ...item,
               orderStatus: nextStatus,
+              stockDeducted: nextStockDeducted,
               estimatedDelivery: nextEta,
             }
           : item
@@ -2125,10 +2533,18 @@ export default function App() {
           ? {
               ...prev,
               orderStatus: nextStatus,
+              stockDeducted: nextStockDeducted,
               estimatedDelivery: nextEta,
             }
           : null
       );
+    }
+
+    if (shouldDeductStockNow) {
+      setCloudSyncStatus(
+        `Order #${order.orderNumber} serviced (${nextStatus}) — stock automatically deducted`
+      );
+      window.setTimeout(() => setCloudSyncStatus(null), 4500);
     }
 
     // If signed in with Firebase Auth, either update the existing Firestore document or promote the local order into Firestore
@@ -2142,6 +2558,7 @@ export default function App() {
         try {
           await updateDoc(doc(db, 'orders', order.id), {
             orderStatus: nextStatus,
+            stockDeducted: nextStockDeducted,
             estimatedDelivery: nextEta,
           });
         } catch (error) {
@@ -2157,6 +2574,7 @@ export default function App() {
           userEmail: auth.currentUser.email || '',
           orderNumber: order.orderNumber,
           orderStatus: nextStatus,
+          stockDeducted: nextStockDeducted,
           trackingCode:
             order.trackingCode ||
             `NBO-COUR-${order.orderNumber.replace(/[^0-9]/g, '') || '4000'}`,
@@ -2201,10 +2619,28 @@ export default function App() {
     }
   };
 
+  const handleServiceOrderAndDeductStock = async (
+    orderNumber: string,
+    targetStatus: 'Out for Courier' | 'Delivered' = 'Out for Courier'
+  ): Promise<void> => {
+    const target =
+      firestoreOrders.find((o) => o.orderNumber === orderNumber) ||
+      userOrderHistory.find((o) => o.orderNumber === orderNumber) ||
+      localOrders.find((o) => o.orderNumber === orderNumber);
+    if (!target) return;
+    await handleUpdateOrderStatus(target, targetStatus);
+  };
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || !customerPhone.trim() || !deliveryAddress.trim()) {
       setCheckoutError('Please enter your full name, Kenyan mobile number, and delivery address.');
+      return;
+    }
+    if (isOutsideNairobi && paymentMethod === 'cod') {
+      setCheckoutError(
+        'For orders outside Nairobi, payment must be made in advance before delivery (please select M-Pesa Express or WhatsApp Concierge).'
+      );
       return;
     }
     setCheckoutError(null);
@@ -2219,21 +2655,24 @@ export default function App() {
     const trackingCode = `${
       selectedLocationIdx === 0 ? 'NBO-COUR' : 'KE-FGO'
     }-${randomCode}`;
-    const initialEta = `${selectedLocation.eta} · Preparing at Nairobi Atelier`;
+    const initialEta = `1-Day Processing · Ships Out Next Day (${
+      selectedLocationIdx === 0 ? 'Nairobi Courier' : 'Upcountry Express · Advance Payment'
+    })`;
 
     const confirmation: OrderConfirmation = {
       orderNumber,
       orderStatus: 'Processing',
+      stockDeducted: false,
       trackingCode,
       estimatedDelivery: initialEta,
       customerName: customerName.trim(),
       phone: customerPhone.trim(),
       city: selectedLocation.city,
       address: deliveryAddress.trim(),
-      paymentMethod,
+      paymentMethod: isOutsideNairobi && paymentMethod === 'cod' ? 'mpesa' : paymentMethod,
       promoCode: appliedPromoCode && promoDiscountKes > 0 ? appliedPromoCode.code : undefined,
       promoDiscountKes: promoDiscountKes > 0 ? promoDiscountKes : undefined,
-      bundleDiscountKes: inkMixingSetDiscount > 0 ? inkMixingSetDiscount : undefined,
+      bundleDiscountKes: totalBundleDiscountKes > 0 ? totalBundleDiscountKes : undefined,
       items: [...cart],
       subtotal: cartSubtotal,
       deliveryFee,
@@ -2248,32 +2687,9 @@ export default function App() {
       [orderNumber]: true,
     }));
 
-    // Save to local orders immediately so Order History updates instantaneously
+    // Save to local orders immediately so Order History & Stock Manager Queue update instantaneously.
+    // Stock is automatically deducted when the order is serviced (Out for Courier / Delivered) in the Stock Manager!
     setLocalOrders((prev) => [confirmation, ...prev]);
-
-    // Deduct ordered quantities from per-variant stockCount in catalogProducts
-    setCatalogProducts((prevCatalog) =>
-      prevCatalog.map((prod) => {
-        const orderedForProd = cart.filter((c) => c.product.id === prod.id);
-        if (orderedForProd.length === 0) return prod;
-        const nextVariants = prod.variants.map((v) => {
-          const orderedQty = orderedForProd
-            .filter((c) => c.variant.id === v.id)
-            .reduce((sum, c) => sum + c.quantity, 0);
-          if (orderedQty === 0) return v;
-          const currStock = typeof v.stockCount === 'number' ? v.stockCount : 10;
-          return {
-            ...v,
-            stockCount: Math.max(0, currStock - orderedQty),
-          };
-        });
-        const updatedProd = { ...prod, variants: nextVariants };
-        if (auth.currentUser && isAuthorizedAdmin) {
-          persistProductToFirestore(updatedProd);
-        }
-        return updatedProd;
-      })
-    );
 
     // Auto-sign in customer to Member Profile if they placed an order while logged out
     if (!memberProfile) {
@@ -2292,6 +2708,7 @@ export default function App() {
         userEmail: auth.currentUser.email || '',
         orderNumber: confirmation.orderNumber,
         orderStatus: confirmation.orderStatus,
+        stockDeducted: false,
         trackingCode: confirmation.trackingCode,
         estimatedDelivery: confirmation.estimatedDelivery,
         customerName: confirmation.customerName,
@@ -3946,26 +4363,53 @@ export default function App() {
                     {/* Card Footer Actions: Add to Bag (or Notify Me if Sold Out) + Quick Buy side-by-side + Add to Wishlist */}
                     <div className="px-6 pb-6 pt-2 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
-                        {(typeof chosenVariant.stockCount === 'number'
-                          ? chosenVariant.stockCount
-                          : 10) === 0 ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleOpenNotifyMeModal(
-                                product,
-                                chosenVariant,
-                                product.hasNibSelector ? chosenNib : undefined
-                              )
-                            }
-                            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                          >
-                            <Bell className="w-4 h-4" />
-                            <span>
-                              Notify Me When Available
-                              {product.hasNibSelector ? ` (${chosenNib})` : ''}
-                            </span>
-                          </button>
+                        {getVariantEffectiveStock(
+                          product,
+                          chosenVariant,
+                          product.hasNibSelector ? chosenNib : undefined
+                        ) === 0 ? (
+                          <div className="flex-1 flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleToggleWishlist(
+                                  product,
+                                  chosenVariant,
+                                  product.hasNibSelector ? chosenNib : undefined
+                                )
+                              }
+                              className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                isWishlisted
+                                  ? 'bg-[#C88A2E] border-[#C88A2E] text-white'
+                                  : 'bg-rose-700 hover:bg-rose-800 border-rose-700 text-white'
+                              }`}
+                            >
+                              <Heart
+                                className={`w-3.5 h-3.5 ${
+                                  isWishlisted ? 'fill-white text-white' : ''
+                                }`}
+                              />
+                              <span>
+                                {isWishlisted
+                                  ? 'Saved in Wishlist (Out of Stock)'
+                                  : 'Out of Stock · Add to Wishlist'}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleOpenNotifyMeModal(
+                                  product,
+                                  chosenVariant,
+                                  product.hasNibSelector ? chosenNib : undefined
+                                )
+                              }
+                              title="Notify Me When Restocked"
+                              className="py-2.5 px-2.5 text-xs font-semibold rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer shrink-0"
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         ) : (
                           <button
                             type="button"
@@ -4269,23 +4713,49 @@ export default function App() {
 
                       <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
                         <div className="flex items-center gap-2">
-                          {(typeof variant.stockCount === 'number'
-                            ? variant.stockCount
-                            : 10) === 0 ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleOpenNotifyMeModal(
-                                  kakunoMadoromiProduct,
-                                  variant,
-                                  activeNib
-                                )
-                              }
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                            >
-                              <Bell className="w-3.5 h-3.5" />
-                              <span>Notify Me ({activeNib})</span>
-                            </button>
+                          {getVariantEffectiveStock(kakunoMadoromiProduct, variant, activeNib) === 0 ? (
+                            <div className="flex-1 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleToggleWishlist(
+                                    kakunoMadoromiProduct,
+                                    variant,
+                                    activeNib
+                                  )
+                                }
+                                className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                  isWishlisted
+                                    ? 'bg-[#C88A2E] text-white'
+                                    : 'bg-rose-700 hover:bg-rose-800 text-white'
+                                }`}
+                              >
+                                <Heart
+                                  className={`w-3.5 h-3.5 ${
+                                    isWishlisted ? 'fill-white text-white' : ''
+                                  }`}
+                                />
+                                <span>
+                                  {isWishlisted
+                                    ? 'In Wishlist (Out of Stock)'
+                                    : 'Out of Stock · Add to Wishlist'}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleOpenNotifyMeModal(
+                                    kakunoMadoromiProduct,
+                                    variant,
+                                    activeNib
+                                  )
+                                }
+                                title="Notify Me on Restock"
+                                className="py-2.5 px-2.5 text-xs font-semibold rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer shrink-0"
+                              >
+                                <Bell className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"
@@ -4657,23 +5127,49 @@ export default function App() {
 
                       <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
                         <div className="flex items-center gap-2">
-                          {(typeof variant.stockCount === 'number'
-                            ? variant.stockCount
-                            : 10) === 0 ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleOpenNotifyMeModal(
-                                  kakunoFamilyProduct,
-                                  variant,
-                                  activeNib
-                                )
-                              }
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                            >
-                              <Bell className="w-3.5 h-3.5" />
-                              <span>Notify Me ({activeNib})</span>
-                            </button>
+                          {getVariantEffectiveStock(kakunoFamilyProduct, variant, activeNib) === 0 ? (
+                            <div className="flex-1 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleToggleWishlist(
+                                    kakunoFamilyProduct,
+                                    variant,
+                                    activeNib
+                                  )
+                                }
+                                className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                  isWishlisted
+                                    ? 'bg-[#C88A2E] text-white'
+                                    : 'bg-rose-700 hover:bg-rose-800 text-white'
+                                }`}
+                              >
+                                <Heart
+                                  className={`w-3.5 h-3.5 ${
+                                    isWishlisted ? 'fill-white text-white' : ''
+                                  }`}
+                                />
+                                <span>
+                                  {isWishlisted
+                                    ? 'In Wishlist (Out of Stock)'
+                                    : 'Out of Stock · Add to Wishlist'}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleOpenNotifyMeModal(
+                                    kakunoFamilyProduct,
+                                    variant,
+                                    activeNib
+                                  )
+                                }
+                                title="Notify Me on Restock"
+                                className="py-2.5 px-2.5 text-xs font-semibold rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer shrink-0"
+                              >
+                                <Bell className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"
@@ -5251,16 +5747,38 @@ export default function App() {
                                 : 10;
                             if (shadeStock === 0) {
                               return (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleOpenNotifyMeModal(iroshizukuProduct, matchedVar)
-                                  }
-                                  className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-2.5 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                                >
-                                  <Bell className="w-3.5 h-3.5" />
-                                  <span>Notify Me</span>
-                                </button>
+                                <div className="flex-1 flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleInkShadeWishlist(shade)}
+                                    className={`flex-1 inline-flex items-center justify-center gap-1 py-2 px-2 text-[11px] font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                      isWishlisted
+                                        ? 'bg-[#C88A2E] text-white'
+                                        : 'bg-rose-700 hover:bg-rose-800 text-white'
+                                    }`}
+                                  >
+                                    <Heart
+                                      className={`w-3.5 h-3.5 ${
+                                        isWishlisted ? 'fill-white text-white' : ''
+                                      }`}
+                                    />
+                                    <span>
+                                      {isWishlisted
+                                        ? 'In Wishlist (Out of Stock)'
+                                        : 'Out of Stock · Add to Wishlist'}
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleOpenNotifyMeModal(iroshizukuProduct, matchedVar)
+                                    }
+                                    title="Notify Me When Restocked"
+                                    className="py-2 px-2 text-xs font-semibold rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer shrink-0"
+                                  >
+                                    <Bell className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               );
                             }
                             return (
@@ -5350,9 +5868,13 @@ export default function App() {
                 })}
               </div>
 
-              {/* ASTRO ISLAND: 3-Bottle 50ml Iroshizuku Ink Mixing Set Builder (KES 20,000 Bundle · 10% Privilege) */}
+              {/* ASTRO ISLAND: 3-Bottle 50ml Iroshizuku Ink Mixing Set Builder (KES 16,200 Bundle · 10% Privilege + FREE Delivery) */}
               <InkMixingSetBuilderIsland
                 onAddInkMixingSetToCart={handleAddBundleToCart}
+                isShadeWishlisted={(shadeId) =>
+                  isItemWishlisted('pilot-iroshizuku-ink', shadeId)
+                }
+                onToggleShadeWishlist={handleToggleInkShadeWishlist}
               />
             </div>
 
@@ -5738,16 +6260,38 @@ export default function App() {
                       <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
                         <div className="flex items-center gap-2">
                           {shadeStock === 0 ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleOpenNotifyMeModal(pilot30mlInkProduct, variant)
-                              }
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                            >
-                              <Bell className="w-3.5 h-3.5" />
-                              <span>Notify Me</span>
-                            </button>
+                            <div className="flex-1 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleWishlist(pilot30mlInkProduct, variant)}
+                                className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                                  isWishlisted
+                                    ? 'bg-[#C88A2E] text-white'
+                                    : 'bg-rose-700 hover:bg-rose-800 text-white'
+                                }`}
+                              >
+                                <Heart
+                                  className={`w-3.5 h-3.5 ${
+                                    isWishlisted ? 'fill-white text-white' : ''
+                                  }`}
+                                />
+                                <span>
+                                  {isWishlisted
+                                    ? 'In Wishlist (Out of Stock)'
+                                    : 'Out of Stock · Add to Wishlist'}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleOpenNotifyMeModal(pilot30mlInkProduct, variant)
+                                }
+                                title="Notify Me When Restocked"
+                                className="py-2.5 px-2.5 text-xs font-semibold rounded bg-amber-700 hover:bg-amber-800 text-white transition-colors cursor-pointer shrink-0"
+                              >
+                                <Bell className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"
@@ -6041,9 +6585,10 @@ export default function App() {
         </div>
       </footer>
 
-      {/* SHOPIFY-STYLE MERCHANT ADMIN BACK OFFICE (PRODUCTS, KES PRICES, STOCK, PROMOS, ANALYTICS & ORDERS) */}
+      {/* SHOPIFY-STYLE MERCHANT ADMIN BACK OFFICE (PRODUCTS, KES PRICES, STOCK MANAGER, PROMOS, ANALYTICS & ORDERS) */}
       <MerchantAdminIsland
         isOpen={isMerchantAdminOpen}
+        initialTab={adminInitialTab}
         onClose={() => {
           setIsMerchantAdminOpen(false);
           setAdminAuthError(null);
@@ -6063,6 +6608,9 @@ export default function App() {
         restockAlerts={allRestockAlerts}
         onToggleRestockAlertStatus={handleToggleRestockAlertStatus}
         onDeleteRestockAlert={handleDeleteRestockAlert}
+        stockLedger={stockLedger}
+        onAddStockBought={handleAddStockBought}
+        onServiceOrderAndDeductStock={handleServiceOrderAndDeductStock}
         orders={(
           firestoreOrders.length > 0
             ? firestoreOrders
@@ -6074,6 +6622,7 @@ export default function App() {
           userId: ord.userId,
           orderNumber: ord.orderNumber,
           orderStatus: ord.orderStatus,
+          stockDeducted: ord.stockDeducted,
           trackingCode: ord.trackingCode,
           estimatedDelivery: ord.estimatedDelivery,
           customerName: ord.customerName,
@@ -6108,14 +6657,28 @@ export default function App() {
           }
         }}
         firebaseAdminEmail={
-          resolvedFirebaseEmail || (firebaseUser ? firebaseUser.uid : null)
+          resolvedFirebaseEmail ||
+          (firebaseUser
+            ? firebaseUser.uid
+            : isPreviewAdminUnlocked
+            ? AUTHORIZED_ADMIN_EMAIL
+            : null)
         }
         isAuthorizedAdmin={isAuthorizedAdmin}
         isSigningIn={isSigningIn}
         authError={adminAuthError}
         authorizedAdminHint={AUTHORIZED_ADMIN_EMAIL}
         onGoogleSignIn={handleGoogleSignIn}
-        onSignOut={handleSignOutAccount}
+        onUnlockPreviewAdmin={() => {
+          setIsPreviewAdminUnlocked(true);
+          setAdminAuthError(null);
+          setCloudSyncStatus('Merchant Admin & Stock Manager Unlocked');
+          window.setTimeout(() => setCloudSyncStatus(null), 3500);
+        }}
+        onSignOut={async () => {
+          setIsPreviewAdminUnlocked(false);
+          await handleSignOutAccount();
+        }}
         cloudSyncStatus={cloudSyncStatus}
       />
 
@@ -6652,7 +7215,7 @@ export default function App() {
                         : 'Sign in to view your past PENS R US purchases & reorder'
                       : checkoutStep === 'confirmed'
                       ? 'Thank you for choosing PENS R US Kenya'
-                      : 'Complimentary delivery in Nairobi & on orders from KES 6,000'}
+                      : '1-Day Processing (Ships Next Day) · Free Delivery Over KES 10,000'}
                   </p>
                 </div>
                 <button
@@ -7533,7 +8096,7 @@ export default function App() {
 
                   <div>
                     <label className="block text-xs font-medium text-[#3F3D39] mb-1">
-                      County / Region
+                      County / Region (1-Day Processing · Ships Next Day)
                     </label>
                     <select
                       value={selectedLocationIdx}
@@ -7542,10 +8105,18 @@ export default function App() {
                     >
                       {KENYA_LOCATIONS.map((loc, idx) => (
                         <option key={loc.city} value={idx}>
-                          {loc.city} — {loc.eta}
+                          {loc.city} —{' '}
+                          {cartSubtotal >= storeSettings.freeDeliveryThresholdKes
+                            ? 'FREE Delivery (Order Over KES 10,000)'
+                            : `Shs. ${loc.fee.toLocaleString()}`}
                         </option>
                       ))}
                     </select>
+                    <p className="text-[11px] text-[#5C5852] mt-1">
+                      <strong>Order processing is 1 day</strong> (orders ship out the next day). Free delivery within &amp; outside Nairobi on orders over{' '}
+                      <strong>KES 10,000</strong>; otherwise <strong>Shs. 300</strong> within Nairobi and{' '}
+                      <strong>Shs. 700</strong> outside Nairobi.
+                    </p>
                   </div>
 
                   <div>
@@ -7563,9 +8134,23 @@ export default function App() {
                   </div>
 
                   <div className="pt-2">
-                    <span className="block text-xs font-medium text-[#3F3D39] mb-2">
-                      Settlement &amp; Order Method
-                    </span>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="block text-xs font-medium text-[#3F3D39]">
+                        Settlement &amp; Order Method
+                      </span>
+                      {isOutsideNairobi && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                          Advance Payment Required Outside Nairobi
+                        </span>
+                      )}
+                    </div>
+
+                    {isOutsideNairobi && (
+                      <div className="mb-2.5 p-2.5 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+                        <strong>Outside Nairobi Policy:</strong> Payments for orders outside Nairobi must be completed in advance before courier dispatch via <strong>M-Pesa Express</strong> or <strong>WhatsApp Concierge</strong>.
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <button
                         type="button"
@@ -7592,21 +8177,26 @@ export default function App() {
                       >
                         <div>WhatsApp Concierge</div>
                         <div className="text-[10px] font-normal text-[#6E6A63] mt-0.5">
-                          Itemized KES Chat + Saved History
+                          Advance M-Pesa via Chat
                         </div>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('cod')}
-                        className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
-                          paymentMethod === 'cod'
-                            ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614]'
-                            : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                        disabled={isOutsideNairobi}
+                        onClick={() => {
+                          if (!isOutsideNairobi) setPaymentMethod('cod');
+                        }}
+                        className={`p-2.5 text-left rounded border text-xs ${
+                          isOutsideNairobi
+                            ? 'border-[#E6E1D8] bg-[#F3EFE8] text-[#9E988E] opacity-60 cursor-not-allowed'
+                            : paymentMethod === 'cod'
+                            ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614] cursor-pointer'
+                            : 'border-[#E6E1D8] bg-white text-[#5C5852] cursor-pointer'
                         }`}
                       >
                         <div>Cash on Delivery</div>
                         <div className="text-[10px] font-normal text-[#6E6A63] mt-0.5">
-                          Pay upon inspection
+                          {isOutsideNairobi ? 'Nairobi Only' : 'Nairobi Courier Only'}
                         </div>
                       </button>
                     </div>
@@ -7714,7 +8304,7 @@ export default function App() {
                   </div>
 
                   <div className="space-y-1.5 text-xs">
-                    {(inkMixingSetDiscount > 0 || promoDiscountKes > 0) && (
+                    {(totalBundleDiscountKes > 0 || promoDiscountKes > 0) && (
                       <div className="flex justify-between text-[#5C5852]">
                         <span>Items Value</span>
                         <span className="font-mono-tabular line-through text-[#8C857B]">
@@ -7724,9 +8314,17 @@ export default function App() {
                     )}
                     {inkMixingSetDiscount > 0 && (
                       <div className="flex justify-between text-[#1D5B43] font-medium">
-                        <span>Ink Mixing Set (10% Trio Bundle)</span>
+                        <span>Triple Ink Combo (10% Off + Free Delivery!)</span>
                         <span className="font-mono-tabular">
                           -{formatKes(inkMixingSetDiscount)}
+                        </span>
+                      </div>
+                    )}
+                    {writingSetBundleDiscount > 0 && (
+                      <div className="flex justify-between text-[#1D5B43] font-medium">
+                        <span>Pen + Converter + Ink Bundle (5% Off)</span>
+                        <span className="font-mono-tabular">
+                          -{formatKes(writingSetBundleDiscount)}
                         </span>
                       </div>
                     )}
@@ -7741,9 +8339,13 @@ export default function App() {
                       <span className="font-mono-tabular">{formatKes(cartSubtotal)}</span>
                     </div>
                     <div className="flex justify-between text-[#5C5852]">
-                      <span>Delivery ({selectedLocation.city.split(' ')[0]})</span>
+                      <span>
+                        Delivery ({selectedLocation.city.split(' ')[0]} · Ships Next Day)
+                      </span>
                       <span className="font-mono-tabular">
-                        {deliveryFee === 0 ? 'Complimentary' : formatKes(deliveryFee)}
+                        {deliveryFee === 0
+                          ? 'FREE (Over KES 10,000)'
+                          : `Shs. ${deliveryFee.toLocaleString()}`}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm font-semibold text-[#171614] pt-2 border-t border-[#DCD5C7]">

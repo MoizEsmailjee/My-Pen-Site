@@ -7,7 +7,11 @@ import {
   Plus,
   ZoomIn,
 } from 'lucide-react';
-import { INK_STUDIO_SHADES, InkShadeOption } from '../data/products';
+import {
+  INK_STUDIO_SHADES,
+  InkShadeOption,
+  IROSHIZUKU_INITIAL_STOCK_MAP,
+} from '../data/products';
 import { resolveAssetUrl } from '../utils/assetResolver';
 
 interface ChromaticInkRibbonIslandProps {
@@ -15,6 +19,7 @@ interface ChromaticInkRibbonIslandProps {
   onAddInkShade: (shade: InkShadeOption) => void;
   isShadeWishlisted: (shadeId: string) => boolean;
   onToggleShadeWishlist: (shade: InkShadeOption) => void;
+  getShadeStock?: (shadeId: string) => number;
   onOpenZoomModal: (payload: {
     src: string;
     secondarySrc?: string;
@@ -31,12 +36,16 @@ export function ChromaticInkRibbonIsland({
   onAddInkShade,
   isShadeWishlisted,
   onToggleShadeWishlist,
+  getShadeStock,
   onOpenZoomModal,
 }: ChromaticInkRibbonIslandProps) {
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const activeShade = INK_STUDIO_SHADES[selectedIdx] || INK_STUDIO_SHADES[0];
   const isAdded = justAddedKey === `pilot-iroshizuku-ink-${activeShade.id}`;
   const wishlisted = isShadeWishlisted(activeShade.id);
+  const activeShadeStock = getShadeStock
+    ? getShadeStock(activeShade.id)
+    : (IROSHIZUKU_INITIAL_STOCK_MAP[activeShade.id] ?? 0);
 
   const handlePrev = () => {
     setSelectedIdx(
@@ -92,6 +101,9 @@ export function ChromaticInkRibbonIsland({
         >
           {INK_STUDIO_SHADES.map((shade, idx) => {
             const active = idx === selectedIdx;
+            const shadeStock = getShadeStock
+              ? getShadeStock(shade.id)
+              : (IROSHIZUKU_INITIAL_STOCK_MAP[shade.id] ?? 0);
             return (
               <button
                 key={shade.id}
@@ -99,7 +111,9 @@ export function ChromaticInkRibbonIsland({
                 role="option"
                 aria-selected={active}
                 onClick={() => setSelectedIdx(idx)}
-                title={`${shade.name} (${shade.kanji}) — ${shade.meaning}`}
+                title={`${shade.name} (${shade.kanji}) — ${
+                  shadeStock > 0 ? `${shadeStock} in stock` : 'Out of Stock · Add to Wishlist'
+                }`}
                 className={`group relative flex flex-col items-center py-1.5 px-1 rounded transition-transform duration-150 cursor-pointer ${
                   active
                     ? 'bg-[#F3EFE8] ring-1 ring-[#0A2246] -translate-y-0.5'
@@ -111,7 +125,7 @@ export function ChromaticInkRibbonIsland({
                     active
                       ? 'scale-110 border-[#0A2246] shadow-xs'
                       : 'border-black/15 group-hover:scale-105'
-                  }`}
+                  } ${shadeStock === 0 ? 'opacity-45' : ''}`}
                   style={{ backgroundColor: shade.hex }}
                 />
                 <span className="mt-1.5 text-[10px] font-medium text-[#524E48] truncate max-w-full">
@@ -227,7 +241,15 @@ export function ChromaticInkRibbonIsland({
               <span aria-hidden="true">·</span>
               <span>Pilot Japan</span>
               <span aria-hidden="true">·</span>
-              <span className="text-[#0A2246] font-medium">In Stock</span>
+              {activeShadeStock > 0 ? (
+                <span className="text-[#1D5B43] font-semibold">
+                  {activeShadeStock} in stock
+                </span>
+              ) : (
+                <span className="text-rose-700 font-semibold">
+                  Out of Stock · Add to Wishlist
+                </span>
+              )}
             </div>
 
             <div className="flex items-baseline justify-between gap-3 mt-2">
@@ -267,45 +289,69 @@ export function ChromaticInkRibbonIsland({
 
           <div className="mt-6 pt-4 border-t border-[#E6E1D8] flex flex-col gap-2.5">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onAddInkShade(activeShade)}
-                className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap ${
-                  isAdded
-                    ? 'bg-[#1D5B43] text-white'
-                    : 'bg-[#0A2246] hover:bg-[#133468] text-white'
-                }`}
-              >
-                {isAdded ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Added {activeShade.name}</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    <span>Add Bottle · KES 6,000</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onToggleShadeWishlist(activeShade)}
-                aria-pressed={wishlisted}
-                className={`inline-flex items-center justify-center gap-1.5 py-2.5 px-3.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                  wishlisted
-                    ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                    : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
-                }`}
-              >
-                <Heart
-                  className={`w-3.5 h-3.5 ${
-                    wishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+              {activeShadeStock === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onToggleShadeWishlist(activeShade)}
+                  aria-pressed={wishlisted}
+                  className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded border transition-colors cursor-pointer whitespace-nowrap ${
+                    wishlisted
+                      ? 'border-[#C88A2E] bg-[#C88A2E] text-white'
+                      : 'border-rose-700 bg-rose-700 hover:bg-rose-800 text-white'
                   }`}
-                />
-                <span>{wishlisted ? 'Wishlisted' : 'Add to Wishlist'}</span>
-              </button>
+                >
+                  <Heart
+                    className={`w-4 h-4 ${wishlisted ? 'fill-white text-white' : ''}`}
+                  />
+                  <span>
+                    {wishlisted
+                      ? `Wishlisted · ${activeShade.name}`
+                      : 'Out of Stock · Add to Wishlist'}
+                  </span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onAddInkShade(activeShade)}
+                    className={`flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap ${
+                      isAdded
+                        ? 'bg-[#1D5B43] text-white'
+                        : 'bg-[#0A2246] hover:bg-[#133468] text-white'
+                    }`}
+                  >
+                    {isAdded ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Added {activeShade.name}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        <span>Add Bottle · KES 6,000</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onToggleShadeWishlist(activeShade)}
+                    aria-pressed={wishlisted}
+                    className={`inline-flex items-center justify-center gap-1.5 py-2.5 px-3.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                      wishlisted
+                        ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
+                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                    }`}
+                  >
+                    <Heart
+                      className={`w-3.5 h-3.5 ${
+                        wishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : ''
+                      }`}
+                    />
+                    <span>{wishlisted ? 'Wishlisted' : 'Add to Wishlist'}</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

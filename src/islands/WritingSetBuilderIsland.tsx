@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Check, Plus, Sparkles } from 'lucide-react';
+import { Check, Plus, Sparkles, Tag, Truck } from 'lucide-react';
 import {
   FEATURED_PRODUCTS,
   INK_STUDIO_SHADES,
+  IROSHIZUKU_INITIAL_STOCK_MAP,
   NibOption,
   Product,
   ProductVariant,
@@ -60,8 +61,8 @@ export function WritingSetBuilderIsland({
   // Step 2: Converter Inclusion (Pilot CON-40 at KES 1,200)
   const [includeCon40, setIncludeCon40] = useState<boolean>(true);
 
-  // Step 3: Bottled Ink Selection ('waterman' KES 2,000 or 'iroshizuku' KES 7,500)
-  const [inkLine, setInkLine] = useState<'waterman' | 'iroshizuku'>('waterman');
+  // Step 3: Bottled Ink Selection ('waterman' KES 2,000 or 'iroshizuku' KES 6,000)
+  const [inkLine, setInkLine] = useState<'waterman' | 'iroshizuku'>('iroshizuku');
   const [selectedWatermanVariantId, setSelectedWatermanVariantId] = useState<string>(
     'waterman-serenity-blue'
   );
@@ -100,10 +101,15 @@ export function WritingSetBuilderIsland({
   ]);
 
   const preraIncludesCon40 = selectedPenSeriesId === 'pilot-prera';
-  const bundleTotalKes =
+  const hasCompleteBundle = preraIncludesCon40 || includeCon40;
+  const bundleStandardTotalKes =
     activePenProduct.priceKes +
     (!preraIncludesCon40 && includeCon40 ? con40Product.priceKes : 0) +
     activeInkProduct.priceKes;
+  const bundleDiscountKes = hasCompleteBundle
+    ? Math.round(bundleStandardTotalKes * 0.05)
+    : 0;
+  const bundleTotalKes = bundleStandardTotalKes - bundleDiscountKes;
 
   const handleSelectSeries = (
     seriesId: 'pilot-prera' | 'pilot-kakuno-madoromi' | 'pilot-kakuno-family'
@@ -115,7 +121,8 @@ export function WritingSetBuilderIsland({
         : seriesId === 'pilot-kakuno-madoromi'
           ? madoromiProduct
           : familyProduct;
-    setSelectedPenVariantId(prod.variants[0].id);
+    const firstInStock = prod.variants.find((v) => (v.stockCount ?? 0) > 0) || prod.variants[0];
+    setSelectedPenVariantId(firstInStock.id);
   };
 
   const handleAddCompleteSet = () => {
@@ -150,10 +157,47 @@ export function WritingSetBuilderIsland({
 
   return (
     <div id="writing-set-builder" className="mt-20 pt-16 border-t border-[#DCD5C7]">
+      {/* Promotional 5% Bundle Discount Highlight Banner */}
+      <div className="mb-8 rounded-lg border border-[#C88A2E]/40 bg-gradient-to-r from-[#0A2246] via-[#123163] to-[#0A2246] text-white p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-[#C88A2E]/20 border border-[#E5B25D]/40 flex items-center justify-center shrink-0 mt-0.5">
+              <Tag className="w-5 h-5 text-[#E5B25D]" />
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#E5B25D]">
+                <span>Complete Writing Set Privilege · Save 5% Instantly</span>
+              </div>
+              <h4 className="font-serif-display text-xl sm:text-2xl font-semibold text-white mt-0.5">
+                Bundle Any Fountain Pen + Twist Converter + Bottled Ink &amp; Get 5% OFF
+              </h4>
+              <p className="text-xs sm:text-sm text-white/80 mt-1 max-w-2xl">
+                Pair a Pilot Kakuno or Prera fountain pen with a Pilot CON-40 converter (included in the box with Prera) and a 50ml bottle of Iroshizuku or Waterman ink to unlock an automatic{' '}
+                <strong className="text-[#E5B25D]">5% Complete Writing Set Discount</strong> at checkout.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:items-end justify-center shrink-0 bg-white/10 border border-white/15 rounded px-4 py-3">
+            <span className="text-[10px] uppercase tracking-wider text-[#E5B25D] font-semibold">
+              Your Active Set Savings
+            </span>
+            <span className="font-mono-tabular text-lg font-bold text-white">
+              {hasCompleteBundle ? `Save ${formatKes(bundleDiscountKes)} (5% OFF)` : 'Include CON-40 for 5% OFF'}
+            </span>
+            <span className="text-[11px] text-white/75">
+              {bundleTotalKes >= 10000
+                ? '✓ Qualifies for FREE Delivery (Over KES 10,000)'
+                : '1-Day Processing · Ships Next Day'}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
         <div>
           <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#6E6A63] mb-2">
-            Bespoke Desk Curation · Fountain Pen + Twist Converter + 50ml Bottled Ink
+            Bespoke Desk Curation · Fountain Pen + Twist Converter + 50ml Bottled Ink (5% OFF)
           </p>
           <h3
             className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#171614] tracking-tight"
@@ -163,15 +207,18 @@ export function WritingSetBuilderIsland({
           </h3>
           <p className="text-sm text-[#4A4742] mt-2 max-w-2xl">
             Assemble a ready-to-write bottled ink kit in three steps: select your Pilot
-            fountain pen and nib width, pair the <strong>Pilot CON-40 Twist Converter (KES 1,200)</strong>,
+            fountain pen and nib width (`F` or `M`), pair the <strong>Pilot CON-40 Twist Converter (KES 1,200)</strong>,
             and choose a 50ml bottle of <strong>Waterman Paris (KES 2,000)</strong> or{' '}
-            <strong>Pilot Iroshizuku (KES 6,000)</strong>.
+            <strong>Pilot Iroshizuku (KES 6,000)</strong> for an instant <strong>5% bundle discount</strong>.
           </p>
         </div>
-        <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
-          {bundleTotalKes >= 6000
-            ? 'Qualifies for Complimentary Nationwide Kenya Courier'
-            : 'Complimentary Same-Day Nairobi Courier'}
+        <span className="inline-flex items-center gap-1.5 font-mono-tabular text-xs text-[#1D5B43] font-semibold bg-[#1D5B43]/10 border border-[#1D5B43]/25 px-3 py-1.5 rounded">
+          <Truck className="w-3.5 h-3.5" />
+          <span>
+            {bundleTotalKes >= 10000
+              ? 'Qualifies for FREE Delivery (Order Over KES 10,000)'
+              : 'Ships Next Day · Free Delivery Over KES 10,000'}
+          </span>
         </span>
       </div>
 
@@ -244,15 +291,24 @@ export function WritingSetBuilderIsland({
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {activePenProduct.variants.map((v) => {
                   const active = v.id === activePenVariant.id;
+                  const outOfStock = (v.stockCount ?? 0) === 0;
                   return (
                     <button
                       key={v.id}
                       type="button"
+                      disabled={outOfStock}
                       onClick={() => setSelectedPenVariantId(v.id)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap ${
-                        active
-                          ? 'border-[#163A5F] bg-[#163A5F] text-white font-medium'
-                          : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614]'
+                      title={
+                        outOfStock
+                          ? `${v.label} — Out of Stock · Add to Wishlist`
+                          : v.label
+                      }
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded border transition-colors whitespace-nowrap ${
+                        outOfStock
+                          ? 'border-[#E6E1D8] bg-[#FAF8F5] text-[#8C857B] opacity-50 cursor-not-allowed line-through'
+                          : active
+                            ? 'border-[#163A5F] bg-[#163A5F] text-white font-medium cursor-pointer'
+                            : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614] cursor-pointer'
                       }`}
                     >
                       {v.swatchHex && (
@@ -325,7 +381,7 @@ export function WritingSetBuilderIsland({
               </h4>
               <p className="text-xs text-[#5C5852] mt-1.5 leading-relaxed">
                 Genuine Pilot screw-piston reservoir with 4 stainless-steel agitator beads.
-                Allows any Kakuno or Prera to draw bottled ink directly from the flacon.
+                Allows any Kakuno or Prera to draw bottled ink directly from the flacon and unlocks the <strong>5% bundle discount</strong>.
               </p>
             </div>
 
@@ -353,7 +409,7 @@ export function WritingSetBuilderIsland({
                   ) : (
                     <>
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Include CON-40 · KES 1,200</span>
+                      <span>Include CON-40 · Unlock 5% OFF</span>
                     </>
                   )}
                 </button>
@@ -361,7 +417,7 @@ export function WritingSetBuilderIsland({
             </div>
           </div>
 
-          {/* Step 03: 50ml Bottled Ink (Waterman KES 2,000 or Iroshizuku KES 7,500) */}
+          {/* Step 03: 50ml Bottled Ink (Waterman KES 2,000 or Iroshizuku KES 6,000) */}
           <div className="lg:col-span-5 p-6 flex flex-col justify-between bg-white">
             <div>
               <div className="flex items-center justify-between text-xs text-[#6E6A63] mb-3">
@@ -373,7 +429,7 @@ export function WritingSetBuilderIsland({
                 </span>
               </div>
 
-              {/* Switch between Waterman Paris (KES 2,000) & Pilot Iroshizuku (KES 7,500) */}
+              {/* Switch between Waterman Paris (KES 2,000) & Pilot Iroshizuku (KES 6,000) */}
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <button
                   type="button"
@@ -404,7 +460,7 @@ export function WritingSetBuilderIsland({
                     Pilot Iroshizuku (50ml)
                   </div>
                   <div className="font-mono-tabular text-[11px] text-[#163A5F]">
-                    KES 6,000 · All 24 Shades
+                    KES 6,000 · 15 Shades In Stock
                   </div>
                 </button>
               </div>
@@ -455,14 +511,22 @@ export function WritingSetBuilderIsland({
                     <div className="grid grid-cols-6 gap-1.5 mt-3 max-h-[108px] overflow-y-auto p-1 bg-[#FAF8F5] rounded border border-[#ECE8DF]">
                       {INK_STUDIO_SHADES.map((shade) => {
                         const active = shade.id === selectedIroshizukuVariantId;
+                        const shadeStock = IROSHIZUKU_INITIAL_STOCK_MAP[shade.id] ?? 0;
                         return (
                           <button
                             key={shade.id}
                             type="button"
+                            disabled={shadeStock === 0}
                             onClick={() => setSelectedIroshizukuVariantId(shade.id)}
-                            title={`${shade.name} (${shade.meaning})`}
-                            className={`p-1 rounded flex flex-col items-center cursor-pointer ${
-                              active ? 'bg-white ring-1 ring-[#163A5F]' : 'hover:bg-white'
+                            title={`${shade.name} (${shade.meaning}) — ${
+                              shadeStock > 0 ? `${shadeStock} in stock` : 'Out of Stock · Add to Wishlist'
+                            }`}
+                            className={`p-1 rounded flex flex-col items-center ${
+                              shadeStock === 0
+                                ? 'opacity-35 cursor-not-allowed'
+                                : active
+                                  ? 'bg-white ring-1 ring-[#163A5F] cursor-pointer'
+                                  : 'hover:bg-white cursor-pointer'
                             }`}
                           >
                             <span
@@ -483,12 +547,24 @@ export function WritingSetBuilderIsland({
               <div>
                 <span className="text-[11px] text-[#6E6A63] block">
                   {activePenVariant.label.split(' · ')[0]} ({selectedNib})
-                  {includeCon40 ? ' + CON-40' : ''} +{' '}
+                  {hasCompleteBundle ? ' + CON-40' : ''} +{' '}
                   {activeInkVariant.label.split(' · ')[0]}
                 </span>
-                <span className="font-mono-tabular text-lg font-semibold text-[#171614]">
-                  {formatKes(bundleTotalKes)}
-                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono-tabular text-lg font-bold text-[#171614]">
+                    {formatKes(bundleTotalKes)}
+                  </span>
+                  {hasCompleteBundle && (
+                    <>
+                      <span className="font-mono-tabular text-xs line-through text-[#8C857B]">
+                        {formatKes(bundleStandardTotalKes)}
+                      </span>
+                      <span className="text-[11px] font-semibold text-[#1D5B43]">
+                        Save 5% ({formatKes(bundleDiscountKes)})
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
 
               <button
@@ -503,12 +579,15 @@ export function WritingSetBuilderIsland({
                 {bundleAdded ? (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>Complete Set Added</span>
+                    <span>Complete Set Added (5% OFF)</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Add Writing Set · {formatKes(bundleTotalKes)}</span>
+                    <Sparkles className="w-4 h-4 text-[#E5B25D]" />
+                    <span>
+                      Add Writing Set · {formatKes(bundleTotalKes)}
+                      {hasCompleteBundle ? ' (5% OFF)' : ''}
+                    </span>
                   </>
                 )}
               </button>

@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Check, Sparkles, Shuffle, Eye } from 'lucide-react';
+import { Check, Sparkles, Shuffle, Eye, Truck, Gift, Heart } from 'lucide-react';
 import {
   FEATURED_PRODUCTS,
   INK_STUDIO_SHADES,
   InkShadeOption,
+  IROSHIZUKU_INITIAL_STOCK_MAP,
   Product,
   ProductVariant,
 } from '../data/products';
@@ -16,10 +17,13 @@ interface InkMixingSetBuilderIslandProps {
       variant: ProductVariant;
     }[]
   ) => void;
+  isShadeWishlisted?: (shadeId: string) => boolean;
+  onToggleShadeWishlist?: (shade: InkShadeOption) => void;
 }
 
 const INK_FAMILIES = [
   'All 24 Shades',
+  'In Stock (15 Shades)',
   'Blues & Teals',
   'Reds, Pinks & Purples',
   'Greens & Golds',
@@ -35,8 +39,8 @@ const CURATED_TRIO_PRESETS: {
   {
     id: 'pacific-trio',
     label: 'Ocean & Sky Trio',
-    subtitle: 'Ama-iro · Ku-jaku · Shin-kai',
-    shades: ['iroshizuku-ama-iro', 'iroshizuku-ku-jaku', 'iroshizuku-shin-kai'],
+    subtitle: 'Ama-iro · Kon-peki · Ku-jaku',
+    shades: ['iroshizuku-ama-iro', 'iroshizuku-kon-peki', 'iroshizuku-ku-jaku'],
   },
   {
     id: 'kyoto-autumn',
@@ -46,18 +50,18 @@ const CURATED_TRIO_PRESETS: {
   },
   {
     id: 'forest-canopy',
-    label: 'Bamboo & Pine Trio',
-    subtitle: 'Chiku-rin · Syo-ro · Yama-guri',
-    shades: ['iroshizuku-chiku-rin', 'iroshizuku-syo-ro', 'iroshizuku-yama-guri'],
+    label: 'Emerald & Cedar Trio',
+    subtitle: 'Shin-ryoku · Sui-gyoku · Yama-guri',
+    shades: ['iroshizuku-shin-ryoku', 'iroshizuku-sui-gyoku', 'iroshizuku-yama-guri'],
   },
   {
-    id: 'spring-blossom',
-    label: 'Heian Blossom Trio',
-    subtitle: 'Hana-ikada · Ajisai · Murasaki-shikibu',
+    id: 'executive-signature',
+    label: 'Executive Signature Trio',
+    subtitle: 'Tsuki-yo · Asa-gao · Take-sumi',
     shades: [
-      'iroshizuku-hana-ikada',
-      'iroshizuku-ajisai',
-      'iroshizuku-murasaki-shikibu',
+      'iroshizuku-tsuki-yo',
+      'iroshizuku-asa-gao',
+      'iroshizuku-take-sumi',
     ],
   },
 ];
@@ -89,17 +93,19 @@ function mixHexColors(hexes: string[]): string {
 
 export function InkMixingSetBuilderIsland({
   onAddInkMixingSetToCart,
+  isShadeWishlisted,
+  onToggleShadeWishlist,
 }: InkMixingSetBuilderIslandProps) {
   const iroshizukuProduct = useMemo(
     () => FEATURED_PRODUCTS.find((p) => p.id === 'pilot-iroshizuku-ink')!,
     []
   );
 
-  // Three distinct selected 50ml Iroshizuku shade IDs
+  // Three distinct selected 50ml Iroshizuku shade IDs (all in-stock in spreadsheet)
   const [selectedShadeIds, setSelectedShadeIds] = useState<[string, string, string]>([
     'iroshizuku-ama-iro',
     'iroshizuku-yama-budo',
-    'iroshizuku-chiku-rin',
+    'iroshizuku-shin-ryoku',
   ]);
 
   // Active slot index currently being edited (0, 1, or 2)
@@ -130,6 +136,11 @@ export function InkMixingSetBuilderIsland({
 
   const filteredShades = useMemo(() => {
     if (activeFamily === 'All 24 Shades') return INK_STUDIO_SHADES;
+    if (activeFamily === 'In Stock (15 Shades)') {
+      return INK_STUDIO_SHADES.filter(
+        (shade) => (IROSHIZUKU_INITIAL_STOCK_MAP[shade.id] ?? 0) > 0
+      );
+    }
     return INK_STUDIO_SHADES.filter((shade) => shade.colorFamily === activeFamily);
   }, [activeFamily]);
 
@@ -157,16 +168,24 @@ export function InkMixingSetBuilderIsland({
   );
 
   // Pricing math: 3 × KES 6,000 = KES 18,000 standard retail.
-  // 10% Bundle Privilege yields KES 16,200 (saving KES 1,800).
+  // 10% Triple Ink Combo Discount yields KES 16,200 (saving KES 1,800) + FREE DELIVERY!
   const singleBottlePriceKes = iroshizukuProduct.priceKes; // 6000
   const standardTrioPriceKes = singleBottlePriceKes * 3; // 18000
   const bundlePriceKes = Math.round(standardTrioPriceKes * 0.9); // 16200
   const savingsKes = standardTrioPriceKes - bundlePriceKes; // 1800
 
   const handleSelectShadeForActiveSlot = (shadeId: string) => {
+    const shadeStock = IROSHIZUKU_INITIAL_STOCK_MAP[shadeId] ?? 0;
+    if (shadeStock === 0) {
+      const shadeObj = INK_STUDIO_SHADES.find((s) => s.id === shadeId);
+      if (shadeObj && onToggleShadeWishlist) {
+        onToggleShadeWishlist(shadeObj);
+      }
+      return;
+    }
+
     const existingIdx = selectedShadeIds.indexOf(shadeId);
     if (existingIdx !== -1) {
-      // If user clicks a shade already in another slot, focus that slot or swap if different
       if (existingIdx !== activeSlotIdx) {
         setSelectedShadeIds((prev) => {
           const next: [string, string, string] = [...prev] as [string, string, string];
@@ -185,7 +204,6 @@ export function InkMixingSetBuilderIsland({
       return next;
     });
 
-    // Advance automatically to the next slot for smooth 1-2-3 curation
     setActiveSlotIdx((prev) => ((prev + 1) % 3) as 0 | 1 | 2);
   };
 
@@ -195,7 +213,9 @@ export function InkMixingSetBuilderIsland({
   };
 
   const handleRandomizeDistinctTrio = () => {
-    const pool = [...INK_STUDIO_SHADES];
+    const pool = INK_STUDIO_SHADES.filter(
+      (s) => (IROSHIZUKU_INITIAL_STOCK_MAP[s.id] ?? 0) > 0
+    );
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -224,25 +244,67 @@ export function InkMixingSetBuilderIsland({
       id="ink-mixing-set-builder"
       className="mt-16 pt-14 border-t border-[#DCD5C7]"
     >
+      {/* Marketable Triple Ink Combo Banner: 10% OFF + FREE Nationwide Delivery */}
+      <div className="mb-8 rounded-lg border-2 border-[#C88A2E] bg-gradient-to-r from-[#0A2246] via-[#133262] to-[#0A2246] text-white p-6 sm:p-7 shadow-sm relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#C88A2E] text-white text-[11px] font-bold uppercase tracking-wider">
+                <Gift className="w-3.5 h-3.5" />
+                <span>Collector’s Triple Ink Combo Offer</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1D5B43] text-white text-[11px] font-bold uppercase tracking-wider">
+                <Truck className="w-3.5 h-3.5" />
+                <span>Unlocks FREE Kenya-Wide Delivery</span>
+              </span>
+            </div>
+            <h3 className="font-serif-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-white tracking-tight">
+              Buy Any 3 Ink Colors · Get 10% OFF + FREE Next-Day Delivery
+            </h3>
+            <p className="text-xs sm:text-sm text-white/85 leading-relaxed">
+              Mix &amp; match any 3 colours of Pilot Iroshizuku 50ml glass flacons (150ml total) and enjoy an instant{' '}
+              <strong className="text-[#E5B25D]">10% Triple Ink Combo Discount (Save KES 1,800)</strong>. Because your trio exceeds KES 10,000, your entire order automatically qualifies for{' '}
+              <strong className="text-[#E5B25D]">FREE Delivery across Nairobi &amp; All of Kenya!</strong>
+            </p>
+          </div>
+
+          <div className="bg-white text-[#0A2246] rounded-lg p-4 sm:p-5 border border-[#E5B25D] shrink-0 flex flex-col justify-between min-w-[250px]">
+            <div className="flex items-center justify-between text-xs text-[#6E6A63]">
+              <span>3 × 50ml Bottles Value</span>
+              <span className="font-mono-tabular line-through font-semibold">
+                {formatKes(standardTrioPriceKes)}
+              </span>
+            </div>
+            <div className="my-1.5 flex items-baseline justify-between gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#0A2246]">
+                3-Color Combo Price
+              </span>
+              <span className="font-mono-tabular text-2xl font-bold text-[#0A2246]">
+                {formatKes(bundlePriceKes)}
+              </span>
+            </div>
+            <div className="pt-2 border-t border-[#ECE8DF] flex items-center justify-between text-[11px] font-semibold text-[#1D5B43]">
+              <span>You Save KES 1,800 (10%)</span>
+              <span>+ FREE Delivery</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Section Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
         <div>
           <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#B58435] mb-2">
             Bespoke Chromatic Trio · 3 × 50ml Pilot Iroshizuku Glass Flacons (150ml Total)
           </p>
-          <h3
-            className="font-serif-display text-2xl lg:text-4xl font-semibold text-[#0A2246] tracking-tight"
+          <h4
+            className="font-serif-display text-2xl lg:text-3xl font-semibold text-[#0A2246] tracking-tight"
             style={{ textWrap: 'balance' }}
           >
-            Iroshizuku Ink Mixing Set Builder
-          </h3>
-          <p className="text-sm text-[#4A4742] mt-2 max-w-2xl leading-relaxed">
-            Curate three distinct 50ml Pilot Iroshizuku fountain pen ink shades for custom
-            color blending, seasonal journaling, or multi-pen rotation. Enjoy our{' '}
-            <strong>10% Atelier Trio Privilege</strong> at a special bundle price of{' '}
-            <strong className="text-[#0A2246]">{formatKes(bundlePriceKes)}</strong> (standard value{' '}
-            <span className="line-through text-[#8C857B]">{formatKes(standardTrioPriceKes)}</span> · save{' '}
-            <strong className="text-[#1D5B43]">{formatKes(savingsKes)}</strong>).
+            Curate Your 3-Color Iroshizuku Ink Combo
+          </h4>
+          <p className="text-sm text-[#4A4742] mt-1.5 max-w-2xl leading-relaxed">
+            Select any three in-stock 50ml shades below—or click an out-of-stock shade to save it to your wishlist for our next Tokyo air-freight restock.
           </p>
         </div>
 
@@ -274,7 +336,7 @@ export function InkMixingSetBuilderIsland({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A2246] bg-[#EDE8DF] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer whitespace-nowrap"
           >
             <Shuffle className="w-3.5 h-3.5" />
-            <span>Surprise Trio</span>
+            <span>Surprise In-Stock Trio</span>
           </button>
         </div>
       </div>
@@ -290,8 +352,7 @@ export function InkMixingSetBuilderIsland({
                 <span className="font-semibold text-[#0A2246]">
                   Step 1: Select Any Slot Below
                 </span>{' '}
-                · Click Flacon 01, 02, or 03 to customize its shade from all 24 Iroshizuku
-                colors
+                · Click Flacon 01, 02, or 03 to customize its shade
               </div>
               <button
                 type="button"
@@ -307,6 +368,7 @@ export function InkMixingSetBuilderIsland({
               {selectedShades.map((shade, idx) => {
                 const slotIndex = idx as 0 | 1 | 2;
                 const isSlotActive = activeSlotIdx === slotIndex;
+                const stockLeft = IROSHIZUKU_INITIAL_STOCK_MAP[shade.id] ?? 0;
                 return (
                   <div
                     key={`slot-${slotIndex}-${shade.id}`}
@@ -335,8 +397,8 @@ export function InkMixingSetBuilderIsland({
                         >
                           Flacon 0{slotIndex + 1}
                         </span>
-                        <span className="text-[11px] font-medium text-[#6E6A63]">
-                          {isSlotActive ? 'Editing Slot' : 'Click to Change'}
+                        <span className="text-[11px] font-medium text-[#1D5B43]">
+                          {stockLeft} in stock
                         </span>
                       </div>
 
@@ -378,7 +440,7 @@ export function InkMixingSetBuilderIsland({
                         {formatKes(singleBottlePriceKes)}
                       </span>
                       <span className="font-mono-tabular font-semibold text-[#1D5B43]">
-                        Included in Set
+                        KES 5,400 (10% OFF)
                       </span>
                     </div>
                   </div>
@@ -494,20 +556,24 @@ export function InkMixingSetBuilderIsland({
                     {formatKes(standardTrioPriceKes)}
                   </span>
                 </div>
-                <div className="flex justify-between text-[#1D5B43] font-medium">
-                  <span>10% Ink Mixing Set Discount</span>
+                <div className="flex justify-between text-[#1D5B43] font-semibold">
+                  <span>10% Triple Ink Combo Discount</span>
                   <span className="font-mono-tabular">-{formatKes(savingsKes)}</span>
+                </div>
+                <div className="flex justify-between text-[#1D5B43] font-semibold">
+                  <span>Next-Day Delivery (Over KES 10,000)</span>
+                  <span className="font-mono-tabular">FREE (Save up to KES 700)</span>
                 </div>
                 <div className="flex justify-between items-baseline pt-2 border-t border-[#ECE8DF]">
                   <span className="text-xs font-semibold uppercase tracking-wider text-[#0A2246]">
-                    Bundle Price
+                    Triple Combo Price
                   </span>
                   <div className="text-right">
                     <span className="font-mono-tabular text-xl font-bold text-[#0A2246]">
                       {formatKes(bundlePriceKes)}
                     </span>
-                    <span className="block text-[10px] text-[#1D5B43]">
-                      Free Same-Day Nairobi &amp; Nationwide Courier
+                    <span className="block text-[10px] font-semibold text-[#1D5B43]">
+                      ✓ Includes 10% OFF + FREE Kenya-Wide Delivery
                     </span>
                   </div>
                 </div>
@@ -516,7 +582,7 @@ export function InkMixingSetBuilderIsland({
               <button
                 type="button"
                 onClick={handleAddTrioSetToBag}
-                className={`w-full py-3 px-4 text-xs font-semibold tracking-wider uppercase rounded flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+                className={`w-full py-3.5 px-4 text-xs font-semibold tracking-wider uppercase rounded flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap shadow-xs ${
                   setAddedFeedback
                     ? 'bg-[#1D5B43] text-white'
                     : 'bg-[#0A2246] hover:bg-[#133468] text-white'
@@ -525,12 +591,12 @@ export function InkMixingSetBuilderIsland({
                 {setAddedFeedback ? (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>3-Bottle Ink Mixing Set Added · {formatKes(bundlePriceKes)}</span>
+                    <span>3-Color Combo Added · {formatKes(bundlePriceKes)} + FREE Delivery</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 text-[#E5B25D]" />
-                    <span>Add Ink Mixing Set (3 × 50ml) · {formatKes(bundlePriceKes)}</span>
+                    <span>Add 3-Color Combo (10% OFF + FREE Delivery) · {formatKes(bundlePriceKes)}</span>
                   </>
                 )}
               </button>
@@ -579,6 +645,9 @@ export function InkMixingSetBuilderIsland({
               const assignedSlotIdx = selectedShadeIds.indexOf(shade.id);
               const isAssigned = assignedSlotIdx !== -1;
               const isCurrentSlot = assignedSlotIdx === activeSlotIdx;
+              const stockCount = IROSHIZUKU_INITIAL_STOCK_MAP[shade.id] ?? 0;
+              const isOutOfStock = stockCount === 0;
+              const wishlisted = isShadeWishlisted ? isShadeWishlisted(shade.id) : false;
 
               return (
                 <button
@@ -586,24 +655,41 @@ export function InkMixingSetBuilderIsland({
                   type="button"
                   onClick={() => handleSelectShadeForActiveSlot(shade.id)}
                   className={`p-2.5 rounded border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                    isCurrentSlot
-                      ? 'border-[#0A2246] bg-[#0A2246]/8 ring-1 ring-[#0A2246]'
-                      : isAssigned
-                      ? 'border-[#C88A2E] bg-[#C88A2E]/8'
-                      : 'border-[#E6E1D8] bg-[#FAF8F5] hover:border-[#0A2246] hover:bg-white'
+                    isOutOfStock
+                      ? wishlisted
+                        ? 'border-[#C88A2E] bg-[#C88A2E]/10'
+                        : 'border-rose-200 bg-rose-50/40 hover:border-rose-400'
+                      : isCurrentSlot
+                        ? 'border-[#0A2246] bg-[#0A2246]/8 ring-1 ring-[#0A2246]'
+                        : isAssigned
+                          ? 'border-[#C88A2E] bg-[#C88A2E]/8'
+                          : 'border-[#E6E1D8] bg-[#FAF8F5] hover:border-[#0A2246] hover:bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1.5 mb-2">
                     <span
-                      className="w-5 h-5 rounded-full border border-black/15 shrink-0"
+                      className={`w-5 h-5 rounded-full border border-black/15 shrink-0 ${
+                        isOutOfStock ? 'opacity-45' : ''
+                      }`}
                       style={{ backgroundColor: shade.hex }}
                     />
-                    {isAssigned ? (
+                    {isOutOfStock ? (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-rose-700">
+                        <Heart
+                          className={`w-3 h-3 ${
+                            wishlisted ? 'fill-[#C88A2E] text-[#C88A2E]' : 'text-rose-600'
+                          }`}
+                        />
+                        <span>{wishlisted ? 'Saved' : 'Wishlist'}</span>
+                      </span>
+                    ) : isAssigned ? (
                       <span className="font-mono-tabular text-[10px] font-bold text-[#0A2246]">
                         Flacon 0{assignedSlotIdx + 1}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-[#8C857B]">{shade.kanji}</span>
+                      <span className="font-mono-tabular text-[10px] text-[#1D5B43] font-semibold">
+                        {stockCount} left
+                      </span>
                     )}
                   </div>
                   <div>
@@ -611,7 +697,7 @@ export function InkMixingSetBuilderIsland({
                       {shade.name}
                     </div>
                     <div className="text-[10px] text-[#6E6A63] truncate">
-                      {shade.meaning}
+                      {isOutOfStock ? 'Out of Stock · Add to Wishlist' : shade.meaning}
                     </div>
                   </div>
                 </button>
