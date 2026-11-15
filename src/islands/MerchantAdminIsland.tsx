@@ -123,6 +123,8 @@ interface MerchantAdminIslandProps {
   firebaseAdminEmail: string | null;
   isAuthorizedAdmin: boolean;
   isSigningIn: boolean;
+  authError?: string | null;
+  authorizedAdminHint?: string;
   onGoogleSignIn: () => Promise<void>;
   onSignOut?: () => Promise<void>;
   cloudSyncStatus: string | null;
@@ -182,6 +184,8 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   firebaseAdminEmail,
   isAuthorizedAdmin,
   isSigningIn,
+  authError,
+  authorizedAdminHint = 'ananyapoudel641@gmail.com',
   onGoogleSignIn,
   onSignOut,
   cloudSyncStatus,
@@ -340,6 +344,29 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
           </div>
 
           <div className="p-6 space-y-5">
+            {authError && (
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 space-y-2">
+                <div className="flex items-center gap-2 text-amber-950 font-bold text-xs uppercase tracking-wider">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>Google Sign-In Diagnostic</span>
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed break-words">
+                  {authError}
+                </p>
+                {typeof window !== 'undefined' && (
+                  <a
+                    href={window.location.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 pt-0.5"
+                  >
+                    <span>Open Storefront in New Browser Tab to Sign In</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
+            )}
+
             {!firebaseAdminEmail ? (
               <>
                 <div className="p-4 rounded-xl bg-white border border-[#E6E1D8] space-y-2">
@@ -349,6 +376,12 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   </span>
                   <p className="text-xs text-[#5C5852] leading-relaxed">
                     Access to the Merchant Inventory Studio, KES Pricing Controls, Promo Vouchers, and Customer Order Dispatch is strictly restricted to verified PENS R US administrators.
+                  </p>
+                  <p className="text-[11px] text-[#6E6A63] pt-1 border-t border-[#F0ECE3]">
+                    Authorized Google Account:{' '}
+                    <span className="font-mono font-semibold text-[#0A2246]">
+                      {authorizedAdminHint}
+                    </span>
                   </p>
                 </div>
 
@@ -366,6 +399,17 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                         : 'Sign In with Authorized Google Account'}
                     </span>
                   </button>
+                  {typeof window !== 'undefined' && window.self !== window.top && !authError && (
+                    <a
+                      href={window.location.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2 px-4 rounded-xl border border-[#C88A2E]/40 bg-[#FFFDF8] hover:bg-[#F7F1E4] text-[#0A2246] text-[11px] font-semibold transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <span>Sign-In Popup Blocked in Preview? Open in Full Tab</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-[#C88A2E]" />
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={onClose}
@@ -385,6 +429,10 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                   <p className="text-xs text-rose-800 leading-relaxed">
                     You are currently signed in as{' '}
                     <span className="font-mono font-semibold">{firebaseAdminEmail}</span>, which does not have Merchant Administrator permissions for PENS R US Kenya.
+                  </p>
+                  <p className="text-[11px] text-rose-800/90 pt-1 border-t border-rose-200/70">
+                    Please sign in with{' '}
+                    <span className="font-mono font-semibold">{authorizedAdminHint}</span>.
                   </p>
                 </div>
 

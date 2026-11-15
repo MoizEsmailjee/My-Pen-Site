@@ -61,6 +61,7 @@ import {
   db,
   signInWithGooglePopup,
   signOutFirebase,
+  formatFirebaseAuthError,
   onAuthStateChanged,
   collection,
   addDoc,
@@ -1028,13 +1029,26 @@ export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isFirestoreAdminDoc, setIsFirestoreAdminDoc] = useState(false);
 
+  const resolvedFirebaseEmail = useMemo(() => {
+    if (!firebaseUser) return null;
+    return (
+      firebaseUser.email ||
+      firebaseUser.providerData?.find((p) => Boolean(p.email))?.email ||
+      null
+    );
+  }, [firebaseUser]);
+
   const isAuthorizedAdmin = useMemo(() => {
     if (!firebaseUser) return false;
+    const normalizedEmail = (resolvedFirebaseEmail || '').trim().toLowerCase();
+    const isGoogleProvider = Boolean(
+      firebaseUser.providerData?.some((p) => p.providerId === 'google.com')
+    );
     const isBootstrappedOwner =
-      firebaseUser.email?.toLowerCase() === AUTHORIZED_ADMIN_EMAIL &&
-      firebaseUser.emailVerified;
+      normalizedEmail === AUTHORIZED_ADMIN_EMAIL &&
+      (firebaseUser.emailVerified || isGoogleProvider);
     return Boolean(isBootstrappedOwner || isFirestoreAdminDoc);
-  }, [firebaseUser, isFirestoreAdminDoc]);
+  }, [firebaseUser, resolvedFirebaseEmail, isFirestoreAdminDoc]);
 
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(() => {
     try {
@@ -1048,6 +1062,7 @@ export default function App() {
   const [loginNameInput, setLoginNameInput] = useState('');
   const [loginContactInput, setLoginContactInput] = useState('');
   const [authStatusMessage, setAuthStatusMessage] = useState<string | null>(null);
+  const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const [orderStatusFilter, setOrderStatusFilter] = useState<'All' | OrderStatus>('All');
@@ -1947,20 +1962,26 @@ export default function App() {
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
     setAuthStatusMessage(null);
+    setAdminAuthError(null);
     try {
       const user = await signInWithGooglePopup();
+      const userEmail =
+        user.email ||
+        user.providerData?.find((p) => Boolean(p.email))?.email ||
+        'Google Account';
       const profile: MemberProfile = {
         uid: user.uid,
-        name: user.displayName || user.email?.split('@')[0] || 'Atelier Collector',
-        emailOrPhone: user.email || 'Google Account',
+        name: user.displayName || userEmail.split('@')[0] || 'Atelier Collector',
+        emailOrPhone: userEmail,
         authMode: 'google',
       };
       setMemberProfile(profile);
       if (!customerName && profile.name) setCustomerName(profile.name);
-    } catch {
-      setAuthStatusMessage(
-        'Google popup was blocked or closed in preview. You can sign in below using your Name & Kenyan Phone or Email.'
-      );
+    } catch (error) {
+      const formatted = formatFirebaseAuthError(error);
+      console.error('Google Sign-In Error:', formatted.code, error);
+      setAdminAuthError(formatted.message);
+      setAuthStatusMessage(formatted.message);
     } finally {
       setIsSigningIn(false);
     }
@@ -1996,6 +2017,7 @@ export default function App() {
     }
     setMemberProfile(null);
     setAuthStatusMessage(null);
+    setAdminAuthError(null);
   };
 
   const handleReorderPastPurchase = (pastOrder: OrderConfirmation) => {
@@ -5984,7 +6006,10 @@ export default function App() {
       {/* SHOPIFY-STYLE MERCHANT ADMIN BACK OFFICE (PRODUCTS, KES PRICES, STOCK, PROMOS, ANALYTICS & ORDERS) */}
       <MerchantAdminIsland
         isOpen={isMerchantAdminOpen}
-        onClose={() => setIsMerchantAdminOpen(false)}
+        onClose={() => {
+          setIsMerchantAdminOpen(false);
+          setAdminAuthError(null);
+        }}
         products={catalogProducts}
         onUpdateProduct={handleMerchantUpdateProduct}
         onAddProduct={handleMerchantAddProduct}
@@ -6044,9 +6069,13 @@ export default function App() {
             handleUpdateOrderStatus(target, nextStatus);
           }
         }}
-        firebaseAdminEmail={firebaseUser?.email || null}
+        firebaseAdminEmail={
+          resolvedFirebaseEmail || (firebaseUser ? firebaseUser.uid : null)
+        }
         isAuthorizedAdmin={isAuthorizedAdmin}
         isSigningIn={isSigningIn}
+        authError={adminAuthError}
+        authorizedAdminHint={AUTHORIZED_ADMIN_EMAIL}
         onGoogleSignIn={handleGoogleSignIn}
         onSignOut={handleSignOutAccount}
         cloudSyncStatus={cloudSyncStatus}
