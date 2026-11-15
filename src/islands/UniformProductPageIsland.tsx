@@ -149,28 +149,43 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
   const [imgFailed, setImgFailed] = useState(false);
   const [showReviews, setShowReviews] = useState(false);
 
+  const safeVariants = useMemo(
+    () =>
+      Array.isArray(product.variants) && product.variants.length > 0
+        ? product.variants
+        : [
+            {
+              id: `${product.id || 'item'}-default`,
+              label: product.name || 'Standard Edition',
+              sublabel: product.shortSummary || '',
+              image: product.image || '/assets/prera/empress_teal_1.jpg',
+              stockCount: 10,
+            },
+          ],
+    [product]
+  );
+
   const selectedVariant = useMemo(() => {
     return (
-      product.variants.find((v) => v.id === selectedVariantId) ||
-      product.variants[0]
+      safeVariants.find((v) => v.id === selectedVariantId) || safeVariants[0]
     );
-  }, [product.variants, selectedVariantId]);
+  }, [safeVariants, selectedVariantId]);
 
   const galleryItems = useMemo(() => {
     const items: { src: string; caption: string }[] = [];
     const seen = new Set<string>();
 
-    if (product.galleryImages && product.galleryImages.length > 0) {
+    if (Array.isArray(product.galleryImages) && product.galleryImages.length > 0) {
       product.galleryImages.forEach((g) => {
-        if (g.src && !seen.has(g.src)) {
+        if (g?.src && !seen.has(g.src)) {
           seen.add(g.src);
           items.push(g);
         }
       });
     }
 
-    product.variants.forEach((v) => {
-      if (v.image && !seen.has(v.image)) {
+    safeVariants.forEach((v) => {
+      if (v?.image && !seen.has(v.image)) {
         seen.add(v.image);
         items.push({ src: v.image, caption: v.label });
       }
@@ -181,10 +196,10 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
     }
 
     return items;
-  }, [product]);
+  }, [product, safeVariants]);
 
   const displayedImage =
-    activeImageSrc || selectedVariant?.image || product.image;
+    activeImageSrc || selectedVariant?.image || product.image || '';
 
   const isContainImage =
     product.imageFit === 'contain' ||
@@ -326,6 +341,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
                         <img
                           src={resolveAssetUrl(imgItem.src)}
                           alt={imgItem.caption}
+                          loading="lazy"
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-contain"
                         />
@@ -344,7 +360,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
               Included in the Presentation Box
             </p>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-[#3F3D39]">
-              {product.includedItems.map((inc) => (
+              {(product.includedItems || []).map((inc) => (
                 <li key={inc} className="flex items-start gap-2">
                   <Check className="w-3.5 h-3.5 text-[#1D5B43] shrink-0 mt-0.5" />
                   <span>{inc}</span>
@@ -411,7 +427,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
               </div>
 
               <div className="flex flex-wrap gap-1.5 max-h-[124px] overflow-y-auto pr-1">
-                {product.variants.map((variant) => {
+                {safeVariants.map((variant) => {
                   const isSelected = variant.id === selectedVariant.id;
                   const vStock =
                     typeof variant.stockCount === 'number'
@@ -512,7 +528,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
                 {product.name} — Technical Specifications
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
-                {product.specs.map((spec) => (
+                {(product.specs || []).map((spec) => (
                   <div
                     key={spec.label}
                     className="flex items-baseline justify-between gap-2 py-1 border-b border-[#ECE8DF]"

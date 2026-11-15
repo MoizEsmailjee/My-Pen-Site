@@ -1,10 +1,7 @@
-import { EMBEDDED_ASSETS } from '../data/embeddedAssets';
-
 /**
- * Resolves any local `/assets/...` or `/src/assets/...` image path to its
- * self-contained base64 Data URI embedded in the TypeScript bundle.
- * This guarantees 100% image availability on Vercel, Cloud Run, and GitHub
- * exports even when static binary files are omitted or rewritten by SPA routing.
+ * Resolves any local `/assets/...` or `/src/assets/...` image path to a clean
+ * static `/assets/...` URL served directly from `public/assets/`, with lazy
+ * on-error fallback to `embeddedAssets` if a static asset ever fails to load.
  */
 export function resolveAssetUrl(url?: string | null): string {
   if (!url) return '';
@@ -13,108 +10,90 @@ export function resolveAssetUrl(url?: string | null): string {
     return trimmed;
   }
 
-  if (EMBEDDED_ASSETS[trimmed]) {
-    return EMBEDDED_ASSETS[trimmed];
-  }
-
-  // Handle relative paths like "assets/prera/..." or "./assets/prera/..."
-  const normalized = trimmed.startsWith('./')
-    ? trimmed.slice(1)
-    : trimmed.startsWith('assets/') || trimmed.startsWith('src/assets/')
-      ? `/${trimmed}`
-      : trimmed;
-
-  if (EMBEDDED_ASSETS[normalized]) {
-    return EMBEDDED_ASSETS[normalized];
-  }
-
-  // Handle full URLs where browser or origin was prepended (e.g. https://app.vercel.app/assets/...)
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    try {
-      const parsed = new URL(trimmed);
-      if (EMBEDDED_ASSETS[parsed.pathname]) {
-        return EMBEDDED_ASSETS[parsed.pathname];
-      }
-    } catch {
-      // Ignore invalid URL
+  // Redirect any legacy cached Pilot 30ml generated image paths to the Penzorama photo
+  if (trimmed.includes('pilot_30ml_')) {
+    if (trimmed.includes('black_box')) {
+      return '/assets/images/penzorama_pilot_30ml_black.jpg';
     }
+    if (trimmed.includes('blue_black')) {
+      return '/assets/images/penzorama_pilot_30ml_blue_black.jpg';
+    }
+    return '/assets/images/penzorama_pilot_30ml_blue.jpg';
+  }
+
+  // Normalize `/src/assets/...` or `src/assets/...` to `/assets/...`
+  if (trimmed.startsWith('/src/assets/')) {
+    return trimmed.replace('/src/assets/', '/assets/');
+  }
+  if (trimmed.startsWith('src/assets/')) {
+    return `/${trimmed.replace('src/assets/', 'assets/')}`;
+  }
+
+  // Normalize relative `assets/...` or `./assets/...` to `/assets/...`
+  if (trimmed.startsWith('./assets/')) {
+    return trimmed.slice(1);
+  }
+  if (trimmed.startsWith('assets/')) {
+    return `/${trimmed}`;
   }
 
   return trimmed;
 }
 
-function patchImageElement(img: HTMLImageElement): void {
-  const rawAttr = img.getAttribute('src');
-  if (rawAttr && !rawAttr.startsWith('data:')) {
-    const resolved = resolveAssetUrl(rawAttr);
-    if (resolved !== rawAttr) {
-      img.setAttribute('src', resolved);
-      return;
-    }
-  }
+let embeddedAssetsPromise: Promise<Record<string, string>> | null = null;
 
-  if (img.src && !img.src.startsWith('data:')) {
-    const resolved = resolveAssetUrl(img.src);
-    if (resolved !== img.src) {
-      img.src = resolved;
-    }
+function loadEmbeddedAssetsFallback(): Promise<Record<string, string>> {
+  if (!embeddedAssetsPromise) {
+    embeddedAssetsPromise = import('../data/embeddedAssets')
+      .then((mod) => mod.EMBEDDED_ASSETS || {})
+      .catch(() => ({}));
   }
-}
-
-function scanSubtree(root: ParentNode): void {
-  if (root instanceof HTMLImageElement) {
-    patchImageElement(root);
-  }
-  const images = root.querySelectorAll?.('img');
-  if (images) {
-    images.forEach(patchImageElement);
-  }
+  return embeddedAssetsPromise;
 }
 
 /**
- * Installs a global DOM observer and capture-phase error handler so that
- * any `<img>` element rendered anywhere in the application (including islands,
- * modals, cart drawers, or Firestore-synced catalog records) automatically
- * resolves `/assets/...` paths to embedded base64 Data URIs.
+ * Installs a lightweight capture-phase error listener so that if any `<img>`
+ * element fails to load a static file, it first normalizes `/src/assets/`
+ * paths and, if needed, lazy-loads the embedded base64 fallback dictionary.
  */
 export function installGlobalAssetInterceptor(): void {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
-
-  scanSubtree(document);
-
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (
-        mutation.type === 'attributes' &&
-        mutation.target instanceof HTMLImageElement
-      ) {
-        patchImageElement(mutation.target);
-      } else if (mutation.type === 'childList') {
-        mutation.addedNodes.forEach((node) => {
-          if (node instanceof HTMLImageElement) {
-            patchImageElement(node);
-          } else if (node instanceof HTMLElement) {
-            scanSubtree(node);
-          }
-        });
-      }
-    }
-  });
-
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['src'],
-  });
+  if (typeof window === 'undefined') return;
 
   window.addEventListener(
     'error',
     (event) => {
       const target = event.target;
-      if (target instanceof HTMLImageElement) {
-        patchImageElement(target);
+      if (!(target instanceof HTMLImageElement)) return;
+      const rawAttr = target.getAttribute('src') || target.src;
+      if (!rawAttr || rawAttr.startsWith('data:')) return;
+
+      const normalized = resolveAssetUrl(rawAttr);
+      if (normalized && normalized !== rawAttr && target.dataset.retriedNormalized !== '1') {
+        target.dataset.retriedNormalized = '1';
+        target.src = normalized;
+        return;
       }
+
+      if (target.dataset.retriedEmbedded === '1') return;
+      target.dataset.retriedEmbedded = '1';
+
+      void loadEmbeddedAssetsFallback().then((assets) => {
+        let pathname = normalized;
+        if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+          try {
+            pathname = new URL(normalized).pathname;
+          } catch {
+            pathname = normalized;
+          }
+        }
+        const match =
+          assets[pathname] ||
+          assets[rawAttr] ||
+          assets[`/src${pathname}`];
+        if (match) {
+          target.src = match;
+        }
+      });
     },
     true
   );

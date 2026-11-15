@@ -104,7 +104,7 @@ const BRAND_LOGO_SRC =
 const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
 const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v1';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
-const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v4';
+const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v6';
 const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v2';
 const PROMO_CODES_STORAGE_KEY = 'pens_r_us_promo_codes_v1';
 const REVIEWS_STORAGE_KEY = 'pens_r_us_reviews_v1';
@@ -489,7 +489,45 @@ export default function App() {
       const saved = window.localStorage.getItem(CATALOG_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const savedMap = new Map<string, Product>();
+          parsed.forEach((p: Product) => {
+            if (p && typeof p.id === 'string') {
+              savedMap.set(p.id, p);
+            }
+          });
+          const merged = FEATURED_PRODUCTS.map((defProd) => {
+            const override = savedMap.get(defProd.id);
+            if (!override) return defProd;
+            savedMap.delete(defProd.id);
+            return {
+              ...defProd,
+              ...override,
+              galleryImages:
+                Array.isArray(override.galleryImages) && override.galleryImages.length > 0
+                  ? override.galleryImages
+                  : defProd.galleryImages,
+              variants:
+                Array.isArray(override.variants) && override.variants.length > 0
+                  ? override.variants
+                  : defProd.variants,
+              specs:
+                Array.isArray(override.specs) && override.specs.length > 0
+                  ? override.specs
+                  : defProd.specs,
+              includedItems:
+                Array.isArray(override.includedItems) && override.includedItems.length > 0
+                  ? override.includedItems
+                  : defProd.includedItems,
+            };
+          });
+          savedMap.forEach((customProd) => {
+            if (customProd.name && typeof customProd.priceKes === 'number') {
+              merged.push(customProd);
+            }
+          });
+          return merged;
+        }
       }
     } catch {
       // Fallback to default catalog
@@ -6050,14 +6088,14 @@ export default function App() {
           bundleDiscountKes: ord.bundleDiscountKes,
           total: ord.total,
           timestamp: ord.timestamp,
-          itemsCount: ord.items.reduce((acc, i) => acc + i.quantity, 0),
+          itemsCount: (ord.items || []).reduce((acc, i) => acc + (i?.quantity || 1), 0),
           isFirestoreSynced: Boolean(ord.id && !ord.id.startsWith('seed-order-')),
-          items: ord.items.map((i) => ({
-            productName: i.product.name,
-            variantLabel: i.variant.label,
-            nibSize: i.nibSize,
-            quantity: i.quantity,
-            priceKes: i.product.priceKes,
+          items: (ord.items || []).map((i) => ({
+            productName: i?.product?.name || 'Fine Writing Instrument',
+            variantLabel: i?.variant?.label || 'Standard Edition',
+            nibSize: i?.nibSize,
+            quantity: i?.quantity || 1,
+            priceKes: typeof i?.product?.priceKes === 'number' ? i.product.priceKes : 0,
           })),
         }))}
         onUpdateOrderStatusByNumber={(orderNumber, nextStatus) => {

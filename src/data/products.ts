@@ -1,8 +1,8 @@
-import penzoramaBlackImg from '../assets/images/penzorama_pilot_30ml_black.jpg';
-import penzoramaBlueImg from '../assets/images/penzorama_pilot_30ml_blue.jpg';
-import penzoramaBlueBlackImg from '../assets/images/penzorama_pilot_30ml_blue_black.jpg';
-import paperwhisperDetail1Img from '../assets/images/paperwhisper_pilot_30ml_blue_detail1.jpg';
-import paperwhisperDetail2Img from '../assets/images/paperwhisper_pilot_30ml_blue_detail2.jpg';
+const penzoramaBlackImg = '/assets/images/penzorama_pilot_30ml_black.jpg';
+const penzoramaBlueImg = '/assets/images/penzorama_pilot_30ml_blue.jpg';
+const penzoramaBlueBlackImg = '/assets/images/penzorama_pilot_30ml_blue_black.jpg';
+const paperwhisperDetail1Img = '/assets/images/paperwhisper_pilot_30ml_blue_detail1.jpg';
+const paperwhisperDetail2Img = '/assets/images/paperwhisper_pilot_30ml_blue_detail2.jpg';
 
 export type NibOption = 'Fine' | 'Medium';
 
