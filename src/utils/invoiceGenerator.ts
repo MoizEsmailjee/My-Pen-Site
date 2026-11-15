@@ -2,16 +2,15 @@ import { jsPDF } from 'jspdf';
 import { AdminOrderRecord } from '../islands/MerchantAdminIsland';
 import { resolveAssetUrl } from './assetResolver';
 
-const BRAND_LOGO_PATH =
-  '/assets/aistudio/Gemini_Generated_Image_644qn3644qn3644q_cd72faa3.jpg';
+const BRAND_LOGO_PATH = '/assets/aistudio/Prestige_Pens_23fbbbf6.jpg';
 
 function formatKesPdf(amount: number): string {
   return `KES ${Math.round(amount).toLocaleString('en-KE')}`;
 }
 
 /**
- * Generates and downloads a printable A4 PDF invoice for a selected PENS R US order
- * using jsPDF, complete with PENS R US branding, itemized table, bundle discounts,
+ * Generates and downloads a printable A4 PDF invoice for a selected Prestige Pens Kenya order
+ * using jsPDF, complete with Prestige Pens Kenya executive branding, itemized table, bundle discounts,
  * and applicable promo codes.
  */
 export function generateOrderInvoicePdf(order: AdminOrderRecord): void {
@@ -51,7 +50,7 @@ export function generateOrderInvoicePdf(order: AdminOrderRecord): void {
   doc.setTextColor(255, 255, 255);
   doc.setFont('times', 'bold');
   doc.setFontSize(18);
-  doc.text('PENS R US — THE PEN SPECIALISTS', textStartX, 17);
+  doc.text('PRESTIGE PENS KENYA', textStartX, 17);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
@@ -174,7 +173,7 @@ export function generateOrderInvoicePdf(order: AdminOrderRecord): void {
       ? order.items
       : [
           {
-            productName: 'PENS R US Fine Writing Instrument',
+            productName: 'Prestige Pens Kenya Fine Writing Instrument',
             variantLabel: 'Standard Atelier Finish',
             quantity: order.itemsCount || 1,
             priceKes: order.total,
@@ -339,11 +338,11 @@ export function generateOrderInvoicePdf(order: AdminOrderRecord): void {
   doc.setFontSize(8);
   doc.setTextColor(110, 106, 99);
   doc.text(
-    'PENS R US Kenya · The Pen Specialists · Authentic Pilot Japan & Waterman Paris Fine Writing Instruments',
+    'Prestige Pens Kenya · Authentic Pilot Japan & Waterman Paris Fine Writing Instruments',
     pageWidth / 2,
     footerY + 11.5,
     { align: 'center' }
   );
 
-  doc.save(`PENS-R-US-Invoice-${order.orderNumber}.pdf`);
+  doc.save(`Prestige-Pens-Kenya-Invoice-${order.orderNumber}.pdf`);
 }

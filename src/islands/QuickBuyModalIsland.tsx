@@ -189,7 +189,7 @@ export function QuickBuyModalIsland({
             type="button"
             onClick={onClose}
             aria-label="Close Quick Buy modal"
-            className="p-1.5 rounded text-[#5C5852] hover:text-[#0A2246] hover:bg-[#F3EFE8] transition-colors cursor-pointer"
+            className="p-1.5 rounded text-[#5C5852] hover:text-[#0A2246] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -224,7 +224,7 @@ export function QuickBuyModalIsland({
               {chosenVariant.nibEngraving && (
                 <div className="flex items-baseline justify-between gap-2 mt-1 text-xs">
                   <span className="text-[#6E6A63]">Nib Detail</span>
-                  <span className="font-medium text-[#B58435] text-right">
+                  <span className="font-medium text-[#C88A2E] text-right">
                     {chosenVariant.nibEngraving}
                   </span>
                 </div>
@@ -253,7 +253,7 @@ export function QuickBuyModalIsland({
             {/* Step 1: Select Finish / Shade */}
             <div>
               <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-semibold uppercase tracking-wider text-[#5C5852]">
+                <span className="font-semibold uppercase tracking-wider text-[#171614]">
                   1. {product.variantLabel}
                 </span>
                 <span className="text-[#0A2246] font-medium truncate max-w-[180px]">
@@ -274,7 +274,7 @@ export function QuickBuyModalIsland({
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap ${
                         active
                           ? 'border-[#0A2246] bg-[#0A2246] text-white font-medium'
-                          : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#524E48] hover:border-[#0A2246]'
+                          : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#171614] hover:border-[#0A2246]'
                       }`}
                     >
                       {variant.swatchHex && (
@@ -311,10 +311,10 @@ export function QuickBuyModalIsland({
                   return (
                     <>
                       <div className="flex items-center justify-between text-xs mb-1.5">
-                        <span className="font-semibold uppercase tracking-wider text-[#5C5852]">
+                        <span className="font-semibold uppercase tracking-wider text-[#171614]">
                           2. Select Nib Size (F: {nibBreakdown.fine} · M: {nibBreakdown.medium})
                         </span>
-                        <span className="font-mono-tabular text-[11px] text-[#B58435] font-medium">
+                        <span className="font-mono-tabular text-[11px] text-[#C88A2E] font-medium">
                           {selectedNib === 'Fine' ? 'Fine · 0.35mm Line' : 'Medium · 0.50mm Line'}
                         </span>
                       </div>
@@ -364,7 +364,7 @@ export function QuickBuyModalIsland({
                                         : 'bg-rose-50 text-rose-700'
                                       : active
                                       ? 'bg-white/15 text-[#E5B25D]'
-                                      : 'bg-[#F3EFE8] text-[#0A2246]'
+                                      : 'bg-[#FAF8F5] text-[#0A2246]'
                                   }`}
                                 >
                                   {option.stock === 0 ? 'Sold Out' : `${option.stock} in stock`}
@@ -390,7 +390,7 @@ export function QuickBuyModalIsland({
             {/* Step 3: Quantity Stepper + Optional CON-40 Converter Pairing */}
             <div className="pt-2 border-t border-[#E6E1D8] flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#5C5852]">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#171614]">
                   Quantity
                 </span>
                 <div className="inline-flex items-center bg-white border border-[#DCD5C7] rounded">
@@ -428,13 +428,13 @@ export function QuickBuyModalIsland({
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded border transition-colors cursor-pointer ${
                     includeCon40
                       ? 'border-[#C88A2E] bg-[#C88A2E]/15 text-[#0A2246] font-semibold'
-                      : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246]'
+                      : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246]'
                   }`}
                 >
                   {includeCon40 ? (
                     <Check className="w-3.5 h-3.5 text-[#0A2246]" />
                   ) : (
-                    <Plus className="w-3.5 h-3.5 text-[#B58435]" />
+                    <Plus className="w-3.5 h-3.5 text-[#C88A2E]" />
                   )}
                   <span>Include CON-40 Converter (+KES 1,200)</span>
                 </button>
@@ -484,7 +484,7 @@ export function QuickBuyModalIsland({
                   className={`inline-flex items-center justify-center gap-1.5 py-3 px-3.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                     wishlisted
                       ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                      : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246]'
+                      : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246]'
                   }`}
                 >
                   <Heart
@@ -498,7 +498,7 @@ export function QuickBuyModalIsland({
               <button
                 type="button"
                 onClick={() => handleAdd(true)}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-4 text-xs font-semibold text-[#0A2246] bg-white hover:bg-[#F3EFE8] border border-[#DCD5C7] rounded transition-colors cursor-pointer whitespace-nowrap"
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-4 text-xs font-semibold text-[#0A2246] bg-white hover:bg-[#FAF8F5] border border-[#DCD5C7] rounded transition-colors cursor-pointer whitespace-nowrap"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#C88A2E]" />
                 <span>Add &amp; Proceed Directly to Kenya Checkout</span>

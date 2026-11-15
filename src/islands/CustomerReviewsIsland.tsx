@@ -276,7 +276,7 @@ export function CustomerReviewsIsland({
 
                 {/* Interactive 1-5 Star Selector */}
                 <div>
-                  <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                  <label className="block text-xs font-medium text-[#5C5852] mb-1">
                     Your Star Rating
                   </label>
                   <div className="flex items-center justify-between gap-2 p-2.5 rounded bg-white border border-[#DCD5C7]">
@@ -313,7 +313,7 @@ export function CustomerReviewsIsland({
                 {/* Variant / Finish & Location Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[11px] font-medium text-[#524E48] mb-1">
+                    <label className="block text-[11px] font-medium text-[#5C5852] mb-1">
                       Finish / Shade Reviewed
                     </label>
                     <select
@@ -332,7 +332,7 @@ export function CustomerReviewsIsland({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-[#524E48] mb-1">
+                    <label className="block text-[11px] font-medium text-[#5C5852] mb-1">
                       Your Location
                     </label>
                     <input
@@ -348,7 +348,7 @@ export function CustomerReviewsIsland({
                 {/* Short Review Comment */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-[#3F3D39]">
+                    <label className="text-xs font-medium text-[#5C5852]">
                       Your Review
                     </label>
                     <span className="font-mono-tabular text-[10px] text-[#8C857B]">
@@ -415,7 +415,7 @@ export function CustomerReviewsIsland({
                           )}
                         </div>
                         {rev.variantLabel && (
-                          <p className="text-[11px] text-[#B58435] font-medium mt-0.5">
+                          <p className="text-[11px] text-[#C88A2E] font-medium mt-0.5">
                             Reviewed: {rev.variantLabel}
                           </p>
                         )}
@@ -438,7 +438,7 @@ export function CustomerReviewsIsland({
                       </div>
                     </div>
 
-                    <p className="text-xs text-[#3F3D39] leading-relaxed">{rev.comment}</p>
+                    <p className="text-xs text-[#5C5852] leading-relaxed">{rev.comment}</p>
                   </div>
                 );
               })}

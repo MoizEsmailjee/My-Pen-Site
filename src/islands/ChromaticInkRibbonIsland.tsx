@@ -116,7 +116,7 @@ export function ChromaticInkRibbonIsland({
                 }`}
                 className={`group relative flex flex-col items-center py-1.5 px-1 rounded transition-transform duration-150 cursor-pointer ${
                   active
-                    ? 'bg-[#F3EFE8] ring-1 ring-[#0A2246] -translate-y-0.5'
+                    ? 'bg-[#FAF8F5] ring-1 ring-[#0A2246] -translate-y-0.5'
                     : 'hover:bg-[#FAF8F5] hover:-translate-y-0.5'
                 }`}
               >
@@ -128,7 +128,7 @@ export function ChromaticInkRibbonIsland({
                   } ${shadeStock === 0 ? 'opacity-45' : ''}`}
                   style={{ backgroundColor: shade.hex }}
                 />
-                <span className="mt-1.5 text-[10px] font-medium text-[#524E48] truncate max-w-full">
+                <span className="mt-1.5 text-[10px] font-medium text-[#5C5852] truncate max-w-full">
                   {shade.name.split('-')[0]}
                 </span>
               </button>
@@ -264,7 +264,7 @@ export function ChromaticInkRibbonIsland({
               </span>
             </div>
 
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#B58435] mt-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#C88A2E] mt-1">
               Poetic Translation: “{activeShade.meaning}”
             </p>
 
@@ -340,7 +340,7 @@ export function ChromaticInkRibbonIsland({
                     className={`inline-flex items-center justify-center gap-1.5 py-2.5 px-3.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                       wishlisted
                         ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                        : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                     }`}
                   >
                     <Heart

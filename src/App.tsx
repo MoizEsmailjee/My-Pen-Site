@@ -103,8 +103,7 @@ interface WishlistItem {
   addedAt: number;
 }
 
-const BRAND_LOGO_SRC =
-  '/assets/aistudio/Gemini_Generated_Image_644qn3644qn3644q_cd72faa3.jpg';
+const BRAND_LOGO_SRC = '/assets/aistudio/Prestige_Pens_23fbbbf6.jpg';
 const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
 const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v3';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
@@ -489,9 +488,9 @@ function ResilientImage({
   if (failed || !resolvedSrc) {
     return (
       <div
-        className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#F2EFE9] to-[#E5DFD3] text-[#3F3D39] p-6 text-center ${className}`}
+        className={`flex flex-col items-center justify-center bg-gradient-to-br from-[#F2EFE9] to-[#E5DFD3] text-[#171614] p-6 text-center ${className}`}
       >
-        <Feather className="w-8 h-8 mb-2 stroke-[1.25] text-[#163A5F]" />
+        <Feather className="w-8 h-8 mb-2 stroke-[1.25] text-[#0A2246]" />
         <span className="font-serif-display text-lg font-medium tracking-wide">
           {fallbackTitle}
         </span>
@@ -512,9 +511,10 @@ function ResilientImage({
 }
 
 /**
- * Tightly-cropped, background-normalized official PENS R US — THE PEN SPECIALISTS logo lockup.
- * Eliminates the outer 16:9 vignette margins and normalizes the off-white canvas to pure white
- * so mix-blend-multiply blends seamlessly into #FAF8F5 without a visible box or duplicate text.
+ * Tightly-cropped, background-normalized official Prestige Pens Kenya logo lockup.
+ * Scales proportionally by height (`h-[132%] w-auto`) so 100% of the top crown, script "Pn" nib,
+ * and "PRESTIGE PENS — KENYA" wordmark fit without clipping, while `mix-blend-multiply`
+ * blends the white canvas seamlessly into `#FAF8F5` without a visible box.
  */
 function BrandLogoLockup({
   size = 'header',
@@ -523,20 +523,20 @@ function BrandLogoLockup({
 }) {
   const dimensions =
     size === 'header'
-      ? 'w-[164px] h-[66px] sm:w-[184px] sm:h-[74px]'
-      : 'w-[176px] h-[70px]';
+      ? 'w-[136px] h-[82px] sm:w-[154px] sm:h-[92px]'
+      : 'w-[168px] h-[102px]';
 
   return (
     <div className={`relative overflow-hidden select-none shrink-0 ${dimensions}`}>
       <img
         src={resolveAssetUrl(BRAND_LOGO_SRC)}
-        alt="PENS R US — The Pen Specialists"
+        alt="Prestige Pens Kenya"
         referrerPolicy="no-referrer"
         style={{
           filter: 'brightness(1.06) contrast(1.08)',
           mixBlendMode: 'multiply',
         }}
-        className="absolute left-1/2 top-[52.5%] -translate-x-1/2 -translate-y-1/2 w-[138%] max-w-none h-auto pointer-events-none"
+        className="absolute left-1/2 top-[51%] -translate-x-1/2 -translate-y-1/2 h-[132%] w-auto max-w-none pointer-events-none"
       />
     </div>
   );
@@ -1068,9 +1068,9 @@ export default function App() {
         '@graph': [
           {
             '@type': 'Store',
-            '@id': 'https://pensrus.co.ke/#store',
-            name: 'PENS R US — The Pen Specialists',
-            url: 'https://pensrus.co.ke/',
+            '@id': 'https://prestigepens.co.ke/#store',
+            name: 'Prestige Pens Kenya',
+            url: 'https://prestigepens.co.ke/',
             currenciesAccepted: 'KES',
             paymentAccepted: 'M-Pesa, Cash on Delivery, WhatsApp Concierge',
             aggregateRating: {
@@ -3117,7 +3117,7 @@ export default function App() {
 
   const buildWhatsAppOrderText = (order: OrderConfirmation): string => {
     const lines = [
-      `*PENS R US KENYA — ORDER #${order.orderNumber}*`,
+      `*PRESTIGE PENS KENYA — EXECUTIVE ORDER #${order.orderNumber}*`,
       `Customer: ${order.customerName} (${order.phone})`,
       `Region: ${order.city}`,
       `Delivery Address: ${order.address}`,
@@ -3650,11 +3650,11 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#171614]">
       {/* TOP BAR CONTRACT: Strictly 1 row, 3 zones separated by gap-8 */}
       <header className="sticky top-0 z-30 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E6E1D8]">
-        <div className="max-w-[1280px] mx-auto flex items-center justify-between gap-4 lg:gap-8 px-6 py-2">
-          {/* Zone 1: Single Official PENS R US Logo Lockup (No Duplicate Text) */}
+        <div className="max-w-[1280px] mx-auto flex items-center justify-between gap-4 lg:gap-8 px-6 py-1.5">
+          {/* Zone 1: Single Official Prestige Pens Kenya Logo Lockup (No Duplicate Text) */}
           <a
             href="#top"
-            aria-label="PENS R US — The Pen Specialists Home"
+            aria-label="Prestige Pens Kenya Home"
             className="inline-flex items-center whitespace-nowrap shrink-0 group"
           >
             <BrandLogoLockup size="header" />
@@ -3769,7 +3769,7 @@ export default function App() {
                               e.preventDefault();
                               setSearchQuery(tag);
                             }}
-                            className="px-2.5 py-1 text-xs bg-white hover:bg-[#0A2246] text-[#3F3D39] hover:text-white border border-[#DCD5C7] rounded transition-colors cursor-pointer"
+                            className="px-2.5 py-1 text-xs bg-white hover:bg-[#0A2246] text-[#5C5852] hover:text-white border border-[#DCD5C7] rounded transition-colors cursor-pointer"
                           >
                             {tag}
                           </button>
@@ -4026,7 +4026,7 @@ export default function App() {
                     Whether you are discovering fountain pens for the first time or are a
                     passionate writing enthusiast, find your perfect writing companion at{' '}
                     <span className="font-semibold text-[#0A2246]">
-                      PENS <span className="italic text-[#B58435]">R</span> US — The Pen Specialists
+                      Prestige <span className="italic text-[#B58435]">Pens</span> Kenya
                     </span>
                     .
                   </p>
@@ -4163,7 +4163,7 @@ export default function App() {
                         className={`px-3.5 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                           active
                             ? 'bg-[#FAF8F5] text-[#171614] shadow-xs'
-                            : 'text-[#5C5852] hover:text-[#171614]'
+                            : 'text-[#171614] hover:text-[#171614]'
                         }`}
                       >
                         {tab === 'All' ? `All Instruments (${catalogProducts.length})` : tab}
@@ -4221,7 +4221,7 @@ export default function App() {
                       className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                         active
                           ? 'border-[#0A2246] bg-[#0A2246] text-white'
-                          : 'border-[#E6E1D8] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                          : 'border-[#E6E1D8] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                       }`}
                     >
                       {series.label}
@@ -4253,7 +4253,7 @@ export default function App() {
             {/* Active Header Search Filter Indicator Bar */}
             {normalizedSearch && (
               <div className="mb-8 px-4 py-3 bg-white border border-[#0A2246]/30 rounded-lg flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs text-[#171614]">
+                <div className="flex items-center gap-2 text-xs text-[#5C5852]">
                   <Search className="w-3.5 h-3.5 text-[#0A2246]" />
                   <span>
                     Filtering catalog by{' '}
@@ -4267,7 +4267,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#0A2246] bg-[#F3EFE8] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#0A2246] bg-[#FAF8F5] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer"
                 >
                   <X className="w-3 h-3" />
                   <span>Clear Search</span>
@@ -4280,7 +4280,7 @@ export default function App() {
               <div className="mb-14 bg-[#FAF8F5] border border-[#E6E1D8] rounded-lg p-6 lg:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#E6E1D8]">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#B58435]">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#C88A2E]">
                       Persisted Across Sessions · Local Storage
                     </p>
                     <h3 className="font-serif-display text-2xl lg:text-3xl font-semibold text-[#0A2246] mt-1">
@@ -4362,7 +4362,7 @@ export default function App() {
                                   {formatKes(item.priceKes)}
                                 </span>
                               </div>
-                              <p className="text-xs font-medium text-[#B58435] mt-1">
+                              <p className="text-xs font-medium text-[#C88A2E] mt-1">
                                 {item.variantLabel}
                                 {item.nibSize ? ` · ${item.nibSize} Nib` : ''}
                               </p>
@@ -4485,7 +4485,7 @@ export default function App() {
                                   title={imgItem.caption}
                                   className={`w-8 h-8 rounded overflow-hidden border transition-all cursor-pointer shrink-0 bg-white ${
                                     isCurrentImg
-                                      ? 'border-[#163A5F] ring-1 ring-[#163A5F]'
+                                      ? 'border-[#0A2246] ring-1 ring-[#0A2246]'
                                       : 'border-[#DCD5C7] opacity-75 hover:opacity-100'
                                   }`}
                                 >
@@ -4523,7 +4523,7 @@ export default function App() {
                             });
                           }}
                           title="Zoom & Inspect High-Resolution Photo"
-                          className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#0A2246] hover:text-white rounded border border-[#E6E1D8] transition-colors cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
+                          className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#FAF8F5]/95 text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#E6E1D8] transition-colors cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
                         >
                           <ZoomIn className="w-3.5 h-3.5" />
                           <span>Zoom</span>
@@ -4625,7 +4625,7 @@ export default function App() {
                                         [product.id]: '/assets/madoromi/madoromi_series.jpg',
                                       }))
                                     }
-                                    className="text-[11px] font-medium text-[#163A5F] hover:underline cursor-pointer whitespace-nowrap shrink-0"
+                                    className="text-[11px] font-medium text-[#0A2246] hover:underline cursor-pointer whitespace-nowrap shrink-0"
                                   >
                                     Show Series Photo
                                   </button>
@@ -4645,7 +4645,7 @@ export default function App() {
                                   return (
                                     <a
                                       href={targetHref}
-                                      className="text-[11px] font-medium text-[#163A5F] hover:underline whitespace-nowrap shrink-0"
+                                      className="text-[11px] font-medium text-[#0A2246] hover:underline whitespace-nowrap shrink-0"
                                     >
                                       Complete Product Page ↓
                                     </a>
@@ -4655,7 +4655,7 @@ export default function App() {
                                   <button
                                     type="button"
                                     onClick={() => setActiveProductModal(product)}
-                                    className="text-[11px] font-medium text-[#163A5F] hover:underline whitespace-nowrap shrink-0 cursor-pointer"
+                                    className="text-[11px] font-medium text-[#0A2246] hover:underline whitespace-nowrap shrink-0 cursor-pointer"
                                   >
                                     Complete Product Page
                                   </button>
@@ -4679,8 +4679,8 @@ export default function App() {
                                   onClick={() => handleSelectVariant(product.id, variant.id)}
                                   className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                                     isSelected
-                                      ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614] font-medium'
-                                      : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
+                                      ? 'border-[#0A2246] bg-[#0A2246]/8 text-[#171614] font-medium'
+                                      : 'border-[#E6E1D8] bg-white text-[#171614] hover:border-[#BDB6AA]'
                                   }`}
                                 >
                                   {variant.swatchHex && (
@@ -4701,7 +4701,7 @@ export default function App() {
                             })}
                           </div>
                           <p className="text-xs text-[#6E6A63] mt-2 min-h-[1.25rem]">
-                            <span className="font-medium text-[#171614]">
+                            <span className="font-medium text-[#5C5852]">
                               {chosenVariant.label}:{' '}
                             </span>
                             {chosenVariant.sublabel}
@@ -4733,8 +4733,8 @@ export default function App() {
                                     onClick={() => handleSelectNib(product.id, nib)}
                                     className={`px-3 py-1.5 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                                       isNibSelected
-                                        ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
-                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                        ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#171614]'
                                     }`}
                                   >
                                     {nib === 'Fine'
@@ -4858,7 +4858,7 @@ export default function App() {
                           className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
                             isWishlisted
                               ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                           }`}
                         >
                           <Heart
@@ -4872,7 +4872,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => setActiveProductModal(product)}
-                          className="inline-flex items-center justify-center gap-1.5 py-2 px-3.5 text-xs font-medium rounded border border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                          className="inline-flex items-center justify-center gap-1.5 py-2 px-3.5 text-xs font-medium rounded border border-[#DCD5C7] bg-white text-[#5C5852] hover:border-[#0A2246] hover:text-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           <span>Full Details &amp; Reviews</span>
@@ -4939,7 +4939,7 @@ export default function App() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:items-end gap-2">
-                  <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                  <span className="font-mono-tabular text-xs text-[#0A2246] font-medium">
                     Gold-Tone Smiley Nib · Includes 1× Black Cartridge
                   </span>
                   <button
@@ -4956,7 +4956,7 @@ export default function App() {
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                       justAddedKey === 'madoromi-con40-upsell'
                         ? 'border-[#1D5B43] bg-[#1D5B43] text-white'
-                        : 'border-[#163A5F] bg-white text-[#163A5F] hover:bg-[#163A5F] hover:text-white'
+                        : 'border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white'
                     }`}
                   >
                     {justAddedKey === 'madoromi-con40-upsell' ? (
@@ -5036,7 +5036,7 @@ export default function App() {
                                 panY: 50,
                               });
                             }}
-                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
                           >
                             <ZoomIn className="w-3 h-3" />
                             <span>Zoom</span>
@@ -5098,8 +5098,8 @@ export default function App() {
                                     onClick={() => handleSelectNib(variant.id, nib)}
                                     className={`px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                                       selected
-                                        ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
-                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                        ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#171614]'
                                     }`}
                                   >
                                     {nib === 'Fine'
@@ -5215,7 +5215,7 @@ export default function App() {
                           className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
                             isWishlisted
                               ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                           }`}
                         >
                           <Heart
@@ -5309,7 +5309,7 @@ export default function App() {
                           kakunoMadoromiProduct.variants[0].id
                         )
                           ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                          : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                          : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                       }`}
                     >
                       <Heart
@@ -5366,7 +5366,7 @@ export default function App() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:items-end gap-2">
-                  <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                  <span className="font-mono-tabular text-xs text-[#0A2246] font-medium">
                     Includes 1× Black Ink Cartridge · CON-40 Converter Compatible
                   </span>
                   <button
@@ -5383,7 +5383,7 @@ export default function App() {
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                       justAddedKey === 'family-con40-upsell'
                         ? 'border-[#1D5B43] bg-[#1D5B43] text-white'
-                        : 'border-[#163A5F] bg-white text-[#163A5F] hover:bg-[#163A5F] hover:text-white'
+                        : 'border-[#0A2246] bg-white text-[#0A2246] hover:bg-[#0A2246] hover:text-white'
                     }`}
                   >
                     {justAddedKey === 'family-con40-upsell' ? (
@@ -5463,7 +5463,7 @@ export default function App() {
                                 panY: 50,
                               });
                             }}
-                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
                           >
                             <ZoomIn className="w-3 h-3" />
                             <span>Zoom</span>
@@ -5481,7 +5481,7 @@ export default function App() {
                           <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#6E6A63]">
                             <span>Kakuno Family Series</span>
                             <span aria-hidden="true">·</span>
-                            <span className="text-[#163A5F] font-medium">
+                            <span className="text-[#0A2246] font-medium">
                               {variant.nibEngraving}
                             </span>
                             <span aria-hidden="true">·</span>
@@ -5525,8 +5525,8 @@ export default function App() {
                                     onClick={() => handleSelectNib(variant.id, nib)}
                                     className={`px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                                       selected
-                                        ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
-                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                        ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#171614]'
                                     }`}
                                   >
                                     {nib === 'Fine'
@@ -5642,7 +5642,7 @@ export default function App() {
                           className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
                             isWishlisted
                               ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                           }`}
                         >
                           <Heart
@@ -5690,7 +5690,7 @@ export default function App() {
                   </p>
                 </div>
                 <div className="flex flex-col sm:items-end gap-1.5">
-                  <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                  <span className="font-mono-tabular text-xs text-[#0A2246] font-medium">
                     Includes Pilot CON-40 Converter &amp; Black Ink Cartridge
                   </span>
                 </div>
@@ -5758,7 +5758,7 @@ export default function App() {
                                 panY: 50,
                               });
                             }}
-                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
                           >
                             <ZoomIn className="w-3 h-3" />
                             <span>Zoom</span>
@@ -5776,7 +5776,7 @@ export default function App() {
                           <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#6E6A63]">
                             <span>Pilot Prera Japan</span>
                             <span aria-hidden="true">·</span>
-                            <span className="text-[#163A5F] font-medium">
+                            <span className="text-[#0A2246] font-medium">
                               CON-40 Included
                             </span>
                             <span aria-hidden="true">·</span>
@@ -5820,8 +5820,8 @@ export default function App() {
                                     onClick={() => handleSelectNib(variant.id, nib)}
                                     className={`px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                                       selected
-                                        ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
-                                        : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                        ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
+                                        : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#171614]'
                                     }`}
                                   >
                                     {nib === 'Fine'
@@ -5892,7 +5892,7 @@ export default function App() {
                           className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
                             isWishlisted
                               ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                           }`}
                         >
                           <Heart
@@ -5958,7 +5958,7 @@ export default function App() {
                         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                           active
                             ? 'bg-[#FAF8F5] text-[#171614] shadow-xs'
-                            : 'text-[#5C5852] hover:text-[#171614]'
+                            : 'text-[#171614] hover:text-[#171614]'
                         }`}
                       >
                         {family}
@@ -6074,7 +6074,7 @@ export default function App() {
                               });
                             }}
                             title={`Zoom & Inspect ${shade.name} Ink Swatch`}
-                            className="absolute top-2.5 left-2.5 z-20 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            className="absolute top-2.5 left-2.5 z-20 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
                           >
                             <ZoomIn className="w-3 h-3" />
                             <span>Zoom</span>
@@ -6102,8 +6102,8 @@ export default function App() {
                               }
                               className={`flex-1 py-1 px-2 text-[11px] font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
                                 viewMode === 'bottle'
-                                  ? 'bg-[#163A5F] text-white'
-                                  : 'text-[#5C5852] hover:text-[#171614]'
+                                  ? 'bg-[#0A2246] text-white'
+                                  : 'text-[#171614] hover:text-[#171614]'
                               }`}
                             >
                               Bottle + Swatch
@@ -6118,8 +6118,8 @@ export default function App() {
                               }
                               className={`flex-1 py-1 px-2 text-[11px] font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
                                 viewMode === 'swatch'
-                                  ? 'bg-[#163A5F] text-white'
-                                  : 'text-[#5C5852] hover:text-[#171614]'
+                                  ? 'bg-[#0A2246] text-white'
+                                  : 'text-[#171614] hover:text-[#171614]'
                               }`}
                             >
                               Swatch Close-Up
@@ -6154,7 +6154,7 @@ export default function App() {
                             </span>
                           </div>
 
-                          <p className="text-xs font-medium text-[#163A5F] mt-0.5">
+                          <p className="text-xs font-medium text-[#0A2246] mt-0.5">
                             {shade.meaning}
                           </p>
                           <p className="text-xs text-[#5C5852] mt-2 leading-relaxed line-clamp-2">
@@ -6258,7 +6258,7 @@ export default function App() {
                             className={`flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
                               isWishlisted
                                 ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                                : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                                : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                             }`}
                           >
                             <Heart
@@ -6285,7 +6285,7 @@ export default function App() {
                                 panY: 45,
                               })
                             }
-                            className="px-2.5 py-1.5 text-xs font-medium rounded border border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                            className="px-2.5 py-1.5 text-xs font-medium rounded border border-[#DCD5C7] bg-white text-[#5C5852] hover:border-[#0A2246] hover:text-[#0A2246] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                           >
                             Swatch Card
                           </button>
@@ -6334,7 +6334,7 @@ export default function App() {
                     agitator beads for consistent capillary ink flow.
                   </p>
                 </div>
-                <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                <span className="font-mono-tabular text-xs text-[#0A2246] font-medium">
                   Fits All Pilot Kakuno, Prera &amp; Vanishing Point Pens
                 </span>
               </div>
@@ -6372,7 +6372,7 @@ export default function App() {
                     <strong>{formatKes(watermanInkProduct.priceKes)}</strong> per 50ml bottle.
                   </p>
                 </div>
-                <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                <span className="font-mono-tabular text-xs text-[#0A2246] font-medium">
                   50ml Multi-Faceted Glass Flacon · Made in France
                 </span>
               </div>
@@ -6440,7 +6440,7 @@ export default function App() {
                                 panY: 50,
                               });
                             }}
-                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
                           >
                             <ZoomIn className="w-3 h-3" />
                             <span>Zoom</span>
@@ -6458,7 +6458,7 @@ export default function App() {
                           <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#6E6A63]">
                             <span>Waterman Paris · 50ml</span>
                             <span aria-hidden="true">·</span>
-                            <span className="text-[#163A5F] font-medium">{frenchTitle}</span>
+                            <span className="text-[#0A2246] font-medium">{frenchTitle}</span>
                             <span aria-hidden="true">·</span>
                             <VariantStockIndicator stockCount={variant.stockCount} compact />
                           </div>
@@ -6531,7 +6531,7 @@ export default function App() {
                           className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
                             isWishlisted
                               ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                           }`}
                         >
                           <Heart
@@ -6578,7 +6578,7 @@ export default function App() {
                     <strong>{formatKes(pilot30mlInkProduct.priceKes)}</strong> each.
                   </p>
                 </div>
-                <span className="font-mono-tabular text-xs text-[#163A5F] font-medium">
+                <span className="font-mono-tabular text-xs text-[#0A2246] font-medium">
                   30ml Japanese Glass Flacon · Made in Japan
                 </span>
               </div>
@@ -6647,7 +6647,7 @@ export default function App() {
                                 panY: 50,
                               });
                             }}
-                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                            className="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-[#FAF8F5]/95 text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
                           >
                             <ZoomIn className="w-3 h-3" />
                             <span>Zoom</span>
@@ -6665,7 +6665,7 @@ export default function App() {
                           <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#6E6A63]">
                             <span>Pilot Japan · 30ml</span>
                             <span aria-hidden="true">·</span>
-                            <span className="text-[#163A5F] font-medium">{skuNote}</span>
+                            <span className="text-[#0A2246] font-medium">{skuNote}</span>
                             <span aria-hidden="true">·</span>
                             <VariantStockIndicator stockCount={variant.stockCount} compact />
                           </div>
@@ -6773,7 +6773,7 @@ export default function App() {
                           className={`w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap ${
                             isWishlisted
                               ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                              : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                              : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                           }`}
                         >
                           <Heart
@@ -6834,7 +6834,7 @@ export default function App() {
                   </p>
 
                   <p className="font-serif-display italic text-xl lg:text-2xl text-white border-t border-white/15 pt-6">
-                    PENS R US – Bringing the Art of Writing to Kenya.
+                    Prestige Pens Kenya – Bringing the Art of Writing to Kenya.
                   </p>
                 </div>
 
@@ -6927,7 +6927,7 @@ export default function App() {
             <div className="md:col-span-5 space-y-2.5">
               <a
                 href="#top"
-                aria-label="PENS R US — The Pen Specialists"
+                aria-label="Prestige Pens Kenya"
                 className="inline-block"
               >
                 <BrandLogoLockup size="footer" />
@@ -6997,7 +6997,7 @@ export default function App() {
 
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#6E6A63]">
             <div className="flex items-center gap-3 flex-wrap">
-              <span>© {new Date().getFullYear()} PENS R US Kenya · All Rights Reserved.</span>
+              <span>© {new Date().getFullYear()} Prestige Pens Kenya · All Rights Reserved.</span>
               {isAuthorizedAdmin && (
                 <>
                   <span aria-hidden="true">·</span>
@@ -7183,7 +7183,7 @@ export default function App() {
               ) : (
                 <form onSubmit={handleSubmitRestockAlert} className="space-y-3.5">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#171614] mb-1">
                       Your Name (Optional)
                     </label>
                     <input
@@ -7196,7 +7196,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-[#5C5852] mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#171614] mb-1">
                       Email or Kenyan WhatsApp / Phone Number *
                     </label>
                     <input
@@ -7227,7 +7227,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setNotifyModalTarget(null)}
-                      className="py-3 px-4 rounded-xl border border-[#DCD5C7] bg-white hover:bg-[#F3EFE8] text-[#5C5852] text-xs font-semibold cursor-pointer transition-colors"
+                      className="py-3 px-4 rounded-xl border border-[#DCD5C7] bg-white hover:bg-[#FAF8F5] text-[#171614] text-xs font-semibold cursor-pointer transition-colors"
                     >
                       Cancel
                     </button>
@@ -7271,7 +7271,7 @@ export default function App() {
               type="button"
               onClick={() => setActiveProductModal(null)}
               aria-label="Close specification view"
-              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-[#FAF8F5]/90 text-[#171614] hover:bg-[#E6E1D8] transition-colors cursor-pointer"
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-[#FAF8F5]/90 text-[#5C5852] hover:bg-[#E6E1D8] transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -7308,7 +7308,7 @@ export default function App() {
                         panY: 50,
                       });
                     }}
-                    className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#FAF8F5]/95 text-[#171614] hover:bg-[#163A5F] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                    className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-[#FAF8F5]/95 text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <ZoomIn className="w-3.5 h-3.5" />
                     <span>Zoom 3×</span>
@@ -7360,7 +7360,7 @@ export default function App() {
                               title={imgItem.caption}
                               className={`w-10 h-10 rounded overflow-hidden border p-0.5 bg-white cursor-pointer transition-all shrink-0 ${
                                 isSelectedImg
-                                  ? 'border-[#163A5F] ring-1 ring-[#163A5F]'
+                                  ? 'border-[#0A2246] ring-1 ring-[#0A2246]'
                                   : 'border-[#DCD5C7] opacity-70 hover:opacity-100'
                               }`}
                             >
@@ -7376,14 +7376,14 @@ export default function App() {
                       </div>
                     )}
                 </div>
-                <div className="p-5 bg-[#F3EFE8] border-t border-[#E6E1D8]">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
+                <div className="p-5 bg-[#FAF8F5] border-t border-[#E6E1D8]">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#171614] mb-2">
                     In the Presentation Box
                   </p>
-                  <ul className="space-y-1 text-xs text-[#3F3D39]">
+                  <ul className="space-y-1 text-xs text-[#5C5852]">
                     {activeProductModal.includedItems.map((item) => (
                       <li key={item} className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-[#163A5F] shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-[#0A2246] shrink-0" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -7399,7 +7399,7 @@ export default function App() {
                     <span aria-hidden="true">·</span>
                     <span>{activeProductModal.Origin}</span>
                     <span aria-hidden="true">·</span>
-                    <span className="text-[#163A5F] font-medium">
+                    <span className="text-[#0A2246] font-medium">
                       {activeProductModal.availability}
                     </span>
                   </div>
@@ -7424,7 +7424,7 @@ export default function App() {
 
                   {/* Variant Selector inside PDP */}
                   <div className="mt-5 pt-4 border-t border-[#E6E1D8]">
-                    <span className="block text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2">
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-[#171614] mb-2">
                       {activeProductModal.variantLabel}
                     </span>
                     <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
@@ -7442,8 +7442,8 @@ export default function App() {
                             }
                             className={`w-full p-2.5 text-left rounded border flex items-center justify-between gap-3 transition-colors cursor-pointer ${
                               isSelected
-                                ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614]'
-                                : 'border-[#E6E1D8] bg-white text-[#5C5852] hover:border-[#BDB6AA]'
+                                ? 'border-[#0A2246] bg-[#0A2246]/8 text-[#171614]'
+                                : 'border-[#E6E1D8] bg-white text-[#171614] hover:border-[#BDB6AA]'
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
@@ -7463,7 +7463,7 @@ export default function App() {
                               </div>
                             </div>
                             {isSelected && (
-                              <Check className="w-4 h-4 text-[#163A5F] shrink-0" />
+                              <Check className="w-4 h-4 text-[#0A2246] shrink-0" />
                             )}
                           </button>
                         );
@@ -7474,7 +7474,7 @@ export default function App() {
                   {/* Nib Selector inside PDP */}
                   {activeProductModal.hasNibSelector && (
                     <div className="mt-4 pt-4 border-t border-[#E6E1D8] flex items-center justify-between gap-4">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-[#5C5852]">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#171614]">
                         Select Nib Size
                       </span>
                       <div className="inline-flex items-center gap-2">
@@ -7488,8 +7488,8 @@ export default function App() {
                               onClick={() => handleSelectNib(activeProductModal.id, nib)}
                               className={`px-3.5 py-1.5 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                                 selected
-                                  ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
-                                  : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
+                                  ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
+                                  : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#171614]'
                               }`}
                             >
                               {nib === 'Fine' ? 'Fine (0.35mm)' : 'Medium (0.50mm)'}
@@ -7508,7 +7508,7 @@ export default function App() {
                         className="flex items-baseline justify-between gap-4 text-xs"
                       >
                         <span className="text-[#6E6A63]">{spec.label}</span>
-                        <span className="font-medium text-[#171614] text-right">
+                        <span className="font-medium text-[#5C5852] text-right">
                           {spec.value}
                         </span>
                       </div>
@@ -7566,7 +7566,7 @@ export default function App() {
                         className={`inline-flex items-center justify-center gap-1.5 py-3 px-4 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                           modalWishlisted
                             ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                            : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                            : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                         }`}
                       >
                         <Heart
@@ -7634,9 +7634,9 @@ export default function App() {
                     {activeCartTab === 'history'
                       ? memberProfile
                         ? `Signed in as ${memberProfile.name} (${memberProfile.emailOrPhone})`
-                        : 'Sign in to view your past PENS R US purchases & reorder'
+                        : 'Sign in to view your past Prestige Pens purchases & reorder'
                       : checkoutStep === 'confirmed'
-                      ? 'Thank you for choosing PENS R US Kenya'
+                      ? 'Thank you for choosing Prestige Pens Kenya'
                       : '1-Day Processing (Ships Next Day) · Free Delivery Over KES 10,000'}
                   </p>
                 </div>
@@ -7691,7 +7691,7 @@ export default function App() {
                       <div className="flex items-center gap-2.5 mb-2">
                         <UserCheck className="w-4 h-4 text-[#C88A2E]" />
                         <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#B58435]">
-                          PENS R US Customer Account &amp; Order History
+                          Prestige Pens Customer Account &amp; Order History
                         </span>
                       </div>
                       <h3 className="font-serif-display text-xl font-semibold text-[#0A2246]">
@@ -7705,7 +7705,7 @@ export default function App() {
                       </p>
 
                       {/* Mode Toggle: Create Account vs Sign In */}
-                      <div className="mt-3.5 grid grid-cols-2 gap-1.5 p-1 bg-[#F3EFE8] rounded border border-[#DCD5C7]">
+                      <div className="mt-3.5 grid grid-cols-2 gap-1.5 p-1 bg-[#FAF8F5] rounded border border-[#DCD5C7]">
                         <button
                           type="button"
                           onClick={() => {
@@ -7715,7 +7715,7 @@ export default function App() {
                           className={`py-1.5 px-2.5 text-xs font-semibold rounded transition-colors cursor-pointer ${
                             accountAuthMode === 'register'
                               ? 'bg-[#0A2246] text-white shadow-2xs'
-                              : 'text-[#524E48] hover:text-[#0A2246]'
+                              : 'text-[#171614] hover:text-[#0A2246]'
                           }`}
                         >
                           Create Account
@@ -7729,7 +7729,7 @@ export default function App() {
                           className={`py-1.5 px-2.5 text-xs font-semibold rounded transition-colors cursor-pointer ${
                             accountAuthMode === 'signin'
                               ? 'bg-[#0A2246] text-white shadow-2xs'
-                              : 'text-[#524E48] hover:text-[#0A2246]'
+                              : 'text-[#171614] hover:text-[#0A2246]'
                           }`}
                         >
                           Sign In
@@ -7773,7 +7773,7 @@ export default function App() {
                         /* CREATE CUSTOMER ACCOUNT & COLLECT CUSTOMER INFORMATION FORM */
                         <form onSubmit={handleCreateCustomerAccount} className="space-y-3">
                           <div>
-                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                            <label className="block text-xs font-medium text-[#5C5852] mb-1">
                               Full Name *
                             </label>
                             <input
@@ -7788,7 +7788,7 @@ export default function App() {
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             <div>
-                              <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                              <label className="block text-xs font-medium text-[#5C5852] mb-1">
                                 Email Address *
                               </label>
                               <input
@@ -7801,7 +7801,7 @@ export default function App() {
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                              <label className="block text-xs font-medium text-[#5C5852] mb-1">
                                 Kenyan Mobile (M-Pesa) *
                               </label>
                               <input
@@ -7816,7 +7816,7 @@ export default function App() {
                           </div>
 
                           <div>
-                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                            <label className="block text-xs font-medium text-[#5C5852] mb-1">
                               Default County / Delivery Region *
                             </label>
                             <select
@@ -7833,7 +7833,7 @@ export default function App() {
                           </div>
 
                           <div>
-                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                            <label className="block text-xs font-medium text-[#5C5852] mb-1">
                               Default Delivery Address (Building, Road, Landmark) *
                             </label>
                             <input
@@ -7847,7 +7847,7 @@ export default function App() {
                           </div>
 
                           <div>
-                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                            <label className="block text-xs font-medium text-[#5C5852] mb-1">
                               Preferred Japanese Nib Size
                             </label>
                             <div className="grid grid-cols-2 gap-2">
@@ -7859,7 +7859,7 @@ export default function App() {
                                   className={`py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer ${
                                     regPreferredNib === nib
                                       ? 'border-[#0A2246] bg-[#0A2246]/8 text-[#0A2246]'
-                                      : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#5C5852]'
+                                      : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#171614]'
                                   }`}
                                 >
                                   {nib} · {nib === 'Fine' ? 'F (0.35mm)' : 'M (0.50mm)'}
@@ -7879,7 +7879,7 @@ export default function App() {
                         /* SIGN IN TO EXISTING ACCOUNT FORM */
                         <form onSubmit={handleMemberFormSignIn} className="space-y-3">
                           <div>
-                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                            <label className="block text-xs font-medium text-[#5C5852] mb-1">
                               Registered Email or Kenyan Mobile Number *
                             </label>
                             <input
@@ -7892,7 +7892,7 @@ export default function App() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                            <label className="block text-xs font-medium text-[#5C5852] mb-1">
                               Your Name (Optional)
                             </label>
                             <input
@@ -8004,7 +8004,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={handleSignOutAccount}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-[#524E48] hover:text-[#171614] bg-[#F3EFE8] hover:bg-[#E6E1D8] rounded border border-[#DCD5C7] transition-colors cursor-pointer shrink-0"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-[#171614] hover:text-[#171614] bg-[#FAF8F5] hover:bg-[#E6E1D8] rounded border border-[#DCD5C7] transition-colors cursor-pointer shrink-0"
                           >
                             <LogOut className="w-3.5 h-3.5" />
                             <span>Sign Out</span>
@@ -8016,19 +8016,19 @@ export default function App() {
                         <div className="pt-2.5 border-t border-[#F0ECE3] grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[#5C5852]">
                           <div>
                             <span className="text-[#8C857B] block">Mobile (M-Pesa / Courier)</span>
-                            <span className="font-medium text-[#171614]">
+                            <span className="font-medium text-[#5C5852]">
                               {memberProfile.phone || customerPhone || 'Not set — click Edit Info'}
                             </span>
                           </div>
                           <div>
                             <span className="text-[#8C857B] block">Preferred Nib Size</span>
-                            <span className="font-medium text-[#171614]">
+                            <span className="font-medium text-[#5C5852]">
                               {memberProfile.preferredNib || 'Fine'} Nib
                             </span>
                           </div>
                           <div className="sm:col-span-2">
                             <span className="text-[#8C857B] block">Saved Kenya Delivery Address</span>
-                            <span className="font-medium text-[#171614]">
+                            <span className="font-medium text-[#5C5852]">
                               {memberProfile.address
                                 ? `${memberProfile.address} · ${memberProfile.city || 'Nairobi'}`
                                 : 'No default address saved yet — click Edit Info'}
@@ -8040,12 +8040,12 @@ export default function App() {
                           onSubmit={handleSaveEditedCustomerProfile}
                           className="pt-3 border-t border-[#ECE8DF] space-y-2.5"
                         >
-                          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#B58435]">
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#C88A2E]">
                             Update Saved Customer Information
                           </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                              <label className="block text-[11px] font-medium text-[#5C5852] mb-0.5">
                                 Full Name
                               </label>
                               <input
@@ -8057,7 +8057,7 @@ export default function App() {
                               />
                             </div>
                             <div>
-                              <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                              <label className="block text-[11px] font-medium text-[#5C5852] mb-0.5">
                                 Email Address
                               </label>
                               <input
@@ -8070,7 +8070,7 @@ export default function App() {
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                              <label className="block text-[11px] font-medium text-[#5C5852] mb-0.5">
                                 Kenyan Mobile Number
                               </label>
                               <input
@@ -8082,7 +8082,7 @@ export default function App() {
                               />
                             </div>
                             <div>
-                              <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                              <label className="block text-[11px] font-medium text-[#5C5852] mb-0.5">
                                 Preferred Nib Size
                               </label>
                               <select
@@ -8096,7 +8096,7 @@ export default function App() {
                             </div>
                           </div>
                           <div>
-                            <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                            <label className="block text-[11px] font-medium text-[#5C5852] mb-0.5">
                               Default County / Region
                             </label>
                             <select
@@ -8112,7 +8112,7 @@ export default function App() {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                            <label className="block text-[11px] font-medium text-[#5C5852] mb-0.5">
                               Default Building, Road, or Landmark
                             </label>
                             <input
@@ -8171,7 +8171,7 @@ export default function App() {
                       </div>
 
                       {/* Interactive Status Filter Buttons */}
-                      <div className="grid grid-cols-4 gap-1 p-1 bg-[#F3EFE8] rounded border border-[#E6E1D8]">
+                      <div className="grid grid-cols-4 gap-1 p-1 bg-[#FAF8F5] rounded border border-[#E6E1D8]">
                         {(['All', 'Processing', 'Out for Courier', 'Delivered'] as const).map(
                           (statusTab) => {
                             const count =
@@ -8189,7 +8189,7 @@ export default function App() {
                                 className={`py-1.5 px-1.5 text-[10px] font-semibold rounded transition-colors cursor-pointer whitespace-nowrap truncate ${
                                   isSelected
                                     ? 'bg-[#0A2246] text-white shadow-2xs'
-                                    : 'text-[#524E48] hover:text-[#0A2246]'
+                                    : 'text-[#171614] hover:text-[#0A2246]'
                                 }`}
                               >
                                 {statusTab === 'Out for Courier' ? 'Courier' : statusTab} ({count})
@@ -8278,7 +8278,7 @@ export default function App() {
                                           currentStatus === 'Delivered'
                                             ? 'text-[#1D5B43]'
                                             : currentStatus === 'Out for Courier'
-                                            ? 'text-[#B58435]'
+                                            ? 'text-[#C88A2E]'
                                             : 'text-[#0A2246]'
                                         }`}
                                       >
@@ -8349,7 +8349,7 @@ export default function App() {
                                                   currentStatus === 'Delivered'
                                                     ? 'text-[#1D5B43]'
                                                     : isCurrent
-                                                    ? 'text-[#B58435]'
+                                                    ? 'text-[#C88A2E]'
                                                     : 'text-[#0A2246]'
                                                 }`}
                                               />
@@ -8363,7 +8363,7 @@ export default function App() {
                                                 isCurrent
                                                   ? 'font-bold text-[#171614]'
                                                   : isCompleted
-                                                  ? 'font-medium text-[#3F3D39]'
+                                                  ? 'font-medium text-[#171614]'
                                                   : 'text-[#8C857B]'
                                               }`}
                                             >
@@ -8375,7 +8375,7 @@ export default function App() {
                                     })}
                                   </div>
 
-                                  <p className="text-[11px] text-[#524E48] leading-snug">
+                                  <p className="text-[11px] text-[#5C5852] leading-snug">
                                     {etaText}
                                   </p>
 
@@ -8448,7 +8448,7 @@ export default function App() {
                                         </div>
                                         <div className="flex justify-between gap-2">
                                           <span className="text-[#6E6A63]">Destination</span>
-                                          <span className="font-medium text-[#171614] text-right truncate">
+                                          <span className="font-medium text-[#5C5852] text-right truncate">
                                             {order.address} ({order.city.split(' ')[0]})
                                           </span>
                                         </div>
@@ -8473,7 +8473,7 @@ export default function App() {
                                                   className={`py-1.5 px-2 text-[10px] font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap truncate ${
                                                     active
                                                       ? 'bg-[#0A2246] text-white border-[#0A2246]'
-                                                      : 'bg-white text-[#3F3D39] border-[#DCD5C7] hover:border-[#0A2246]'
+                                                      : 'bg-white text-[#171614] border-[#DCD5C7] hover:border-[#0A2246]'
                                                   }`}
                                                 >
                                                   {stage.label}
@@ -8502,7 +8502,7 @@ export default function App() {
                                           className="w-10 h-10 rounded object-contain bg-white border border-[#E6E1D8] shrink-0"
                                         />
                                         <div className="min-w-0">
-                                          <p className="font-medium text-[#171614] truncate">
+                                          <p className="font-medium text-[#5C5852] truncate">
                                             {item.quantity}× {item.product.name}
                                           </p>
                                           <p className="text-[11px] text-[#6E6A63] truncate">
@@ -8511,7 +8511,7 @@ export default function App() {
                                           </p>
                                         </div>
                                       </div>
-                                      <span className="font-mono-tabular text-xs font-medium text-[#171614] whitespace-nowrap">
+                                      <span className="font-mono-tabular text-xs font-medium text-[#5C5852] whitespace-nowrap">
                                         {formatKes(item.product.priceKes * item.quantity)}
                                       </span>
                                     </div>
@@ -8535,7 +8535,7 @@ export default function App() {
                                     <button
                                       type="button"
                                       onClick={() => handleReorderPastPurchase(order)}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A2246] hover:text-white bg-[#F3EFE8] hover:bg-[#0A2246] rounded border border-[#DCD5C7] hover:border-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0A2246] hover:text-white bg-[#FAF8F5] hover:bg-[#0A2246] rounded border border-[#DCD5C7] hover:border-[#0A2246] transition-colors cursor-pointer whitespace-nowrap shrink-0"
                                     >
                                       <RotateCcw className="w-3 h-3" />
                                       <span>Reorder to Bag</span>
@@ -8561,7 +8561,7 @@ export default function App() {
                     </p>
                     <p className="text-xs text-[#4A4742] leading-relaxed">
                       We have reserved your Japanese writing instruments for{' '}
-                      <span className="font-medium text-[#171614]">
+                      <span className="font-medium text-[#5C5852]">
                         {confirmedOrder.customerName}
                       </span>{' '}
                       ({confirmedOrder.phone}). Waybill:{' '}
@@ -8575,19 +8575,19 @@ export default function App() {
                   <div className="space-y-2 text-xs border-b border-[#E6E1D8] pb-4">
                     <div className="flex justify-between">
                       <span className="text-[#6E6A63]">Destination</span>
-                      <span className="font-medium text-[#171614] text-right">
+                      <span className="font-medium text-[#5C5852] text-right">
                         {confirmedOrder.city}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#6E6A63]">Address</span>
-                      <span className="font-medium text-[#171614] text-right">
+                      <span className="font-medium text-[#5C5852] text-right">
                         {confirmedOrder.address}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#6E6A63]">Payment Method</span>
-                      <span className="font-medium text-[#171614]">
+                      <span className="font-medium text-[#5C5852]">
                         {confirmedOrder.paymentMethod === 'mpesa'
                           ? 'M-Pesa STK Push / Paybill'
                           : confirmedOrder.paymentMethod === 'whatsapp'
@@ -8641,7 +8641,7 @@ export default function App() {
                   </div>
 
                   <div className="space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#5C5852]">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#171614]">
                       Itemized Summary
                     </p>
                     {confirmedOrder.items.map((item) => (
@@ -8650,7 +8650,7 @@ export default function App() {
                         className="flex justify-between gap-3 text-xs"
                       >
                         <div>
-                          <span className="font-medium text-[#171614]">
+                          <span className="font-medium text-[#5C5852]">
                             {item.quantity}× {item.product.name}
                           </span>
                           <p className="text-[#6E6A63]">
@@ -8662,7 +8662,7 @@ export default function App() {
                               : ''}
                           </p>
                         </div>
-                        <span className="font-mono-tabular font-medium text-[#171614] whitespace-nowrap">
+                        <span className="font-mono-tabular font-medium text-[#5C5852] whitespace-nowrap">
                           {formatKes(item.product.priceKes * item.quantity)}
                         </span>
                       </div>
@@ -8762,7 +8762,7 @@ export default function App() {
                                 )
                               }
                               aria-label="Decrease quantity"
-                              className="p-1 text-[#5C5852] hover:text-[#171614] cursor-pointer"
+                              className="p-1 text-[#171614] hover:text-[#171614] cursor-pointer"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
@@ -8780,7 +8780,7 @@ export default function App() {
                                 )
                               }
                               aria-label="Increase quantity"
-                              className="p-1 text-[#5C5852] hover:text-[#171614] cursor-pointer"
+                              className="p-1 text-[#171614] hover:text-[#171614] cursor-pointer"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -8805,7 +8805,7 @@ export default function App() {
                   <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <UserCheck className="w-4 h-4 text-[#C88A2E] shrink-0" />
-                      <span className="text-[11px] text-[#3F3D39]">
+                      <span className="text-[11px] text-[#5C5852]">
                         {memberProfile
                           ? `Signed in as ${memberProfile.name} — order saves to your Order History`
                           : 'Your details automatically create your Customer Account & Order History'}
@@ -8823,7 +8823,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                    <label className="block text-xs font-medium text-[#5C5852] mb-1">
                       Full Name *
                     </label>
                     <input
@@ -8832,13 +8832,13 @@ export default function App() {
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="e.g. Wanjiku Mwangi"
-                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                      <label className="block text-xs font-medium text-[#5C5852] mb-1">
                         Email Address (For Account &amp; Receipt) *
                       </label>
                       <input
@@ -8847,11 +8847,11 @@ export default function App() {
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
                         placeholder="wanjiku@example.co.ke"
-                        className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                      <label className="block text-xs font-medium text-[#5C5852] mb-1">
                         Kenyan Mobile (Courier &amp; M-Pesa) *
                       </label>
                       <input
@@ -8860,19 +8860,19 @@ export default function App() {
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         placeholder="e.g. +254 712 345 678"
-                        className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                    <label className="block text-xs font-medium text-[#5C5852] mb-1">
                       County / Region (1-Day Processing · Ships Next Day)
                     </label>
                     <select
                       value={selectedLocationIdx}
                       onChange={(e) => setSelectedLocationIdx(Number(e.target.value))}
-                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
                     >
                       {KENYA_LOCATIONS.map((loc, idx) => (
                         <option key={loc.city} value={idx}>
@@ -8891,7 +8891,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                    <label className="block text-xs font-medium text-[#5C5852] mb-1">
                       Building, Road, or Landmark
                     </label>
                     <input
@@ -8900,13 +8900,13 @@ export default function App() {
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       placeholder="e.g. Delta Corner Tower, Westlands, 4th Floor"
-                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
                     />
                   </div>
 
                   <div className="pt-2">
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="block text-xs font-medium text-[#3F3D39]">
+                      <span className="block text-xs font-medium text-[#5C5852]">
                         Settlement &amp; Order Method
                       </span>
                       {isOutsideNairobi && (
@@ -8928,8 +8928,8 @@ export default function App() {
                         onClick={() => setPaymentMethod('mpesa')}
                         className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
                           paymentMethod === 'mpesa'
-                            ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614]'
-                            : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                            ? 'border-[#0A2246] bg-[#0A2246]/8 font-semibold text-[#171614]'
+                            : 'border-[#E6E1D8] bg-white text-[#171614]'
                         }`}
                       >
                         <div>M-Pesa Express</div>
@@ -8943,7 +8943,7 @@ export default function App() {
                         className={`p-2.5 text-left rounded border text-xs cursor-pointer ${
                           paymentMethod === 'whatsapp'
                             ? 'border-[#1D5B43] bg-[#1D5B43]/10 font-semibold text-[#171614]'
-                            : 'border-[#E6E1D8] bg-white text-[#5C5852]'
+                            : 'border-[#E6E1D8] bg-white text-[#171614]'
                         }`}
                       >
                         <div>WhatsApp Concierge</div>
@@ -8959,10 +8959,10 @@ export default function App() {
                         }}
                         className={`p-2.5 text-left rounded border text-xs ${
                           isOutsideNairobi
-                            ? 'border-[#E6E1D8] bg-[#F3EFE8] text-[#9E988E] opacity-60 cursor-not-allowed'
+                            ? 'border-[#E6E1D8] bg-[#FAF8F5] text-[#9E988E] opacity-60 cursor-not-allowed'
                             : paymentMethod === 'cod'
-                            ? 'border-[#163A5F] bg-[#163A5F]/8 font-semibold text-[#171614] cursor-pointer'
-                            : 'border-[#E6E1D8] bg-white text-[#5C5852] cursor-pointer'
+                            ? 'border-[#0A2246] bg-[#0A2246]/8 font-semibold text-[#171614] cursor-pointer'
+                            : 'border-[#E6E1D8] bg-white text-[#171614] cursor-pointer'
                         }`}
                       >
                         <div>Cash on Delivery</div>
@@ -8977,7 +8977,7 @@ export default function App() {
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-6 border-t border-[#E6E1D8] bg-[#F3EFE8]">
+            <div className="p-6 border-t border-[#E6E1D8] bg-[#FAF8F5]">
               {activeCartTab === 'history' ? (
                 <button
                   type="button"
@@ -9023,7 +9023,7 @@ export default function App() {
                               key={p.id}
                               type="button"
                               onClick={() => handleApplyPromoCode(p.code)}
-                              className="px-2 py-0.5 text-[10px] font-mono-tabular font-bold rounded bg-[#F3EFE8] hover:bg-[#0A2246] text-[#0A2246] hover:text-white border border-[#DCD5C7] transition-colors cursor-pointer"
+                              className="px-2 py-0.5 text-[10px] font-mono-tabular font-bold rounded bg-[#FAF8F5] hover:bg-[#0A2246] text-[#0A2246] hover:text-white border border-[#DCD5C7] transition-colors cursor-pointer"
                               title={p.description}
                             >
                               {p.code}
@@ -9138,7 +9138,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setCheckoutStep('bag')}
-                        className="px-3.5 py-3 text-xs font-medium text-[#5C5852] hover:text-[#171614] border border-[#DCD5C7] rounded bg-white cursor-pointer whitespace-nowrap"
+                        className="px-3.5 py-3 text-xs font-medium text-[#171614] hover:text-[#171614] border border-[#DCD5C7] rounded bg-white cursor-pointer whitespace-nowrap"
                       >
                         Back
                       </button>
@@ -9209,8 +9209,8 @@ export default function App() {
                       }
                       className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
                         zoomModal.activeView === 'primary'
-                          ? 'bg-[#163A5F] text-white'
-                          : 'text-[#524E48] hover:text-[#171614]'
+                          ? 'bg-[#0A2246] text-white'
+                          : 'text-[#171614] hover:text-[#171614]'
                       }`}
                     >
                       Bottle + Swatch
@@ -9224,8 +9224,8 @@ export default function App() {
                       }
                       className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap ${
                         zoomModal.activeView === 'secondary'
-                          ? 'bg-[#163A5F] text-white'
-                          : 'text-[#524E48] hover:text-[#171614]'
+                          ? 'bg-[#0A2246] text-white'
+                          : 'text-[#171614] hover:text-[#171614]'
                       }`}
                     >
                       Swatch Card Close-Up
@@ -9248,7 +9248,7 @@ export default function App() {
                       )
                     }
                     title="Zoom Out"
-                    className="p-1 text-[#524E48] hover:text-[#171614] cursor-pointer"
+                    className="p-1 text-[#171614] hover:text-[#171614] cursor-pointer"
                   >
                     <ZoomOut className="w-3.5 h-3.5" />
                   </button>
@@ -9261,8 +9261,8 @@ export default function App() {
                       }
                       className={`px-2 py-0.5 text-xs font-mono-tabular rounded transition-colors cursor-pointer ${
                         zoomModal.zoomLevel === lvl
-                          ? 'bg-[#163A5F] text-white font-semibold'
-                          : 'text-[#524E48] hover:bg-[#EAE5DC]'
+                          ? 'bg-[#0A2246] text-white font-semibold'
+                          : 'text-[#171614] hover:bg-[#EAE5DC]'
                       }`}
                     >
                       {lvl}×
@@ -9281,7 +9281,7 @@ export default function App() {
                       )
                     }
                     title="Zoom In"
-                    className="p-1 text-[#524E48] hover:text-[#171614] cursor-pointer"
+                    className="p-1 text-[#171614] hover:text-[#171614] cursor-pointer"
                   >
                     <ZoomIn className="w-3.5 h-3.5" />
                   </button>
@@ -9291,7 +9291,7 @@ export default function App() {
                   type="button"
                   onClick={() => setZoomModal(null)}
                   aria-label="Close zoom inspector"
-                  className="p-1.5 rounded bg-[#EAE5DC] text-[#171614] hover:bg-[#171614] hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 rounded bg-[#EAE5DC] text-[#5C5852] hover:bg-[#5C5852] hover:text-white transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -9378,7 +9378,7 @@ export default function App() {
                       );
                     }}
                     title="Previous Iroshizuku Ink Shade"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#FAF8F5]/95 border border-[#DCD5C7] text-[#171614] hover:bg-[#163A5F] hover:text-white shadow-md transition-colors cursor-pointer"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#FAF8F5]/95 border border-[#DCD5C7] text-[#5C5852] hover:bg-[#0A2246] hover:text-white shadow-md transition-colors cursor-pointer"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
@@ -9406,7 +9406,7 @@ export default function App() {
                       );
                     }}
                     title="Next Iroshizuku Ink Shade"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#FAF8F5]/95 border border-[#DCD5C7] text-[#171614] hover:bg-[#163A5F] hover:text-white shadow-md transition-colors cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-[#FAF8F5]/95 border border-[#DCD5C7] text-[#5C5852] hover:bg-[#0A2246] hover:text-white shadow-md transition-colors cursor-pointer"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -9415,7 +9415,7 @@ export default function App() {
             </div>
 
             {/* Bottom Inspector Helper & Quick Add Bar */}
-            <div className="px-4 sm:px-6 py-3 border-t border-[#E6E1D8] bg-[#F3EFE8] flex flex-wrap items-center justify-between gap-3 text-xs text-[#5C5852]">
+            <div className="px-4 sm:px-6 py-3 border-t border-[#E6E1D8] bg-[#FAF8F5] flex flex-wrap items-center justify-between gap-3 text-xs text-[#5C5852]">
               <span>
                 Move cursor across image to pan at <strong>{zoomModal.zoomLevel}×</strong> magnification · Click image to cycle zoom (1× / 2× / 3×)
               </span>
@@ -9432,7 +9432,7 @@ export default function App() {
                         handleAddInkShadeDirectly(shade);
                       }
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold tracking-wider uppercase rounded bg-[#163A5F] hover:bg-[#102B47] text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold tracking-wider uppercase rounded bg-[#0A2246] hover:bg-[#102B47] text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add 50ml Bottle · KES 6,000</span>

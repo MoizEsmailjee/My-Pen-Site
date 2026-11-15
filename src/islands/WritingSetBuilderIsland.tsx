@@ -274,8 +274,8 @@ export function WritingSetBuilderIsland({
                       onClick={() => handleSelectSeries(s.id)}
                       className={`p-2 rounded border text-left transition-colors cursor-pointer ${
                         active
-                          ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614]'
-                          : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#5C5852] hover:border-[#BDB6AA]'
+                          ? 'border-[#0A2246] bg-[#0A2246]/8 text-[#171614]'
+                          : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#171614] hover:border-[#BDB6AA]'
                       }`}
                     >
                       <div className="text-xs font-semibold truncate">{s.label}</div>
@@ -307,8 +307,8 @@ export function WritingSetBuilderIsland({
                         outOfStock
                           ? 'border-[#E6E1D8] bg-[#FAF8F5] text-[#8C857B] opacity-50 cursor-not-allowed line-through'
                           : active
-                            ? 'border-[#163A5F] bg-[#163A5F] text-white font-medium cursor-pointer'
-                            : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614] cursor-pointer'
+                            ? 'border-[#0A2246] bg-[#0A2246] text-white font-medium cursor-pointer'
+                            : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#171614] hover:border-[#171614] cursor-pointer'
                       }`}
                     >
                       {v.swatchHex && (
@@ -337,8 +337,8 @@ export function WritingSetBuilderIsland({
                       onClick={() => setSelectedNib(nib)}
                       className={`px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap ${
                         active
-                          ? 'border-[#163A5F] bg-[#163A5F] text-white font-semibold'
-                          : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614]'
+                          ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
+                          : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#171614] hover:border-[#171614]'
                       }`}
                     >
                       {nib} ({nib === 'Fine' ? '0.35mm' : '0.50mm'})
@@ -397,8 +397,8 @@ export function WritingSetBuilderIsland({
                   onClick={() => setIncludeCon40((prev) => !prev)}
                   className={`w-full py-2 px-3 text-xs font-semibold rounded border flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
                     includeCon40
-                      ? 'border-[#163A5F] bg-[#163A5F]/10 text-[#163A5F]'
-                      : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614]'
+                      ? 'border-[#0A2246] bg-[#0A2246]/10 text-[#0A2246]'
+                      : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#171614] hover:border-[#171614]'
                   }`}
                 >
                   {includeCon40 ? (
@@ -436,14 +436,14 @@ export function WritingSetBuilderIsland({
                   onClick={() => setInkLine('waterman')}
                   className={`p-2.5 rounded border text-left transition-colors cursor-pointer ${
                     inkLine === 'waterman'
-                      ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614]'
-                      : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#5C5852]'
+                      ? 'border-[#0A2246] bg-[#0A2246]/8 text-[#171614]'
+                      : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#171614]'
                   }`}
                 >
                   <div className="text-xs font-semibold text-[#171614]">
                     Waterman Paris (50ml)
                   </div>
-                  <div className="font-mono-tabular text-[11px] text-[#163A5F]">
+                  <div className="font-mono-tabular text-[11px] text-[#0A2246]">
                     KES 2,000 · 3 Classic Shades
                   </div>
                 </button>
@@ -452,14 +452,14 @@ export function WritingSetBuilderIsland({
                   onClick={() => setInkLine('iroshizuku')}
                   className={`p-2.5 rounded border text-left transition-colors cursor-pointer ${
                     inkLine === 'iroshizuku'
-                      ? 'border-[#163A5F] bg-[#163A5F]/8 text-[#171614]'
-                      : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#5C5852]'
+                      ? 'border-[#0A2246] bg-[#0A2246]/8 text-[#171614]'
+                      : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#171614]'
                   }`}
                 >
                   <div className="text-xs font-semibold text-[#171614]">
                     Pilot Iroshizuku (50ml)
                   </div>
-                  <div className="font-mono-tabular text-[11px] text-[#163A5F]">
+                  <div className="font-mono-tabular text-[11px] text-[#0A2246]">
                     KES 6,000 · 15 Shades In Stock
                   </div>
                 </button>
@@ -494,8 +494,8 @@ export function WritingSetBuilderIsland({
                             onClick={() => setSelectedWatermanVariantId(v.id)}
                             className={`px-2.5 py-1.5 rounded border text-xs flex items-center gap-2 transition-colors cursor-pointer ${
                               active
-                                ? 'border-[#163A5F] bg-[#163A5F] text-white font-medium'
-                                : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#524E48] hover:border-[#171614]'
+                                ? 'border-[#0A2246] bg-[#0A2246] text-white font-medium'
+                                : 'border-[#E6E1D8] bg-[#FAF8F5] text-[#171614] hover:border-[#171614]'
                             }`}
                           >
                             <span
@@ -525,7 +525,7 @@ export function WritingSetBuilderIsland({
                               shadeStock === 0
                                 ? 'opacity-35 cursor-not-allowed'
                                 : active
-                                  ? 'bg-white ring-1 ring-[#163A5F] cursor-pointer'
+                                  ? 'bg-white ring-1 ring-[#0A2246] cursor-pointer'
                                   : 'hover:bg-white cursor-pointer'
                             }`}
                           >
@@ -573,7 +573,7 @@ export function WritingSetBuilderIsland({
                 className={`inline-flex items-center justify-center gap-2 px-5 py-3 text-xs font-semibold tracking-wider uppercase rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   bundleAdded
                     ? 'bg-[#1D5B43] text-white'
-                    : 'bg-[#163A5F] hover:bg-[#102B47] text-white'
+                    : 'bg-[#0A2246] hover:bg-[#102B47] text-white'
                 }`}
               >
                 {bundleAdded ? (

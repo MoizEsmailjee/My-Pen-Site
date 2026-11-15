@@ -77,7 +77,7 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 function mixHexColors(hexes: string[]): string {
-  if (hexes.length === 0) return '#163A5F';
+  if (hexes.length === 0) return '#0A2246';
   const totals = hexes.reduce(
     (acc, hex) => {
       const [r, g, b] = hexToRgb(hex);
@@ -245,7 +245,7 @@ export function InkMixingSetBuilderIsland({
       className="mt-16 pt-14 border-t border-[#DCD5C7]"
     >
       {/* Marketable Triple Ink Combo Banner: 10% OFF + FREE Nationwide Delivery */}
-      <div className="mb-8 rounded-lg border-2 border-[#C88A2E] bg-gradient-to-r from-[#0A2246] via-[#133262] to-[#0A2246] text-white p-6 sm:p-7 shadow-sm relative overflow-hidden">
+      <div className="mb-8 rounded-lg border-2 border-[#C88A2E] bg-gradient-to-r from-[#0A2246] via-[#133468] to-[#0A2246] text-white p-6 sm:p-7 shadow-sm relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex flex-wrap items-center gap-2">
@@ -294,7 +294,7 @@ export function InkMixingSetBuilderIsland({
       {/* Section Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
         <div>
-          <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#B58435] mb-2">
+          <p className="text-xs font-medium tracking-[0.16em] uppercase text-[#C88A2E] mb-2">
             Bespoke Chromatic Trio · 3 × 50ml Pilot Iroshizuku Glass Flacons (150ml Total)
           </p>
           <h4
@@ -323,7 +323,7 @@ export function InkMixingSetBuilderIsland({
                 className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors cursor-pointer whitespace-nowrap ${
                   isCurrentPreset
                     ? 'bg-[#0A2246] text-white border-[#0A2246]'
-                    : 'bg-white text-[#3F3D39] border-[#DCD5C7] hover:border-[#0A2246]'
+                    : 'bg-white text-[#171614] border-[#DCD5C7] hover:border-[#0A2246]'
                 }`}
               >
                 {preset.label}
@@ -348,7 +348,7 @@ export function InkMixingSetBuilderIsland({
           {/* 3 Distinct Ink Flacon Cards (Cols 1-8) */}
           <div className="lg:col-span-8 p-6 border-b lg:border-b-0 lg:border-r border-[#E6E1D8] bg-[#FAF8F5]">
             <div className="flex items-center justify-between gap-4 mb-4">
-              <div className="text-xs text-[#524E48]">
+              <div className="text-xs text-[#5C5852]">
                 <span className="font-semibold text-[#0A2246]">
                   Step 1: Select Any Slot Below
                 </span>{' '}
@@ -453,7 +453,7 @@ export function InkMixingSetBuilderIsland({
           <div className="lg:col-span-4 p-6 flex flex-col justify-between bg-white">
             <div className="space-y-4">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#B58435] block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#C88A2E] block">
                   Chromatic Alchemy Preview
                 </span>
                 <h4 className="font-serif-display text-xl font-semibold text-[#0A2246] mt-0.5">
@@ -467,7 +467,7 @@ export function InkMixingSetBuilderIsland({
 
               {/* 3 Pure Shades + 4 Mixed Ratio Swatches */}
               <div className="p-3.5 rounded-lg bg-[#FAF8F5] border border-[#E6E1D8] space-y-3">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-[#524E48]">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-[#171614]">
                   Pure Flacon Shades (3 × 50ml)
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -488,7 +488,7 @@ export function InkMixingSetBuilderIsland({
                 </div>
 
                 <div className="pt-2 border-t border-[#E6E1D8]">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-[#524E48] mb-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-[#171614] mb-2">
                     1:1 Pairwise &amp; Trio Custom Blends
                   </div>
                   <div className="grid grid-cols-4 gap-1.5 text-center">
@@ -497,7 +497,7 @@ export function InkMixingSetBuilderIsland({
                         className="w-full h-5 rounded-xs mb-1 border border-black/10"
                         style={{ backgroundColor: blend1And2Hex }}
                       />
-                      <span className="text-[10px] font-mono-tabular text-[#524E48] block truncate">
+                      <span className="text-[10px] font-mono-tabular text-[#5C5852] block truncate">
                         01 + 02
                       </span>
                     </div>
@@ -506,7 +506,7 @@ export function InkMixingSetBuilderIsland({
                         className="w-full h-5 rounded-xs mb-1 border border-black/10"
                         style={{ backgroundColor: blend2And3Hex }}
                       />
-                      <span className="text-[10px] font-mono-tabular text-[#524E48] block truncate">
+                      <span className="text-[10px] font-mono-tabular text-[#5C5852] block truncate">
                         02 + 03
                       </span>
                     </div>
@@ -515,7 +515,7 @@ export function InkMixingSetBuilderIsland({
                         className="w-full h-5 rounded-xs mb-1 border border-black/10"
                         style={{ backgroundColor: blend1And3Hex }}
                       />
-                      <span className="text-[10px] font-mono-tabular text-[#524E48] block truncate">
+                      <span className="text-[10px] font-mono-tabular text-[#5C5852] block truncate">
                         01 + 03
                       </span>
                     </div>
@@ -629,7 +629,7 @@ export function InkMixingSetBuilderIsland({
                     className={`px-2.5 py-1 text-xs font-medium rounded border transition-colors cursor-pointer whitespace-nowrap ${
                       active
                         ? 'bg-[#0A2246] text-white border-[#0A2246]'
-                        : 'bg-[#FAF8F5] text-[#524E48] border-[#DCD5C7] hover:border-[#0A2246]'
+                        : 'bg-[#FAF8F5] text-[#171614] border-[#DCD5C7] hover:border-[#0A2246]'
                     }`}
                   >
                     {family}

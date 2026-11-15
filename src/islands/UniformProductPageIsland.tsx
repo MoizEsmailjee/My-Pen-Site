@@ -285,7 +285,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
               <button
                 type="button"
                 onClick={handleTriggerZoom}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#FAF8F5] text-[#171614] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#FAF8F5] text-[#5C5852] hover:bg-[#0A2246] hover:text-white rounded border border-[#DCD5C7] transition-colors cursor-pointer whitespace-nowrap shrink-0"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
                 <span>Zoom 3×</span>
@@ -298,8 +298,8 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
               className="aspect-square max-h-[380px] w-full mx-auto flex items-center justify-center p-4 cursor-zoom-in"
             >
               {imgFailed ? (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#F2EFE9] to-[#E5DFD3] text-[#3F3D39] rounded p-6 text-center">
-                  <Feather className="w-8 h-8 mb-2 stroke-[1.25] text-[#163A5F]" />
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#F2EFE9] to-[#E5DFD3] text-[#5C5852] rounded p-6 text-center">
+                  <Feather className="w-8 h-8 mb-2 stroke-[1.25] text-[#0A2246]" />
                   <span className="font-serif-display text-lg font-medium">
                     {product.name}
                   </span>
@@ -367,11 +367,11 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
           </div>
 
           {/* Included in the Presentation Box */}
-          <div className="mt-6 p-4 rounded bg-[#F3EFE8] border border-[#E6E1D8]">
+          <div className="mt-6 p-4 rounded bg-[#FAF8F5] border border-[#E6E1D8]">
             <p className="text-xs font-semibold uppercase tracking-wider text-[#0A2246] mb-2">
               Included in the Presentation Box
             </p>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-[#3F3D39]">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-[#5C5852]">
               {(product.includedItems || []).map((inc) => (
                 <li key={inc} className="flex items-start gap-2">
                   <Check className="w-3.5 h-3.5 text-[#1D5B43] shrink-0 mt-0.5" />
@@ -386,7 +386,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
         <div className="lg:col-span-6 p-6 lg:p-8 flex flex-col justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-[#6E6A63] mb-2">
-              <span className="uppercase tracking-wider font-semibold text-[#B58435]">
+              <span className="uppercase tracking-wider font-semibold text-[#C88A2E]">
                 {product.category} · {product.Origin}
               </span>
               <span aria-hidden="true">·</span>
@@ -414,7 +414,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
               <button
                 type="button"
                 onClick={() => setShowReviews((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0A2246] hover:text-[#B58435] cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0A2246] hover:text-[#C88A2E] cursor-pointer"
               >
                 <StarRatingDisplay rating={avgRating} size="xs" />
                 <span className="font-mono-tabular font-semibold">
@@ -462,7 +462,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                         isSelected
                           ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
-                          : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246]'
+                          : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246]'
                       }`}
                     >
                       {variant.swatchHex && (
@@ -530,7 +530,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
                         className={`px-3.5 py-2 text-xs rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                           selected
                             ? 'border-[#0A2246] bg-[#0A2246] text-white font-semibold'
-                            : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246]'
+                            : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246]'
                         }`}
                       >
                         <span>
@@ -544,7 +544,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
                                 : 'bg-rose-50 text-rose-700'
                               : selected
                               ? 'bg-white/15 text-[#E5B25D]'
-                              : 'bg-[#F3EFE8] text-[#0A2246]'
+                              : 'bg-[#FAF8F5] text-[#0A2246]'
                           }`}
                         >
                           {nibStock === 0 ? 'Out' : `${nibStock} left`}
@@ -558,7 +558,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
 
             {/* Complete Technical Specifications Table */}
             <div className="mt-5 pt-4 border-t border-[#E6E1D8]">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[#5C5852] mb-2.5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#171614] mb-2.5">
                 {product.name} — Technical Specifications
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
@@ -568,20 +568,20 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
                     className="flex items-baseline justify-between gap-2 py-1 border-b border-[#ECE8DF]"
                   >
                     <span className="text-[#6E6A63] shrink-0">{spec.label}</span>
-                    <span className="font-medium text-[#171614] text-right">
+                    <span className="font-medium text-[#5C5852] text-right">
                       {spec.value}
                     </span>
                   </div>
                 ))}
                 <div className="flex items-baseline justify-between gap-2 py-1 border-b border-[#ECE8DF]">
                   <span className="text-[#6E6A63] shrink-0">Active Edition</span>
-                  <span className="font-medium text-[#171614] text-right">
+                  <span className="font-medium text-[#5C5852] text-right">
                     {shortVariantName}
                   </span>
                 </div>
                 <div className="flex items-baseline justify-between gap-2 py-1 border-b border-[#ECE8DF]">
                   <span className="text-[#6E6A63] shrink-0">Origin</span>
-                  <span className="font-medium text-[#171614] text-right">
+                  <span className="font-medium text-[#5C5852] text-right">
                     {product.Origin}
                   </span>
                 </div>
@@ -695,7 +695,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
                   className={`inline-flex items-center justify-center gap-1.5 py-3 px-4 text-xs font-semibold rounded border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                     isWishlisted
                       ? 'border-[#C88A2E] bg-[#C88A2E]/12 text-[#0A2246]'
-                      : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#0A2246] hover:text-[#0A2246]'
+                      : 'border-[#DCD5C7] bg-white text-[#171614] hover:border-[#0A2246] hover:text-[#0A2246]'
                   }`}
                 >
                   <Heart
@@ -711,7 +711,7 @@ export const UniformProductPageIsland: React.FC<UniformProductPageIslandProps> =
             <button
               type="button"
               onClick={() => setShowReviews((prev) => !prev)}
-              className="w-full inline-flex items-center justify-between px-4 py-2 text-xs font-semibold text-[#0A2246] bg-white hover:bg-[#F3EFE8] rounded border border-[#DCD5C7] transition-colors cursor-pointer"
+              className="w-full inline-flex items-center justify-between px-4 py-2 text-xs font-semibold text-[#0A2246] bg-white hover:bg-[#FAF8F5] rounded border border-[#DCD5C7] transition-colors cursor-pointer"
             >
               <span className="inline-flex items-center gap-2">
                 <MessageSquare className="w-3.5 h-3.5 text-[#C88A2E]" />

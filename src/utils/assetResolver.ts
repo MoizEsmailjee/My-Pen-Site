@@ -10,13 +10,30 @@ export function resolveAssetUrl(url?: string | null): string {
     return trimmed;
   }
 
-  // Redirect any legacy cached Pilot 30ml generated image paths to the Penzorama photo
+  // Resolve official Prestige Pens Kenya logo directly
+  if (
+    trimmed.includes('Prestige_Pens_') ||
+    trimmed.includes('pens_r_us_logo') ||
+    trimmed.includes('Gemini_Generated_Image_644qn3644qn3644q')
+  ) {
+    return '/assets/aistudio/Prestige_Pens_23fbbbf6.jpg';
+  }
+
+  // Preserve the official Penzorama & Paperwhisper Pilot 30ml images directly
+  if (
+    trimmed.startsWith('/assets/images/penzorama_pilot_30ml_') ||
+    trimmed.startsWith('/assets/images/paperwhisper_pilot_30ml_')
+  ) {
+    return trimmed;
+  }
+
+  // Redirect any legacy cached Pilot 30ml generated image paths to the matching Penzorama photo
   if (trimmed.includes('pilot_30ml_')) {
-    if (trimmed.includes('black_box')) {
-      return '/assets/images/penzorama_pilot_30ml_black.jpg';
-    }
     if (trimmed.includes('blue_black')) {
       return '/assets/images/penzorama_pilot_30ml_blue_black.jpg';
+    }
+    if (trimmed.includes('black')) {
+      return '/assets/images/penzorama_pilot_30ml_black.jpg';
     }
     return '/assets/images/penzorama_pilot_30ml_blue.jpg';
   }
