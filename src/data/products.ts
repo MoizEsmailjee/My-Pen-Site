@@ -915,7 +915,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Classic royal sapphire blue with benchmark flow and easy-wash maintenance',
         swatchHex: '#15489C',
         image: '/assets/waterman/waterman_serenity_blue.jpg',
-        stockCount: 9,
+        stockCount: 5,
       },
       {
         id: 'waterman-intense-black',
@@ -923,7 +923,7 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Deep, authoritative charcoal-black for crisp everyday correspondence and signatures',
         swatchHex: '#1C1C1B',
         image: '/assets/waterman/waterman_intense_black.jpg',
-        stockCount: 7,
+        stockCount: 5,
       },
       {
         id: 'waterman-audacious-red',
@@ -931,11 +931,11 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Vibrant, expressive Parisian crimson-red for editing, annotations, and bold notes',
         swatchHex: '#C42828',
         image: '/assets/waterman/waterman_audacious_red.jpg',
-        stockCount: 2,
+        stockCount: 5,
       },
     ],
     specs: [
-      { label: 'Available Shades', value: 'Serenity Blue, Intense Black & Audacious Red' },
+      { label: 'Available Shades', value: 'Serenity Blue (5), Intense Black (5) & Audacious Red (5) · Total 15' },
       { label: 'Volume', value: '50 ml Multi-Faceted Glass Bottle' },
       { label: 'Bottle Feature', value: 'Angled Side Facets Allow Tilted Low-Ink Filling' },
       { label: 'Compatibility', value: 'Safe for All Pilot, Waterman & Vintage Fountain Pens' },
@@ -949,7 +949,7 @@ export const FEATURED_PRODUCTS: Product[] = [
   {
     id: 'pilot-30ml-ink',
     name: 'PILOT 30ML BOTTLED INK · CLASSIC SERIES',
-    japaneseTitle: 'パイロット 万年筆インキ 30ml · Black, Blue & Blue-Black',
+    japaneseTitle: 'パイロット 万年筆インキ 30ml · Blue, Black & Blue-Black',
     category: 'Bottled Inks',
     priceKes: 1200,
     image: penzoramaBlueImg,
@@ -980,26 +980,26 @@ export const FEATURED_PRODUCTS: Product[] = [
     Origin: 'Made in Japan',
     availability: 'In Stock in Nairobi',
     shortSummary:
-      'Classic wide-base 30ml Japanese glass ink bottles with tight-sealing screw caps in Black, Blue, and Blue-Black—smooth, well-lubricated everyday flow.',
+      'Classic wide-base 30ml Japanese glass ink bottles with tight-sealing screw caps in Blue, Black, and Blue-Black—smooth, well-lubricated everyday flow.',
     description:
-      'Formulated in Japan by Pilot Corporation for dependable daily correspondence, journaling, and office writing, the classic 30ml Pilot Fountain Pen Ink bottle features a wide-base square-flared glass flacon stamped "PILOT MADE IN JAPAN" and a tight-sealing ribbed screw-top cap. Smooth and well-lubricated across Japanese Fine and Medium nibs, available in crisp pitch Black (INK-30-B), bright royal Blue (INK-30-L), and classic midnight Blue-Black (INK-30-BB).',
+      'Formulated in Japan by Pilot Corporation for dependable daily correspondence, journaling, and office writing, the classic 30ml Pilot Fountain Pen Ink bottle features a wide-base square-flared glass flacon stamped "PILOT MADE IN JAPAN" and a tight-sealing ribbed screw-top cap. Smooth and well-lubricated across Japanese Fine and Medium nibs, available in bright royal Blue (INK-30-L), crisp pitch Black (INK-30-B), and classic midnight Blue-Black (INK-30-BB).',
     variantLabel: 'Select Pilot 30ml Shade (KES 1,200)',
     variants: [
-      {
-        id: 'pilot-30ml-black',
-        label: 'Black · INK-30-B (Kuro)',
-        sublabel: 'Crisp, deep everyday fountain pen black with smooth lubricated flow on studio and office paper',
-        swatchHex: '#18181A',
-        image: penzoramaBlackImg,
-        stockCount: 10,
-      },
       {
         id: 'pilot-30ml-blue',
         label: 'Blue · INK-30-L (Ao)',
         sublabel: 'Vibrant, classic royal blue with effortless pen rinsing and balanced wet flow',
         swatchHex: '#1246A8',
         image: penzoramaBlueImg,
-        stockCount: 9,
+        stockCount: 4,
+      },
+      {
+        id: 'pilot-30ml-black',
+        label: 'Black · INK-30-B (Kuro)',
+        sublabel: 'Crisp, deep everyday fountain pen black with smooth lubricated flow on studio and office paper',
+        swatchHex: '#18181A',
+        image: penzoramaBlackImg,
+        stockCount: 4,
       },
       {
         id: 'pilot-30ml-blue-black',
@@ -1007,11 +1007,11 @@ export const FEATURED_PRODUCTS: Product[] = [
         sublabel: 'Timeless midnight navy blue-black prized for executive clarity and restrained shading',
         swatchHex: '#172947',
         image: penzoramaBlueBlackImg,
-        stockCount: 2,
+        stockCount: 4,
       },
     ],
     specs: [
-      { label: 'Available Shades', value: 'Black (INK-30-B), Blue (INK-30-L) & Blue-Black (INK-30-BB)' },
+      { label: 'Available Shades', value: 'Blue (4), Black (4) & Blue-Black (4) · Total 12' },
       { label: 'Volume & Flacon', value: '30 ml Wide-Base Glass Bottle · Ribbed Screw-Top Cap' },
       { label: 'Formulation', value: 'Smooth Lubricated Water-Based Dye Ink (Made in Japan)' },
       { label: 'Compatibility', value: 'Pilot CON-40, Kakuno, Prera & All Fountain Pens' },

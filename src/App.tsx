@@ -108,8 +108,8 @@ const BRAND_LOGO_SRC =
 const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
 const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v3';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
-const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v8';
-const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v3';
+const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v10';
+const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v4';
 const PROMO_CODES_STORAGE_KEY = 'pens_r_us_promo_codes_v1';
 const REVIEWS_STORAGE_KEY = 'pens_r_us_reviews_v1';
 const RESTOCK_ALERTS_STORAGE_KEY = 'pens_r_us_restock_alerts_v1';
@@ -383,20 +383,44 @@ function formatKes(amount: number): string {
 
 function VariantStockIndicator({
   stockCount,
+  fineStockCount,
+  mediumStockCount,
+  hasNibSelector = false,
   availabilityLabel,
   compact = false,
 }: {
   stockCount?: number;
+  fineStockCount?: number;
+  mediumStockCount?: number;
+  hasNibSelector?: boolean;
   availabilityLabel?: string;
   compact?: boolean;
 }) {
-  const count = typeof stockCount === 'number' ? stockCount : 10;
+  const count =
+    hasNibSelector &&
+    typeof fineStockCount === 'number' &&
+    typeof mediumStockCount === 'number'
+      ? fineStockCount + mediumStockCount
+      : typeof stockCount === 'number'
+      ? stockCount
+      : 10;
+
+  const nibBreakdownText =
+    hasNibSelector &&
+    typeof fineStockCount === 'number' &&
+    typeof mediumStockCount === 'number'
+      ? `F: ${fineStockCount} · M: ${mediumStockCount} (Total: ${count})`
+      : null;
 
   if (count === 0) {
     return (
       <span className="inline-flex items-center gap-1.5 text-rose-700 font-semibold">
         <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
-        <span>{compact ? 'Out of Stock · Add to Wishlist' : 'Out of Stock · Add to Wishlist (0 left)'}</span>
+        <span>
+          {compact
+            ? 'Out of Stock · Add to Wishlist'
+            : 'Out of Stock · Add to Wishlist (0 left)'}
+        </span>
       </span>
     );
   }
@@ -409,7 +433,9 @@ function VariantStockIndicator({
           <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
         </span>
         <span>
-          {compact
+          {nibBreakdownText
+            ? `Low Stock · ${nibBreakdownText}`
+            : compact
             ? `Low Stock · Only ${count} left`
             : `Low Stock · Only ${count} left in Nairobi`}
         </span>
@@ -421,7 +447,9 @@ function VariantStockIndicator({
     <span className="inline-flex items-center gap-1.5 text-[#6E6A63] font-normal">
       <span className="w-1.5 h-1.5 rounded-full bg-[#9E988E] shrink-0" />
       <span>
-        {availabilityLabel && !compact
+        {nibBreakdownText
+          ? nibBreakdownText
+          : availabilityLabel && !compact
           ? `${availabilityLabel} (${count} in stock)`
           : `${count} in stock`}
       </span>
@@ -601,8 +629,37 @@ export default function App() {
 
   const [isMerchantAdminOpen, setIsMerchantAdminOpen] = useState(false);
   const [adminInitialTab] = useState<AdminTabId>('products');
-  const [isPreviewAdminUnlocked, setIsPreviewAdminUnlocked] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
+
+  // Private Backend Route (#admin or ?admin=true) & Keyboard Shortcut (Ctrl+Shift+A / Cmd+Shift+A)
+  useEffect(() => {
+    const checkAdminRoute = () => {
+      const hash = window.location.hash.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      if (
+        hash === '#admin' ||
+        hash === '#/admin' ||
+        params.get('admin') === 'true' ||
+        params.get('admin') === '1'
+      ) {
+        setIsMerchantAdminOpen(true);
+      }
+    };
+    checkAdminRoute();
+    window.addEventListener('hashchange', checkAdminRoute);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setIsMerchantAdminOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('hashchange', checkAdminRoute);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Stock Manager Ledger State (Tracks inbound stock bought + automatic sales deductions when orders are serviced)
   const [stockLedger, setStockLedger] = useState<StockLedgerEntry[]>(() => {
@@ -807,10 +864,22 @@ export default function App() {
       collection(db, 'products'),
       (snapshot) => {
         if (snapshot.empty) return;
-        const cloudMap = new Map<string, Partial<Product>>();
+        const cloudMap = new Map<
+          string,
+          Partial<Product> & { catalogVersion?: number }
+        >();
         snapshot.docs.forEach((docSnap) => {
-          cloudMap.set(docSnap.id, docSnap.data() as Partial<Product>);
+          const data = docSnap.data() as Partial<Product> & {
+            catalogVersion?: number;
+          };
+          // Only apply Firestore overrides that were saved under catalogVersion >= 10
+          // so stale pre-spreadsheet documents never overwrite the updated F/M & ink stock quantities!
+          if (data.catalogVersion && data.catalogVersion >= 10) {
+            cloudMap.set(docSnap.id, data);
+          }
         });
+
+        if (cloudMap.size === 0) return;
 
         setCatalogProducts((prev) => {
           const merged = prev.map((prod) => {
@@ -871,7 +940,7 @@ export default function App() {
                       ],
                 specs: [
                   { label: 'Origin', value: 'Made in Japan' },
-                  { label: 'Dispatch', value: 'Same-Day Nairobi Courier' },
+                  { label: 'Dispatch', value: '1-Day Processing · Ships Next Day' },
                 ],
                 includedItems: [customProd.name, 'Presentation Box'],
               });
@@ -890,11 +959,15 @@ export default function App() {
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
+          // Only apply Firestore store_settings if saved with settingsVersion >= 4
+          // so legacy freeDeliveryThresholdKes: 6000 / inkMixingSetBundleKes: 20000 docs don't overwrite the new rules
           if (
+            data.settingsVersion &&
+            data.settingsVersion >= 4 &&
             typeof data.inkMixingSetBundleKes === 'number' &&
             typeof data.freeDeliveryThresholdKes === 'number'
           ) {
-          setStoreSettings({
+            setStoreSettings({
               inkMixingSetBundleKes: data.inkMixingSetBundleKes,
               freeDeliveryThresholdKes: data.freeDeliveryThresholdKes,
               whatsappConciergePhone:
@@ -1158,7 +1231,6 @@ export default function App() {
   }, [firebaseUser]);
 
   const isAuthorizedAdmin = useMemo(() => {
-    if (isPreviewAdminUnlocked) return true;
     if (!firebaseUser) return false;
     const normalizedEmail = (resolvedFirebaseEmail || '').trim().toLowerCase();
     const isGoogleProvider = Boolean(
@@ -1168,7 +1240,7 @@ export default function App() {
       normalizedEmail === AUTHORIZED_ADMIN_EMAIL &&
       (firebaseUser.emailVerified || isGoogleProvider);
     return Boolean(isBootstrappedOwner || isFirestoreAdminDoc);
-  }, [firebaseUser, resolvedFirebaseEmail, isFirestoreAdminDoc, isPreviewAdminUnlocked]);
+  }, [firebaseUser, resolvedFirebaseEmail, isFirestoreAdminDoc]);
 
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(() => {
     try {
@@ -1313,8 +1385,8 @@ export default function App() {
             estimatedDelivery:
               ord.estimatedDelivery ||
               (ord.orderNumber === 'PRU-3910'
-                ? 'Delivered & Signed · Received at Destination'
-                : 'Same-Day Nairobi Courier (2–4 hrs)'),
+                ? 'Delivered & Signed · Free Delivery (Order Over KES 10,000)'
+                : '1-Day Processing · Ships Next Day (Nairobi Shs. 300 / Outside Nairobi Shs. 700)'),
           }));
           // Ensure the seed orders for 'Processing' and 'Out for Courier' exist so all 3 tracking states are visible
           const existingNumbers = new Set(hydratedSaved.map((o) => o.orderNumber));
@@ -2845,6 +2917,7 @@ export default function App() {
         description: product.description,
         hasNibSelector: product.hasNibSelector,
         variants: product.variants,
+        catalogVersion: 10,
         updatedAt: Date.now(),
       });
       setCloudSyncStatus('Saved to Cloud Firestore');
@@ -2910,7 +2983,7 @@ export default function App() {
     setCatalogProducts(FEATURED_PRODUCTS);
     setStoreSettings({
       inkMixingSetBundleKes: 16200,
-      freeDeliveryThresholdKes: 6000,
+      freeDeliveryThresholdKes: 10000,
       whatsappConciergePhone: '254700000000',
     });
     if (auth.currentUser) {
@@ -2934,6 +3007,7 @@ export default function App() {
           inkMixingSetBundleKes: storeSettings.inkMixingSetBundleKes,
           freeDeliveryThresholdKes: storeSettings.freeDeliveryThresholdKes,
           whatsappConciergePhone: storeSettings.whatsappConciergePhone || '254700000000',
+          settingsVersion: 4,
           updatedAt: Date.now(),
         });
       } catch (error) {
@@ -2955,6 +3029,7 @@ export default function App() {
           inkMixingSetBundleKes: next.inkMixingSetBundleKes,
           freeDeliveryThresholdKes: next.freeDeliveryThresholdKes,
           whatsappConciergePhone: next.whatsappConciergePhone || '254700000000',
+          settingsVersion: 4,
           updatedAt: Date.now(),
         });
       } catch (error) {
@@ -3597,8 +3672,18 @@ export default function App() {
             </div>
           </div>
 
-          {/* Zone 3: 1 primary action */}
-          <div className="flex items-center shrink-0">
+          {/* Zone 3: Primary Bag Action (+ Private Admin Button only for Authenticated Admin) */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {isAuthorizedAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsMerchantAdminOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold tracking-wider uppercase text-[#0A2246] bg-[#FFFDF8] hover:bg-[#F3EFE6] border border-[#C88A2E] rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#C88A2E]" />
+                <span>Admin Console</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -3725,21 +3810,21 @@ export default function App() {
               </p>
             </div>
             <div>
-              <p className="text-xs text-[#6E6A63]">03 · Dispatch in Kenya</p>
+              <p className="text-xs text-[#6E6A63]">03 · 1-Day Order Processing</p>
               <p className="text-sm font-semibold text-[#171614] mt-1">
-                Same-Day Nairobi &amp; Nationwide Courier
+                Ships Out Next Day · Free Over KES 10,000
               </p>
               <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
-                Complimentary Nairobi delivery and nationwide overnight courier to major towns.
+                Order processing time is 1 day — orders are shipped out the next day. Free delivery over KES 10,000; otherwise Shs. 300 in Nairobi and Shs. 700 outside Nairobi.
               </p>
             </div>
             <div>
-              <p className="text-xs text-[#6E6A63]">04 · Flexible Settlement</p>
+              <p className="text-xs text-[#6E6A63]">04 · Bundle Offers &amp; Settlement</p>
               <p className="text-sm font-semibold text-[#171614] mt-1">
-                M-Pesa &amp; Cash on Delivery
+                5% &amp; 10% Combos · Advance Outside Nairobi
               </p>
               <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
-                Inspect your writing instrument upon arrival in Nairobi or settle seamlessly via M-Pesa.
+                Save 5% on Pen + Converter + Ink bundles &amp; 10% on 3-Color Ink Combos (+ Free Delivery). Advance payment required before delivery outside Nairobi.
               </p>
             </div>
           </div>
@@ -4168,6 +4253,9 @@ export default function App() {
                           <span aria-hidden="true">·</span>
                           <VariantStockIndicator
                             stockCount={chosenVariant.stockCount}
+                            fineStockCount={chosenVariant.fineStockCount}
+                            mediumStockCount={chosenVariant.mediumStockCount}
+                            hasNibSelector={product.hasNibSelector}
                             availabilityLabel={product.availability}
                           />
                         </div>
@@ -4339,6 +4427,11 @@ export default function App() {
                             >
                               {(['Fine', 'Medium'] as const).map((nib) => {
                                 const isNibSelected = chosenNib === nib;
+                                const nibStock = getVariantEffectiveStock(
+                                  product,
+                                  chosenVariant,
+                                  nib
+                                );
                                 return (
                                   <button
                                     key={nib}
@@ -4350,7 +4443,9 @@ export default function App() {
                                         : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
                                     }`}
                                   >
-                                    {nib === 'Fine' ? 'Fine (0.35mm)' : 'Medium (0.50mm)'}
+                                    {nib === 'Fine'
+                                      ? `Fine · F (${nibStock})`
+                                      : `Medium · M (${nibStock})`}
                                   </button>
                                 );
                               })}
@@ -4669,7 +4764,13 @@ export default function App() {
                               {variant.nibEngraving || 'Gold-Tone Smiley Nib'}
                             </span>
                             <span aria-hidden="true">·</span>
-                            <VariantStockIndicator stockCount={variant.stockCount} compact />
+                            <VariantStockIndicator
+                              stockCount={variant.stockCount}
+                              fineStockCount={variant.fineStockCount}
+                              mediumStockCount={variant.mediumStockCount}
+                              hasNibSelector={true}
+                              compact
+                            />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-2 mt-1.5">
@@ -4691,6 +4792,11 @@ export default function App() {
                             <div className="inline-flex items-center gap-1.5">
                               {(['Fine', 'Medium'] as const).map((nib) => {
                                 const selected = activeNib === nib;
+                                const nibStock = getVariantEffectiveStock(
+                                  kakunoMadoromiProduct,
+                                  variant,
+                                  nib
+                                );
                                 return (
                                   <button
                                     key={nib}
@@ -4702,7 +4808,9 @@ export default function App() {
                                         : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
                                     }`}
                                   >
-                                    {nib} ({nib === 'Fine' ? '0.35mm' : '0.50mm'})
+                                    {nib === 'Fine'
+                                      ? `Fine · F (${nibStock})`
+                                      : `Medium · M (${nibStock})`}
                                   </button>
                                 );
                               })}
@@ -5083,7 +5191,13 @@ export default function App() {
                               {variant.nibEngraving}
                             </span>
                             <span aria-hidden="true">·</span>
-                            <VariantStockIndicator stockCount={variant.stockCount} compact />
+                            <VariantStockIndicator
+                              stockCount={variant.stockCount}
+                              fineStockCount={variant.fineStockCount}
+                              mediumStockCount={variant.mediumStockCount}
+                              hasNibSelector={true}
+                              compact
+                            />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-2 mt-1.5">
@@ -5105,6 +5219,11 @@ export default function App() {
                             <div className="inline-flex items-center gap-1.5">
                               {(['Fine', 'Medium'] as const).map((nib) => {
                                 const selected = activeNib === nib;
+                                const nibStock = getVariantEffectiveStock(
+                                  kakunoFamilyProduct,
+                                  variant,
+                                  nib
+                                );
                                 return (
                                   <button
                                     key={nib}
@@ -5116,7 +5235,9 @@ export default function App() {
                                         : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
                                     }`}
                                   >
-                                    {nib} ({nib === 'Fine' ? '0.35mm' : '0.50mm'})
+                                    {nib === 'Fine'
+                                      ? `Fine · F (${nibStock})`
+                                      : `Medium · M (${nibStock})`}
                                   </button>
                                 );
                               })}
@@ -5365,7 +5486,13 @@ export default function App() {
                               CON-40 Included
                             </span>
                             <span aria-hidden="true">·</span>
-                            <VariantStockIndicator stockCount={variant.stockCount} compact />
+                            <VariantStockIndicator
+                              stockCount={variant.stockCount}
+                              fineStockCount={variant.fineStockCount}
+                              mediumStockCount={variant.mediumStockCount}
+                              hasNibSelector={true}
+                              compact
+                            />
                           </div>
 
                           <div className="flex items-baseline justify-between gap-2 mt-1.5">
@@ -5387,6 +5514,11 @@ export default function App() {
                             <div className="inline-flex items-center gap-1.5">
                               {(['Fine', 'Medium'] as const).map((nib) => {
                                 const selected = activeNib === nib;
+                                const nibStock = getVariantEffectiveStock(
+                                  pilotPreraProduct,
+                                  variant,
+                                  nib
+                                );
                                 return (
                                   <button
                                     key={nib}
@@ -5398,7 +5530,9 @@ export default function App() {
                                         : 'border-[#DCD5C7] bg-white text-[#524E48] hover:border-[#171614]'
                                     }`}
                                   >
-                                    {nib} ({nib === 'Fine' ? '0.35mm' : '0.50mm'})
+                                    {nib === 'Fine'
+                                      ? `Fine · F (${nibStock})`
+                                      : `Medium · M (${nibStock})`}
                                   </button>
                                 );
                               })}
@@ -6449,11 +6583,12 @@ export default function App() {
                 <Truck className="w-5 h-5 text-[#94B8D7] shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-sm font-semibold text-white font-sans">
-                    Same-Day Nairobi Dispatch
+                    1-Day Order Processing · Ships Out Next Day
                   </h3>
                   <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
-                    Orders placed before 3:00 PM EAT are delivered the same afternoon across
-                    Nairobi (CBD, Westlands, Kilimani, Lavington, Karen, and Gigiri).
+                    Order processing time is 1 day — orders are hence shipped out the next day.
+                    Within Nairobi, delivery is <strong>FREE on orders over KES 10,000</strong>, or a
+                    flat Nairobi-wide charge of <strong>Shs. 300</strong>.
                   </p>
                 </div>
               </div>
@@ -6462,11 +6597,12 @@ export default function App() {
                 <MapPin className="w-5 h-5 text-[#94B8D7] shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-sm font-semibold text-white font-sans">
-                    Nationwide Kenya Courier
+                    Outside Nairobi Delivery &amp; Advance Payment
                   </h3>
                   <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
-                    Protective foam-lined packaging dispatched overnight to Mombasa, Kisumu,
-                    Nakuru, Eldoret, Nanyuki, and across all 47 counties.
+                    Delivery outside Nairobi is <strong>FREE on orders over KES 10,000</strong>, or a
+                    flat charge of <strong>Shs. 700</strong> for any order outside Nairobi. Payments
+                    for orders outside Nairobi must be made in advance before delivery.
                   </p>
                 </div>
               </div>
@@ -6475,11 +6611,12 @@ export default function App() {
                 <ShieldCheck className="w-5 h-5 text-[#94B8D7] shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-sm font-semibold text-white font-sans">
-                    M-Pesa &amp; Cash on Delivery
+                    5% Writing Set &amp; 10% Triple Ink Combo Discounts
                   </h3>
                   <p className="text-xs text-[#BEB8AE] mt-1 leading-relaxed">
-                    Settle effortlessly via M-Pesa Till/Paybill or opt for Cash on Delivery upon
-                    receiving your package. Free delivery nationwide on orders from KES 6,000.
+                    Enjoy <strong>5% OFF</strong> Complete Writing Set bundles (Pen + Converter + Ink)
+                    and <strong>10% OFF</strong> Triple Ink Combos (3 colors at KES 16,200 +{' '}
+                    <strong>automatic FREE Delivery</strong>).
                   </p>
                 </div>
               </div>
@@ -6554,11 +6691,12 @@ export default function App() {
             {/* Column 3: Kenya Dispatch & Client Care */}
             <div className="md:col-span-3 space-y-2 text-xs text-[#5C5852]">
               <p className="font-semibold uppercase tracking-[0.14em] text-[#0A2246]">
-                Nairobi &amp; Kenya Dispatch
+                1-Day Processing &amp; Kenya Delivery
               </p>
               <p className="leading-relaxed">
-                Same-day courier across Nairobi · Overnight delivery to all 47 counties · M-Pesa
-                Express &amp; Cash on Delivery.
+                1-Day Order Processing (orders ship out next day) · Free delivery over KES 10,000
+                (otherwise Shs. 300 in Nairobi / Shs. 700 outside Nairobi) · Advance payment
+                required before delivery outside Nairobi.
               </p>
             </div>
           </div>
@@ -6566,20 +6704,23 @@ export default function App() {
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#6E6A63]">
             <div className="flex items-center gap-3 flex-wrap">
               <span>© {new Date().getFullYear()} PENS R US Kenya · All Rights Reserved.</span>
-              <span aria-hidden="true">·</span>
-              <button
-                type="button"
-                onClick={() => setIsMerchantAdminOpen(true)}
-                className="font-semibold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 cursor-pointer"
-              >
-                {isAuthorizedAdmin
-                  ? 'Merchant Admin Console (Edit Catalog & KES Prices)'
-                  : 'Staff Portal'}
-              </button>
+              {isAuthorizedAdmin && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsMerchantAdminOpen(true)}
+                    className="font-semibold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 cursor-pointer"
+                  >
+                    Merchant Admin Console (Edit Catalog &amp; KES Prices)
+                  </button>
+                </>
+              )}
             </div>
             <span className="font-mono-tabular">
-              Complimentary Delivery in Nairobi &amp; Nationwide on Orders from{' '}
-              {formatKes(storeSettings.freeDeliveryThresholdKes)}
+              1-Day Processing (Ships Next Day) · Free Delivery Over{' '}
+              {formatKes(storeSettings.freeDeliveryThresholdKes)} (Shs. 300 Nairobi · Shs. 700
+              Outside Nairobi)
             </span>
           </div>
         </div>
@@ -6657,26 +6798,13 @@ export default function App() {
           }
         }}
         firebaseAdminEmail={
-          resolvedFirebaseEmail ||
-          (firebaseUser
-            ? firebaseUser.uid
-            : isPreviewAdminUnlocked
-            ? AUTHORIZED_ADMIN_EMAIL
-            : null)
+          resolvedFirebaseEmail || (firebaseUser ? firebaseUser.uid : null)
         }
         isAuthorizedAdmin={isAuthorizedAdmin}
         isSigningIn={isSigningIn}
         authError={adminAuthError}
-        authorizedAdminHint={AUTHORIZED_ADMIN_EMAIL}
         onGoogleSignIn={handleGoogleSignIn}
-        onUnlockPreviewAdmin={() => {
-          setIsPreviewAdminUnlocked(true);
-          setAdminAuthError(null);
-          setCloudSyncStatus('Merchant Admin & Stock Manager Unlocked');
-          window.setTimeout(() => setCloudSyncStatus(null), 3500);
-        }}
         onSignOut={async () => {
-          setIsPreviewAdminUnlocked(false);
           await handleSignOutAccount();
         }}
         cloudSyncStatus={cloudSyncStatus}
@@ -7387,14 +7515,29 @@ export default function App() {
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleSignOutAccount}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#524E48] hover:text-[#171614] bg-[#F3EFE8] hover:bg-[#E6E1D8] rounded border border-[#DCD5C7] transition-colors cursor-pointer shrink-0"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Sign Out</span>
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isAuthorizedAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCartOpen(false);
+                              setIsMerchantAdminOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-white bg-[#0A2246] hover:bg-[#133468] rounded border border-[#C88A2E]/40 transition-colors cursor-pointer shrink-0"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-[#E5B25D]" />
+                            <span>Admin Console</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSignOutAccount}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#524E48] hover:text-[#171614] bg-[#F3EFE8] hover:bg-[#E6E1D8] rounded border border-[#DCD5C7] transition-colors cursor-pointer shrink-0"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>Sign Out</span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Order Tracking Filter & Quick Waybill Lookup */}

@@ -65,7 +65,7 @@ export function generateOrderInvoicePdf(order: AdminOrderRecord): void {
   doc.setTextColor(220, 226, 236);
   doc.setFontSize(8.5);
   doc.text(
-    'Same-Day Nairobi Courier · Nationwide 47-County Express Dispatch · KES Official Invoice',
+    '1-Day Order Processing · Ships Out Next Day · Free Delivery Over KES 10,000 · Official KES Invoice',
     textStartX,
     29.5
   );

@@ -169,10 +169,8 @@ interface MerchantAdminIslandProps {
   onServiceOrderAndDeductStock: (orderNumber: string) => Promise<void>;
   firebaseAdminEmail: string | null;
   isAuthorizedAdmin: boolean;
-  onUnlockPreviewAdmin?: () => void;
   isSigningIn: boolean;
   authError?: string | null;
-  authorizedAdminHint?: string;
   onGoogleSignIn: () => Promise<void>;
   onSignOut?: () => Promise<void>;
   cloudSyncStatus: string | null;
@@ -235,10 +233,8 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
   onServiceOrderAndDeductStock,
   firebaseAdminEmail,
   isAuthorizedAdmin,
-  onUnlockPreviewAdmin,
   isSigningIn,
   authError,
-  authorizedAdminHint = 'ananyapoudel641@gmail.com',
   onGoogleSignIn,
   onSignOut,
   cloudSyncStatus,
@@ -463,13 +459,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     Administrator Verification Required
                   </span>
                   <p className="text-xs text-[#5C5852] leading-relaxed">
-                    Access to the Merchant Inventory Studio, KES Pricing Controls, Promo Vouchers, and Customer Order Dispatch is strictly restricted to verified PENS R US administrators.
-                  </p>
-                  <p className="text-[11px] text-[#6E6A63] pt-1 border-t border-[#F0ECE3]">
-                    Authorized Google Account:{' '}
-                    <span className="font-mono font-semibold text-[#0A2246]">
-                      {authorizedAdminHint}
-                    </span>
+                    Access to the Merchant Inventory Studio, KES Pricing Controls, Promo Vouchers, and Customer Order Dispatch is strictly restricted to verified PENS R US administrators via Firebase Authentication &amp; Cloud Firestore security rules.
                   </p>
                 </div>
 
@@ -498,16 +488,6 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                       <ArrowUpRight className="w-3.5 h-3.5 text-[#C88A2E]" />
                     </a>
                   )}
-                  {onUnlockPreviewAdmin && (
-                    <button
-                      type="button"
-                      onClick={onUnlockPreviewAdmin}
-                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Boxes className="w-4 h-4 text-emerald-200" />
-                      <span>Continue in Atelier Preview Mode (Manage Stock &amp; Orders)</span>
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={onClose}
@@ -529,8 +509,7 @@ export const MerchantAdminIsland: React.FC<MerchantAdminIslandProps> = ({
                     <span className="font-mono font-semibold">{firebaseAdminEmail}</span>, which does not have Merchant Administrator permissions for PENS R US Kenya.
                   </p>
                   <p className="text-[11px] text-rose-800/90 pt-1 border-t border-rose-200/70">
-                    Please sign in with{' '}
-                    <span className="font-mono font-semibold">{authorizedAdminHint}</span>.
+                    Please switch to your authorized PENS R US administrator Google account.
                   </p>
                 </div>
 
