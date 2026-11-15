@@ -108,6 +108,7 @@ const BRAND_LOGO_SRC =
 const WISHLIST_STORAGE_KEY = 'pens_r_us_wishlist_v1';
 const ORDERS_STORAGE_KEY = 'pens_r_us_orders_v3';
 const MEMBER_SESSION_STORAGE_KEY = 'pens_r_us_member_session_v1';
+const CUSTOMER_ACCOUNTS_STORAGE_KEY = 'pens_r_us_customer_accounts_v1';
 const CATALOG_STORAGE_KEY = 'pens_r_us_catalog_v10';
 const STORE_SETTINGS_STORAGE_KEY = 'pens_r_us_store_settings_v4';
 const PROMO_CODES_STORAGE_KEY = 'pens_r_us_promo_codes_v1';
@@ -288,7 +289,14 @@ interface MemberProfile {
   uid: string;
   name: string;
   emailOrPhone: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  address?: string;
+  preferredNib?: NibOption;
   authMode: 'google' | 'member';
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export type OrderStatus = 'Processing' | 'Out for Courier' | 'Delivered';
@@ -1203,6 +1211,7 @@ export default function App() {
   const [activeCartTab, setActiveCartTab] = useState<'bag' | 'history'>('bag');
   const [checkoutStep, setCheckoutStep] = useState<'bag' | 'checkout' | 'confirmed'>('bag');
   const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [selectedLocationIdx, setSelectedLocationIdx] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -1242,6 +1251,43 @@ export default function App() {
     return Boolean(isBootstrappedOwner || isFirestoreAdminDoc);
   }, [firebaseUser, resolvedFirebaseEmail, isFirestoreAdminDoc]);
 
+  const [customerAccounts, setCustomerAccounts] = useState<MemberProfile[]>(() => {
+    const defaultDemoAccount: MemberProfile = {
+      uid: 'member-demo-wanjiku',
+      name: 'Wanjiku Mwangi',
+      emailOrPhone: 'wanjiku@example.co.ke',
+      email: 'wanjiku@example.co.ke',
+      phone: '+254 712 345 678',
+      city: KENYA_LOCATIONS[0].city,
+      address: 'Delta Corner Tower, Westlands, Nairobi',
+      preferredNib: 'Fine',
+      authMode: 'member',
+      createdAt: Date.now() - 86400000 * 14,
+      updatedAt: Date.now() - 86400000 * 2,
+    };
+    try {
+      const saved = window.localStorage.getItem(CUSTOMER_ACCOUNTS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return [defaultDemoAccount];
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        CUSTOMER_ACCOUNTS_STORAGE_KEY,
+        JSON.stringify(customerAccounts)
+      );
+    } catch {
+      // Ignore storage error
+    }
+  }, [customerAccounts]);
+
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(() => {
     try {
       const saved = window.localStorage.getItem(MEMBER_SESSION_STORAGE_KEY);
@@ -1251,11 +1297,36 @@ export default function App() {
     }
     return null;
   });
+
+  // Account Portal UI State (Create Account vs Sign In + Inline Profile Editor)
+  const [accountAuthMode, setAccountAuthMode] = useState<'register' | 'signin'>('register');
+  const [regNameInput, setRegNameInput] = useState('');
+  const [regEmailInput, setRegEmailInput] = useState('');
+  const [regPhoneInput, setRegPhoneInput] = useState('');
+  const [regLocationIdx, setRegLocationIdx] = useState(0);
+  const [regAddressInput, setRegAddressInput] = useState('');
+  const [regPreferredNib, setRegPreferredNib] = useState<NibOption>('Fine');
+  const [isEditingCustomerProfile, setIsEditingCustomerProfile] = useState(false);
+  const [profileSaveBanner, setProfileSaveBanner] = useState<string | null>(null);
+
   const [loginNameInput, setLoginNameInput] = useState('');
   const [loginContactInput, setLoginContactInput] = useState('');
   const [authStatusMessage, setAuthStatusMessage] = useState<string | null>(null);
   const [adminAuthError, setAdminAuthError] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
+
+  // Sync active memberProfile fields into Checkout inputs and Edit form defaults
+  useEffect(() => {
+    if (!memberProfile) return;
+    if (memberProfile.name) setCustomerName(memberProfile.name);
+    if (memberProfile.email) setCustomerEmail(memberProfile.email);
+    if (memberProfile.phone) setCustomerPhone(memberProfile.phone);
+    if (memberProfile.address) setDeliveryAddress(memberProfile.address);
+    if (memberProfile.city) {
+      const idx = KENYA_LOCATIONS.findIndex((l) => l.city === memberProfile.city);
+      if (idx >= 0) setSelectedLocationIdx(idx);
+    }
+  }, [memberProfile]);
 
   const [orderStatusFilter, setOrderStatusFilter] = useState<'All' | OrderStatus>('All');
   const [orderTrackingSearch, setOrderTrackingSearch] = useState('');
@@ -1428,23 +1499,65 @@ export default function App() {
     }
   }, [memberProfile]);
 
-  // Listen to Firebase Auth state changes
+  // Listen to Firebase Auth state changes & hydrate/sync /customers/{uid} profile
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       if (user) {
-        const profile: MemberProfile = {
-          uid: user.uid,
-          name: user.displayName || user.email?.split('@')[0] || 'Atelier Collector',
-          emailOrPhone: user.email || 'Verified Google Account',
-          authMode: 'google',
-        };
-        setMemberProfile(profile);
-        if (!customerName && profile.name) setCustomerName(profile.name);
+        const userEmail =
+          user.email ||
+          user.providerData?.find((p) => Boolean(p.email))?.email ||
+          '';
+        setMemberProfile((prev) => {
+          const fallbackProfile: MemberProfile = {
+            uid: user.uid,
+            name: prev?.name || user.displayName || userEmail.split('@')[0] || 'Atelier Collector',
+            emailOrPhone: userEmail || prev?.emailOrPhone || 'Verified Google Account',
+            email: userEmail || prev?.email || '',
+            phone: prev?.phone || '',
+            city: prev?.city || KENYA_LOCATIONS[0].city,
+            address: prev?.address || '',
+            preferredNib: prev?.preferredNib || 'Fine',
+            authMode: 'google',
+            createdAt: prev?.createdAt || Date.now(),
+            updatedAt: Date.now(),
+          };
+          return fallbackProfile;
+        });
       }
     });
     return () => unsubscribe();
   }, []);
+
+  // Real-time Firestore listener for /customers/{uid} when signed in with Firebase Auth
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const customerDocRef = doc(db, 'customers', firebaseUser.uid);
+    const unsub = onSnapshot(
+      customerDocRef,
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data() as Partial<MemberProfile>;
+        setMemberProfile((prev) => ({
+          uid: firebaseUser.uid,
+          name: data.name || prev?.name || firebaseUser.displayName || 'Atelier Collector',
+          emailOrPhone: data.email || data.phone || prev?.emailOrPhone || '',
+          email: data.email || prev?.email || firebaseUser.email || '',
+          phone: data.phone || prev?.phone || '',
+          city: data.city || prev?.city || KENYA_LOCATIONS[0].city,
+          address: data.address || prev?.address || '',
+          preferredNib: data.preferredNib || prev?.preferredNib || 'Fine',
+          authMode: data.authMode || 'google',
+          createdAt: data.createdAt || prev?.createdAt || Date.now(),
+          updatedAt: data.updatedAt || Date.now(),
+        }));
+      },
+      () => {
+        // Ignore read error if customer doc not created yet
+      }
+    );
+    return () => unsub();
+  }, [firebaseUser]);
 
   // Verify whether the signed-in Firebase user has a document in /admins/{uid}
   useEffect(() => {
@@ -2224,6 +2337,45 @@ export default function App() {
     });
   };
 
+  const persistCustomerProfileToCloud = async (profile: MemberProfile) => {
+    setMemberProfile(profile);
+    setCustomerAccounts((prev) => {
+      const filtered = prev.filter(
+        (acc) =>
+          acc.uid !== profile.uid &&
+          (!profile.email || acc.email?.toLowerCase() !== profile.email.toLowerCase()) &&
+          (!profile.phone || acc.phone !== profile.phone)
+      );
+      return [profile, ...filtered];
+    });
+
+    if (auth.currentUser) {
+      const docPath = `customers/${auth.currentUser.uid}`;
+      const nowMs = Date.now();
+      const firestoreCustomerPayload: Record<string, unknown> = {
+        uid: auth.currentUser.uid,
+        name: (profile.name || 'Atelier Collector').slice(0, 120),
+        email: (profile.email || auth.currentUser.email || 'collector@pensrus.co.ke').slice(0, 160),
+        phone: (profile.phone || '+254700000000').slice(0, 40),
+        city: (profile.city || KENYA_LOCATIONS[0].city).slice(0, 120),
+        address: (profile.address || 'Nairobi, Kenya').slice(0, 300),
+        preferredNib: profile.preferredNib === 'Medium' ? 'Medium' : 'Fine',
+        authMode: profile.authMode || 'google',
+        createdAt: profile.createdAt || nowMs,
+        updatedAt: nowMs,
+      };
+      try {
+        await setDoc(doc(db, 'customers', auth.currentUser.uid), firestoreCustomerPayload);
+      } catch (error) {
+        try {
+          handleFirestoreError(error, OperationType.WRITE, docPath);
+        } catch {
+          // Structured error logged
+        }
+      }
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
     setAuthStatusMessage(null);
@@ -2234,14 +2386,23 @@ export default function App() {
         user.email ||
         user.providerData?.find((p) => Boolean(p.email))?.email ||
         'Google Account';
+      const existingAcc = customerAccounts.find(
+        (a) => a.uid === user.uid || (userEmail && a.email?.toLowerCase() === userEmail.toLowerCase())
+      );
       const profile: MemberProfile = {
         uid: user.uid,
-        name: user.displayName || userEmail.split('@')[0] || 'Atelier Collector',
+        name: existingAcc?.name || user.displayName || userEmail.split('@')[0] || 'Atelier Collector',
         emailOrPhone: userEmail,
+        email: userEmail,
+        phone: existingAcc?.phone || customerPhone || '',
+        city: existingAcc?.city || KENYA_LOCATIONS[selectedLocationIdx]?.city || KENYA_LOCATIONS[0].city,
+        address: existingAcc?.address || deliveryAddress || '',
+        preferredNib: existingAcc?.preferredNib || 'Fine',
         authMode: 'google',
+        createdAt: existingAcc?.createdAt || Date.now(),
+        updatedAt: Date.now(),
       };
-      setMemberProfile(profile);
-      if (!customerName && profile.name) setCustomerName(profile.name);
+      await persistCustomerProfileToCloud(profile);
     } catch (error) {
       const formatted = formatFirebaseAuthError(error);
       console.error('Google Sign-In Error:', formatted.code, error);
@@ -2252,23 +2413,121 @@ export default function App() {
     }
   };
 
-  const handleMemberFormSignIn = (e: React.FormEvent) => {
+  const handleCreateCustomerAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = regNameInput.trim();
+    const trimmedEmail = regEmailInput.trim();
+    const trimmedPhone = regPhoneInput.trim();
+    const trimmedAddress = regAddressInput.trim();
+    const selectedCity = KENYA_LOCATIONS[regLocationIdx]?.city || KENYA_LOCATIONS[0].city;
+
+    if (!trimmedName || !trimmedEmail || !trimmedPhone || !trimmedAddress) {
+      setAuthStatusMessage(
+        'Please complete your Full Name, Email Address, Kenyan Mobile Number, and Delivery Address to create your account.'
+      );
+      return;
+    }
+
+    const uid =
+      auth.currentUser?.uid ||
+      `cust-${trimmedEmail.toLowerCase().replace(/[^a-z0-9]/g, '')}-${trimmedPhone.replace(/[^0-9]/g, '').slice(-6)}`;
+    const nowMs = Date.now();
+    const newProfile: MemberProfile = {
+      uid,
+      name: trimmedName,
+      emailOrPhone: `${trimmedEmail} · ${trimmedPhone}`,
+      email: trimmedEmail,
+      phone: trimmedPhone,
+      city: selectedCity,
+      address: trimmedAddress,
+      preferredNib: regPreferredNib,
+      authMode: auth.currentUser ? 'google' : 'member',
+      createdAt: nowMs,
+      updatedAt: nowMs,
+    };
+
+    await persistCustomerProfileToCloud(newProfile);
+    setAuthStatusMessage(null);
+    setProfileSaveBanner(
+      'Customer account created! Your delivery details are saved for fast checkout and your Order History is active.'
+    );
+    window.setTimeout(() => setProfileSaveBanner(null), 5000);
+  };
+
+  const handleSaveEditedCustomerProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!memberProfile) return;
+    const trimmedName = regNameInput.trim() || memberProfile.name;
+    const trimmedEmail = regEmailInput.trim() || memberProfile.email || '';
+    const trimmedPhone = regPhoneInput.trim() || memberProfile.phone || '';
+    const trimmedAddress = regAddressInput.trim() || memberProfile.address || '';
+    const selectedCity = KENYA_LOCATIONS[regLocationIdx]?.city || memberProfile.city || KENYA_LOCATIONS[0].city;
+
+    const updatedProfile: MemberProfile = {
+      ...memberProfile,
+      name: trimmedName,
+      emailOrPhone:
+        trimmedEmail && trimmedPhone
+          ? `${trimmedEmail} · ${trimmedPhone}`
+          : trimmedEmail || trimmedPhone || memberProfile.emailOrPhone,
+      email: trimmedEmail,
+      phone: trimmedPhone,
+      city: selectedCity,
+      address: trimmedAddress,
+      preferredNib: regPreferredNib,
+      updatedAt: Date.now(),
+    };
+
+    await persistCustomerProfileToCloud(updatedProfile);
+    setIsEditingCustomerProfile(false);
+    setProfileSaveBanner('Your customer information and default Kenya delivery address have been updated.');
+    window.setTimeout(() => setProfileSaveBanner(null), 4000);
+  };
+
+  const handleMemberFormSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedName = loginNameInput.trim();
     const trimmedContact = loginContactInput.trim();
-    if (!trimmedName || !trimmedContact) {
-      setAuthStatusMessage('Please enter your name and email or Kenyan mobile number.');
+    if (!trimmedContact) {
+      setAuthStatusMessage('Please enter your registered Email Address or Kenyan Mobile Number.');
       return;
     }
-    const profile: MemberProfile = {
-      uid: `member-${trimmedContact.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-      name: trimmedName,
-      emailOrPhone: trimmedContact,
-      authMode: 'member',
-    };
-    setMemberProfile(profile);
-    if (!customerName) setCustomerName(trimmedName);
-    if (!customerPhone && /^\+?\d/.test(trimmedContact)) setCustomerPhone(trimmedContact);
+
+    const contactLower = trimmedContact.toLowerCase();
+    const contactDigits = trimmedContact.replace(/[^0-9]/g, '');
+    const matchedAccount = customerAccounts.find((acc) => {
+      const emailMatch = acc.email && acc.email.toLowerCase() === contactLower;
+      const phoneDigits = (acc.phone || '').replace(/[^0-9]/g, '');
+      const phoneMatch =
+        contactDigits.length >= 6 &&
+        phoneDigits.length >= 6 &&
+        phoneDigits.slice(-8) === contactDigits.slice(-8);
+      const rawMatch = acc.emailOrPhone.toLowerCase().includes(contactLower);
+      return Boolean(emailMatch || phoneMatch || rawMatch);
+    });
+
+    const isEmail = trimmedContact.includes('@');
+    const resolvedProfile: MemberProfile = matchedAccount
+      ? {
+          ...matchedAccount,
+          name: trimmedName || matchedAccount.name,
+          updatedAt: Date.now(),
+        }
+      : {
+          uid: `member-${contactLower.replace(/[^a-z0-9]/g, '')}`,
+          name: trimmedName || (isEmail ? trimmedContact.split('@')[0] : 'Atelier Collector'),
+          emailOrPhone: trimmedContact,
+          email: isEmail ? trimmedContact : '',
+          phone: !isEmail ? trimmedContact : '',
+          city: KENYA_LOCATIONS[selectedLocationIdx]?.city || KENYA_LOCATIONS[0].city,
+          address: deliveryAddress || '',
+          preferredNib: 'Fine',
+          authMode: 'member',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+    await persistCustomerProfileToCloud(resolvedProfile);
     setAuthStatusMessage(null);
   };
 
@@ -2281,6 +2540,7 @@ export default function App() {
       // Ignore signout error
     }
     setMemberProfile(null);
+    setIsEditingCustomerProfile(false);
     setAuthStatusMessage(null);
     setAdminAuthError(null);
   };
@@ -2731,7 +2991,16 @@ export default function App() {
       selectedLocationIdx === 0 ? 'Nairobi Courier' : 'Upcountry Express · Advance Payment'
     })`;
 
+    const resolvedOrderEmail =
+      customerEmail.trim() || memberProfile?.email || auth.currentUser?.email || '';
+    const resolvedOrderUid =
+      auth.currentUser?.uid ||
+      memberProfile?.uid ||
+      `cust-${(resolvedOrderEmail || customerPhone).toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
     const confirmation: OrderConfirmation = {
+      userId: resolvedOrderUid,
+      userEmail: resolvedOrderEmail,
       orderNumber,
       orderStatus: 'Processing',
       stockDeducted: false,
@@ -2763,15 +3032,23 @@ export default function App() {
     // Stock is automatically deducted when the order is serviced (Out for Courier / Delivered) in the Stock Manager!
     setLocalOrders((prev) => [confirmation, ...prev]);
 
-    // Auto-sign in customer to Member Profile if they placed an order while logged out
-    if (!memberProfile) {
-      setMemberProfile({
-        uid: `member-${customerPhone.trim().replace(/[^a-z0-9]/gi, '')}`,
-        name: customerName.trim(),
-        emailOrPhone: customerPhone.trim(),
-        authMode: 'member',
-      });
-    }
+    // Automatically create or update the customer's account profile with their checkout information
+    const updatedCustomerProfile: MemberProfile = {
+      uid: resolvedOrderUid,
+      name: customerName.trim(),
+      emailOrPhone: resolvedOrderEmail
+        ? `${resolvedOrderEmail} · ${customerPhone.trim()}`
+        : customerPhone.trim(),
+      email: resolvedOrderEmail,
+      phone: customerPhone.trim(),
+      city: selectedLocation.city,
+      address: deliveryAddress.trim(),
+      preferredNib: memberProfile?.preferredNib || 'Fine',
+      authMode: auth.currentUser ? 'google' : memberProfile?.authMode || 'member',
+      createdAt: memberProfile?.createdAt || createdAtMs,
+      updatedAt: createdAtMs,
+    };
+    await persistCustomerProfileToCloud(updatedCustomerProfile);
 
     // If authenticated with Firebase Auth, also persist the order to Firestore /orders
     if (auth.currentUser) {
@@ -3672,8 +3949,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Zone 3: Primary Bag Action (+ Private Admin Button only for Authenticated Admin) */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Zone 3: Customer Account & Bag Actions (+ Private Admin Button only for Authenticated Admin) */}
+          <div className="flex items-center gap-2 shrink-0">
             {isAuthorizedAdmin && (
               <button
                 type="button"
@@ -3681,12 +3958,29 @@ export default function App() {
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold tracking-wider uppercase text-[#0A2246] bg-[#FFFDF8] hover:bg-[#F3EFE6] border border-[#C88A2E] rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-[#C88A2E]" />
-                <span>Admin Console</span>
+                <span className="hidden sm:inline">Admin Console</span>
               </button>
             )}
             <button
               type="button"
               onClick={() => {
+                setActiveCartTab('history');
+                setIsCartOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold tracking-wider uppercase text-[#0A2246] bg-white hover:bg-[#F3EFE8] border border-[#DCD5C7] rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              title="Create Customer Account, Manage Delivery Info & View Order History"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-[#C88A2E]" />
+              <span>
+                {memberProfile
+                  ? `${memberProfile.name.split(' ')[0]} · Orders (${userOrderHistory.length})`
+                  : 'Account & Orders'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveCartTab('bag');
                 if (checkoutStep === 'confirmed' && cart.length === 0) {
                   setCheckoutStep('bag');
                 }
@@ -7391,23 +7685,56 @@ export default function App() {
             <div className="flex-1 overflow-y-auto p-6">
               {activeCartTab === 'history' ? (
                 !memberProfile ? (
-                  /* LOGGED-OUT VIEW IN ORDER HISTORY TAB */
-                  <div className="space-y-5">
+                  /* LOGGED-OUT VIEW: CREATE CUSTOMER ACCOUNT OR SIGN IN */
+                  <div className="space-y-4">
                     <div className="p-5 rounded-lg border border-[#DCD5C7] bg-white shadow-2xs">
                       <div className="flex items-center gap-2.5 mb-2">
-                        <History className="w-4 h-4 text-[#C88A2E]" />
+                        <UserCheck className="w-4 h-4 text-[#C88A2E]" />
                         <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#B58435]">
-                          PENS R US Collector Account
+                          PENS R US Customer Account &amp; Order History
                         </span>
                       </div>
                       <h3 className="font-serif-display text-xl font-semibold text-[#0A2246]">
-                        Sign In to View Your Order History
+                        {accountAuthMode === 'register'
+                          ? 'Create Your Customer Account'
+                          : 'Sign In to Your Account'}
                       </h3>
                       <p className="text-xs text-[#5C5852] mt-1 leading-relaxed">
-                        Access your previous fountain pen, nib, and bottled ink purchases, view
-                        itemized KES receipts, and reorder your favourite writing instruments in one
-                        click.
+                        Save your Kenya delivery details for 1-click checkout, access your complete
+                        Order History &amp; PDF receipts, and track next-day courier dispatch.
                       </p>
+
+                      {/* Mode Toggle: Create Account vs Sign In */}
+                      <div className="mt-3.5 grid grid-cols-2 gap-1.5 p-1 bg-[#F3EFE8] rounded border border-[#DCD5C7]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountAuthMode('register');
+                            setAuthStatusMessage(null);
+                          }}
+                          className={`py-1.5 px-2.5 text-xs font-semibold rounded transition-colors cursor-pointer ${
+                            accountAuthMode === 'register'
+                              ? 'bg-[#0A2246] text-white shadow-2xs'
+                              : 'text-[#524E48] hover:text-[#0A2246]'
+                          }`}
+                        >
+                          Create Account
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountAuthMode('signin');
+                            setAuthStatusMessage(null);
+                          }}
+                          className={`py-1.5 px-2.5 text-xs font-semibold rounded transition-colors cursor-pointer ${
+                            accountAuthMode === 'signin'
+                              ? 'bg-[#0A2246] text-white shadow-2xs'
+                              : 'text-[#524E48] hover:text-[#0A2246]'
+                          }`}
+                        >
+                          Sign In
+                        </button>
+                      </div>
 
                       {authStatusMessage && (
                         <div className="mt-3 p-3 rounded bg-[#C88A2E]/12 border border-[#C88A2E]/40 text-xs text-[#0A2246]">
@@ -7415,7 +7742,7 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* Option 1: Google Sign-In via Firebase Auth */}
+                      {/* Option 1: 1-Click Google Sign-In / Sign-Up via Firebase Auth */}
                       <button
                         type="button"
                         disabled={isSigningIn}
@@ -7424,120 +7751,386 @@ export default function App() {
                       >
                         <LogIn className="w-3.5 h-3.5 text-[#E5B25D]" />
                         <span>
-                          {isSigningIn ? 'Signing In...' : 'Sign In with Google'}
+                          {isSigningIn
+                            ? 'Connecting Google Account...'
+                            : accountAuthMode === 'register'
+                            ? 'Continue with Google (1-Click Account)'
+                            : 'Sign In with Google'}
                         </span>
                       </button>
 
                       <div className="my-4 flex items-center gap-3">
                         <div className="h-px flex-1 bg-[#E6E1D8]" />
                         <span className="text-[11px] uppercase tracking-wider text-[#8C857B]">
-                          Or Atelier Member Login
+                          {accountAuthMode === 'register'
+                            ? 'Or Register Customer Details'
+                            : 'Or Sign In with Email / Phone'}
                         </span>
                         <div className="h-px flex-1 bg-[#E6E1D8]" />
                       </div>
 
-                      {/* Option 2: Direct Member Login Form (Works inside any iframe/session) */}
-                      <form onSubmit={handleMemberFormSignIn} className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-[#3F3D39] mb-1">
-                            Your Full Name
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={loginNameInput}
-                            onChange={(e) => setLoginNameInput(e.target.value)}
-                            placeholder="e.g. Wanjiku Mwangi"
-                            className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-[#3F3D39] mb-1">
-                            Email or Kenyan Mobile Number
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={loginContactInput}
-                            onChange={(e) => setLoginContactInput(e.target.value)}
-                            placeholder="e.g. +254 712 345 678 or wanjiku@example.co.ke"
-                            className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          className="w-full py-2.5 px-4 text-xs font-semibold tracking-wider uppercase bg-white hover:bg-[#0A2246] text-[#0A2246] hover:text-white border border-[#0A2246] rounded transition-colors cursor-pointer"
-                        >
-                          Sign In &amp; View Purchases
-                        </button>
-                      </form>
+                      {accountAuthMode === 'register' ? (
+                        /* CREATE CUSTOMER ACCOUNT & COLLECT CUSTOMER INFORMATION FORM */
+                        <form onSubmit={handleCreateCustomerAccount} className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                              Full Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={regNameInput}
+                              onChange={(e) => setRegNameInput(e.target.value)}
+                              placeholder="e.g. Wanjiku Mwangi"
+                              className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div>
+                              <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                                Email Address *
+                              </label>
+                              <input
+                                type="email"
+                                required
+                                value={regEmailInput}
+                                onChange={(e) => setRegEmailInput(e.target.value)}
+                                placeholder="wanjiku@example.co.ke"
+                                className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                                Kenyan Mobile (M-Pesa) *
+                              </label>
+                              <input
+                                type="tel"
+                                required
+                                value={regPhoneInput}
+                                onChange={(e) => setRegPhoneInput(e.target.value)}
+                                placeholder="+254 712 345 678"
+                                className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                              Default County / Delivery Region *
+                            </label>
+                            <select
+                              value={regLocationIdx}
+                              onChange={(e) => setRegLocationIdx(Number(e.target.value))}
+                              className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                            >
+                              {KENYA_LOCATIONS.map((loc, idx) => (
+                                <option key={loc.city} value={idx}>
+                                  {loc.city}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                              Default Delivery Address (Building, Road, Landmark) *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={regAddressInput}
+                              onChange={(e) => setRegAddressInput(e.target.value)}
+                              placeholder="e.g. Delta Corner Tower, Westlands, 4th Floor"
+                              className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                              Preferred Japanese Nib Size
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(['Fine', 'Medium'] as const).map((nib) => (
+                                <button
+                                  key={nib}
+                                  type="button"
+                                  onClick={() => setRegPreferredNib(nib)}
+                                  className={`py-2 px-3 text-xs font-semibold rounded border transition-colors cursor-pointer ${
+                                    regPreferredNib === nib
+                                      ? 'border-[#0A2246] bg-[#0A2246]/8 text-[#0A2246]'
+                                      : 'border-[#DCD5C7] bg-[#FAF8F5] text-[#5C5852]'
+                                  }`}
+                                >
+                                  {nib} · {nib === 'Fine' ? 'F (0.35mm)' : 'M (0.50mm)'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button
+                            type="submit"
+                            className="w-full py-2.5 px-4 text-xs font-semibold tracking-wider uppercase bg-white hover:bg-[#0A2246] text-[#0A2246] hover:text-white border border-[#0A2246] rounded transition-colors cursor-pointer"
+                          >
+                            Create Account &amp; Access Order History
+                          </button>
+                        </form>
+                      ) : (
+                        /* SIGN IN TO EXISTING ACCOUNT FORM */
+                        <form onSubmit={handleMemberFormSignIn} className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                              Registered Email or Kenyan Mobile Number *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={loginContactInput}
+                              onChange={(e) => setLoginContactInput(e.target.value)}
+                              placeholder="e.g. +254 712 345 678 or wanjiku@example.co.ke"
+                              className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                              Your Name (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={loginNameInput}
+                              onChange={(e) => setLoginNameInput(e.target.value)}
+                              placeholder="e.g. Wanjiku Mwangi"
+                              className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded focus:outline-none focus:border-[#0A2246]"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            className="w-full py-2.5 px-4 text-xs font-semibold tracking-wider uppercase bg-white hover:bg-[#0A2246] text-[#0A2246] hover:text-white border border-[#0A2246] rounded transition-colors cursor-pointer"
+                          >
+                            Sign In &amp; View Order History
+                          </button>
+                        </form>
+                      )}
 
                       {/* Instant Demo Collector Profile Button */}
                       <div className="mt-3 pt-3 border-t border-[#ECE8DF] flex items-center justify-between gap-2">
                         <span className="text-[11px] text-[#6E6A63]">
-                          Testing the preview?
+                          Testing customer account?
                         </span>
                         <button
                           type="button"
                           onClick={() => {
-                            setMemberProfile({
+                            const demoAcc = customerAccounts[0] || {
                               uid: 'member-demo-wanjiku',
                               name: 'Wanjiku Mwangi',
-                              emailOrPhone: '+254 712 345 678',
-                              authMode: 'member',
-                            });
-                            setCustomerName('Wanjiku Mwangi');
-                            setCustomerPhone('+254 712 345 678');
+                              emailOrPhone: 'wanjiku@example.co.ke · +254 712 345 678',
+                              email: 'wanjiku@example.co.ke',
+                              phone: '+254 712 345 678',
+                              city: KENYA_LOCATIONS[0].city,
+                              address: 'Delta Corner Tower, Westlands, Nairobi',
+                              preferredNib: 'Fine' as NibOption,
+                              authMode: 'member' as const,
+                            };
+                            setMemberProfile(demoAcc);
                             setAuthStatusMessage(null);
                           }}
                           className="text-xs font-semibold text-[#0A2246] hover:text-[#C88A2E] underline underline-offset-4 cursor-pointer"
                         >
-                          1-Click Demo Collector Login
+                          1-Click Demo Customer Account
                         </button>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  /* LOGGED-IN ORDER HISTORY LIST */
+                  /* LOGGED-IN CUSTOMER ACCOUNT PROFILE & ORDER HISTORY LIST */
                   <div className="space-y-4">
-                    {/* Member Account Status Bar */}
-                    <div className="p-3.5 rounded-lg border border-[#DCD5C7] bg-white flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[#0A2246] text-[#E5B25D] flex items-center justify-center shrink-0">
-                          <UserCheck className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-[#0A2246] truncate">
-                            {memberProfile.name}
-                          </p>
-                          <p className="text-[11px] text-[#6E6A63] truncate">
-                            {memberProfile.emailOrPhone}
-                          </p>
-                        </div>
+                    {profileSaveBanner && (
+                      <div className="p-3 rounded-lg bg-[#1D5B43]/12 border border-[#1D5B43]/30 text-xs text-[#1D5B43] font-medium flex items-center gap-2">
+                        <Check className="w-4 h-4 shrink-0" />
+                        <span>{profileSaveBanner}</span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {isAuthorizedAdmin && (
+                    )}
+
+                    {/* Customer Account Profile Card + Inline Edit Form */}
+                    <div className="p-4 rounded-lg border border-[#DCD5C7] bg-white space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-[#0A2246] text-[#E5B25D] flex items-center justify-center shrink-0">
+                            <UserCheck className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-[#0A2246] truncate">
+                              {memberProfile.name}
+                            </p>
+                            <p className="text-[11px] text-[#6E6A63] truncate">
+                              {memberProfile.email || memberProfile.emailOrPhone}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isAuthorizedAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCartOpen(false);
+                                setIsMerchantAdminOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-white bg-[#0A2246] hover:bg-[#133468] rounded border border-[#C88A2E]/40 transition-colors cursor-pointer shrink-0"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5 text-[#E5B25D]" />
+                              <span>Admin</span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
-                              setIsCartOpen(false);
-                              setIsMerchantAdminOpen(true);
+                              if (!isEditingCustomerProfile) {
+                                setRegNameInput(memberProfile.name || '');
+                                setRegEmailInput(memberProfile.email || '');
+                                setRegPhoneInput(memberProfile.phone || '');
+                                const cIdx = KENYA_LOCATIONS.findIndex(
+                                  (l) => l.city === memberProfile.city
+                                );
+                                setRegLocationIdx(cIdx >= 0 ? cIdx : 0);
+                                setRegAddressInput(memberProfile.address || '');
+                                setRegPreferredNib(memberProfile.preferredNib || 'Fine');
+                              }
+                              setIsEditingCustomerProfile((prev) => !prev);
                             }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-white bg-[#0A2246] hover:bg-[#133468] rounded border border-[#C88A2E]/40 transition-colors cursor-pointer shrink-0"
+                            className="px-2.5 py-1.5 text-xs font-semibold text-[#0A2246] bg-[#FAF8F5] hover:bg-[#EDE8DF] rounded border border-[#DCD5C7] transition-colors cursor-pointer shrink-0"
                           >
-                            <ShieldCheck className="w-3.5 h-3.5 text-[#E5B25D]" />
-                            <span>Admin Console</span>
+                            {isEditingCustomerProfile ? 'Cancel' : 'Edit Info'}
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={handleSignOutAccount}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#524E48] hover:text-[#171614] bg-[#F3EFE8] hover:bg-[#E6E1D8] rounded border border-[#DCD5C7] transition-colors cursor-pointer shrink-0"
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                          <span>Sign Out</span>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={handleSignOutAccount}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-[#524E48] hover:text-[#171614] bg-[#F3EFE8] hover:bg-[#E6E1D8] rounded border border-[#DCD5C7] transition-colors cursor-pointer shrink-0"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                            <span>Sign Out</span>
+                          </button>
+                        </div>
                       </div>
+
+                      {!isEditingCustomerProfile ? (
+                        <div className="pt-2.5 border-t border-[#F0ECE3] grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[#5C5852]">
+                          <div>
+                            <span className="text-[#8C857B] block">Mobile (M-Pesa / Courier)</span>
+                            <span className="font-medium text-[#171614]">
+                              {memberProfile.phone || customerPhone || 'Not set — click Edit Info'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[#8C857B] block">Preferred Nib Size</span>
+                            <span className="font-medium text-[#171614]">
+                              {memberProfile.preferredNib || 'Fine'} Nib
+                            </span>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <span className="text-[#8C857B] block">Saved Kenya Delivery Address</span>
+                            <span className="font-medium text-[#171614]">
+                              {memberProfile.address
+                                ? `${memberProfile.address} · ${memberProfile.city || 'Nairobi'}`
+                                : 'No default address saved yet — click Edit Info'}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <form
+                          onSubmit={handleSaveEditedCustomerProfile}
+                          className="pt-3 border-t border-[#ECE8DF] space-y-2.5"
+                        >
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#B58435]">
+                            Update Saved Customer Information
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                                Full Name
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={regNameInput}
+                                onChange={(e) => setRegNameInput(e.target.value)}
+                                className="w-full px-2.5 py-1.5 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                                Email Address
+                              </label>
+                              <input
+                                type="email"
+                                value={regEmailInput}
+                                onChange={(e) => setRegEmailInput(e.target.value)}
+                                className="w-full px-2.5 py-1.5 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                                Kenyan Mobile Number
+                              </label>
+                              <input
+                                type="tel"
+                                required
+                                value={regPhoneInput}
+                                onChange={(e) => setRegPhoneInput(e.target.value)}
+                                className="w-full px-2.5 py-1.5 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                                Preferred Nib Size
+                              </label>
+                              <select
+                                value={regPreferredNib}
+                                onChange={(e) => setRegPreferredNib(e.target.value as NibOption)}
+                                className="w-full px-2.5 py-1.5 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded"
+                              >
+                                <option value="Fine">Fine · F (0.35mm)</option>
+                                <option value="Medium">Medium · M (0.50mm)</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                              Default County / Region
+                            </label>
+                            <select
+                              value={regLocationIdx}
+                              onChange={(e) => setRegLocationIdx(Number(e.target.value))}
+                              className="w-full px-2.5 py-1.5 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded"
+                            >
+                              {KENYA_LOCATIONS.map((loc, idx) => (
+                                <option key={loc.city} value={idx}>
+                                  {loc.city}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-[#3F3D39] mb-0.5">
+                              Default Building, Road, or Landmark
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={regAddressInput}
+                              onChange={(e) => setRegAddressInput(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs bg-[#FAF8F5] border border-[#DCD5C7] rounded"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            className="w-full py-2 px-3 text-xs font-semibold uppercase tracking-wider bg-[#0A2246] hover:bg-[#133468] text-white rounded cursor-pointer"
+                          >
+                            Save Customer Information
+                          </button>
+                        </form>
+                      )}
                     </div>
 
                     {/* Order Tracking Filter & Quick Waybill Lookup */}
@@ -8209,9 +8802,29 @@ export default function App() {
                     </div>
                   )}
 
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#DCD5C7] flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-[#C88A2E] shrink-0" />
+                      <span className="text-[11px] text-[#3F3D39]">
+                        {memberProfile
+                          ? `Signed in as ${memberProfile.name} — order saves to your Order History`
+                          : 'Your details automatically create your Customer Account & Order History'}
+                      </span>
+                    </div>
+                    {!memberProfile && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveCartTab('history')}
+                        className="text-[11px] font-semibold text-[#0A2246] underline cursor-pointer shrink-0"
+                      >
+                        Sign In
+                      </button>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-xs font-medium text-[#3F3D39] mb-1">
-                      Full Name
+                      Full Name *
                     </label>
                     <input
                       type="text"
@@ -8223,18 +8836,33 @@ export default function App() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-[#3F3D39] mb-1">
-                      Kenyan Mobile Number (For Courier &amp; M-Pesa)
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="e.g. +254 712 345 678"
-                      className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                        Email Address (For Account &amp; Receipt) *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        placeholder="wanjiku@example.co.ke"
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[#3F3D39] mb-1">
+                        Kenyan Mobile (Courier &amp; M-Pesa) *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        placeholder="e.g. +254 712 345 678"
+                        className="w-full px-3 py-2 text-xs bg-white border border-[#DCD5C7] rounded focus:outline-none focus:border-[#163A5F]"
+                      />
+                    </div>
                   </div>
 
                   <div>

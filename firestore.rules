@@ -261,6 +261,50 @@ service cloud.firestore {
         data.createdAt is number && data.createdAt >= 0;
     }
 
+    function isValidCustomerProfile(data) {
+      return hasRequiredFields([
+          'uid',
+          'name',
+          'email',
+          'phone',
+          'city',
+          'address',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        hasOnlyAllowedFields([
+          'uid',
+          'name',
+          'email',
+          'phone',
+          'city',
+          'address',
+          'preferredNib',
+          'authMode',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.uid is string && data.uid.size() >= 2 && data.uid.size() <= 128 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.phone is string && data.phone.size() >= 4 && data.phone.size() <= 40 &&
+        data.city is string && data.city.size() >= 2 && data.city.size() <= 120 &&
+        data.address is string && data.address.size() >= 2 && data.address.size() <= 300 &&
+        (!('preferredNib' in data) || (data.preferredNib in ['Fine', 'Medium'])) &&
+        (!('authMode' in data) || (data.authMode in ['google', 'member'])) &&
+        data.createdAt is number && data.createdAt >= 0 &&
+        data.updatedAt is number && data.updatedAt >= 0;
+    }
+
+    match /customers/{customerId} {
+      allow read: if (isAuthenticated() && request.auth.uid == customerId) || isAdmin();
+      allow create: if isAuthenticated() && request.auth.uid == customerId && request.resource.data.uid == request.auth.uid && isValidCustomerProfile(request.resource.data);
+      allow update: if ((isAuthenticated() && request.auth.uid == customerId && request.resource.data.uid == request.auth.uid) || isAdmin()) &&
+        isValidCustomerProfile(request.resource.data) &&
+        areImmutableFieldsUnchanged(['uid', 'createdAt']);
+      allow delete: if (isAuthenticated() && request.auth.uid == customerId) || isAdmin();
+    }
+
     match /orders/{orderId} {
       allow read: if isDocOwner() || isAdmin();
       allow create: if isAuthenticated() && uidUnchanged() && request.resource.data.userId == request.auth.uid && isValidOrder(request.resource.data);

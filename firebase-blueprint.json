@@ -441,6 +441,56 @@
         "timestamp",
         "createdAt"
       ]
+    },
+    "CustomerProfile": {
+      "title": "CustomerProfile",
+      "description": "A registered PENS R US customer account storing contact details, default Kenya delivery address, preferred nib size, and order history linkage.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique customer account identifier or Firebase Auth UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Customer full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "Customer email address for order receipts and account login."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Kenyan mobile number for courier delivery and M-Pesa."
+        },
+        "city": {
+          "type": "string",
+          "description": "Default Kenyan county or delivery region."
+        },
+        "address": {
+          "type": "string",
+          "description": "Default building, road, or landmark delivery address."
+        },
+        "preferredNib": {
+          "type": "string",
+          "enum": ["Fine", "Medium"],
+          "description": "Optional preferred Japanese nib size (Fine 0.35mm or Medium 0.50mm)."
+        },
+        "authMode": {
+          "type": "string",
+          "enum": ["google", "member"],
+          "description": "How the account was created/authenticated."
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Account registration timestamp in milliseconds."
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Last profile update timestamp in milliseconds."
+        }
+      },
+      "required": ["uid", "name", "email", "phone", "city", "address", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -449,6 +499,12 @@
         "$ref": "#/entities/OrderRecord"
       },
       "description": "Customer order history and live courier tracking records scoped to the authenticated owner or store admin."
+    },
+    "/customers/{customerId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerProfile"
+      },
+      "description": "Registered customer account profiles scoped strictly to the account owner or store admin."
     },
     "/products/{productId}": {
       "schema": {
